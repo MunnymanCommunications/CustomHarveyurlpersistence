@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 import type { Assistant } from '../types';
 import { Icon } from '../components/Icon';
 
@@ -8,6 +8,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const supabase = getSupabase();
     const fetchAssistants = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -30,6 +31,7 @@ export default function DashboardPage() {
   }, []);
 
   const handleLogout = async () => {
+    const supabase = getSupabase();
     await supabase.auth.signOut();
   };
 

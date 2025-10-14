@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
 import SettingsDashboardPage from '../pages/SettingsDashboardPage';
@@ -28,6 +28,7 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
     const [isNavCollapsed, setIsNavCollapsed] = useState(false);
 
     const fetchAssistantData = useCallback(async () => {
+        const supabase = getSupabase();
         setLoading(true);
         setError(null);
 
@@ -72,6 +73,7 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
 
         // Debounce or save on blur in a real app, but for now we save immediately
         const save = async () => {
+            const supabase = getSupabase();
             const { error } = await supabase
                 .from('assistants')
                 .update({ 
@@ -94,6 +96,7 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
     }, [assistant, assistantId]);
     
     const handleSetMemory = async (newMemory: string[]) => {
+        const supabase = getSupabase();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 

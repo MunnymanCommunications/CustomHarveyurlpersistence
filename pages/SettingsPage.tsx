@@ -4,7 +4,7 @@ import type { Assistant, Personality, Attitude, VoiceOption } from '../types';
 import { ATTITUDE_OPTIONS, PERSONALITY_TRAITS, VOICE_SETTINGS, DEFAULT_ASSISTANT_DATA } from '../constants';
 import { Icon } from '../components/Icon';
 import { SelectionButton } from '../components/SelectionButton';
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 
 
 interface SettingsPageProps {
@@ -87,6 +87,7 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
     };
 
     const handleCreateAssistant = async () => {
+        const supabase = getSupabase();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
             alert("You must be logged in to create an assistant.");

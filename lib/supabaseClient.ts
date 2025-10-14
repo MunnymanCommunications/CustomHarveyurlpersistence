@@ -1,11 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// FIX: Cast window to `any` to access non-standard `process.env` properties injected at build time.
-const supabaseUrl = (window as any).process.env.SUPABASE_URL!;
-const supabaseAnonKey = (window as any).process.env.SUPABASE_ANON_KEY!;
+// Singleton instance, initialized to null.
+let supabaseInstance: SupabaseClient | null = null;
 
-// More robust check to help debug deployment issues.
-if (!supabaseUrl || supabaseUrl.startsWith('%%') || !supabaseAnonKey || supabaseAnonKey.startsWith('%%')) {
+function handleError() {
     const errorContainer = document.getElementById('root');
     if (errorContainer) {
         errorContainer.innerHTML = `
@@ -25,4 +23,24 @@ if (!supabaseUrl || supabaseUrl.startsWith('%%') || !supabaseAnonKey || supabase
     throw new Error("Supabase credentials were not properly injected during the build process. Check your deployment environment variables and build command.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+/**
+ * Lazily initializes and returns the Supabase client instance.
+ * This ensures that the client is only created after the app has mounted
+ * and window.__APP_CONFIG__ is available, preventing race conditions.
+ */
+export const getSupabase = (): SupabaseClient => {
+    if (supabaseInstance) {
+        return supabaseInstance;
+    }
+
+    const APP_CONFIG = (window as any).__APP_CONFIG__ || {};
+    const supabaseUrl = APP_CONFIG.SUPABASE_URL;
+    const supabaseAnonKey = APP_CONFIG.SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || supabaseUrl.startsWith('%%') || !supabaseAnonKey || supabaseAnonKey.startsWith('%%')) {
+        handleError();
+    }
+    
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+    return supabaseInstance;
+};

@@ -22,17 +22,18 @@
 <body>
   <div id="root"></div>
   <script>
-    // Injects Supabase and Gemini credentials into the environment for client-side access.
-    // These placeholder values (e.g., %%SUPABASE_URL%%) are replaced by the deployment
-    // platform's build command using environment variables.
-    window.process = {
-      env: {
-        SUPABASE_URL: '%%SUPABASE_URL%%',
-        SUPABASE_ANON_KEY: '%%SUPABASE_ANON_KEY%%',
-        API_KEY: '%%API_KEY%%'
-      }
+    // Injects Supabase and Gemini credentials into a dedicated global config object.
+    // This is a more robust method than mocking `process.env`. The placeholders
+    // (e.g., %%SUPABASE_URL%%) are replaced by the deployment platform's build command.
+    window.__APP_CONFIG__ = {
+      SUPABASE_URL: '%%SUPABASE_URL%%',
+      SUPABASE_ANON_KEY: '%%SUPABASE_ANON_KEY%%',
+      API_KEY: '%%API_KEY%%'
     };
   </script>
-  <script type="module" src="/index.tsx"></script>
+  <script type="module">
+    import { initializeApp } from '/index.tsx';
+    initializeApp();
+  </script>
 </body>
 </html>

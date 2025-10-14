@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 
 export default function AuthPage() {
   const [loading, setLoading] = useState(false);
@@ -12,6 +12,7 @@ export default function AuthPage() {
     e.preventDefault();
     setLoading(true);
     setMessage('');
+    const supabase = getSupabase();
     const { error } = isSignUp
       ? await supabase.auth.signUp({ email, password })
       : await supabase.auth.signInWithPassword({ email, password });

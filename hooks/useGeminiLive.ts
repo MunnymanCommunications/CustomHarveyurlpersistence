@@ -85,8 +85,9 @@ export const useGeminiLive = ({ voice, systemInstruction, onSaveToMemory, onTurn
         setError(null);
         
         try {
-            // FIX: Cast window to `any` to access the non-standard `process.env` property injected at build time.
-            const apiKey = (window as any).process.env.API_KEY;
+            // Access the config object injected by index.html
+            const APP_CONFIG = (window as any).__APP_CONFIG__ || {};
+            const apiKey = APP_CONFIG.API_KEY;
             if (!apiKey || apiKey.startsWith('%%')) {
                 throw new Error("Gemini API_KEY was not provided or not replaced during the build process. Please check your deployment environment variables.");
             }

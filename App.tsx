@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from './lib/supabaseClient';
+import { getSupabase } from './lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 
 import AuthPage from './pages/AuthPage';
@@ -32,6 +32,7 @@ export default function App() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        const supabase = getSupabase();
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             setLoading(false);
