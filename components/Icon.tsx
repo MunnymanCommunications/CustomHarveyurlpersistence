@@ -1,6 +1,6 @@
 import React from 'react';
 
-type IconName = 'settings' | 'micOff' | 'connection' | 'micOn' | 'error' | 'brain' | 'trash' | 'plus' | 'close' | 'loader' | 'pause' | 'play' | 'chat' | 'history' | 'chevronLeft' | 'chevronRight';
+type IconName = 'settings' | 'micOff' | 'connection' | 'micOn' | 'error' | 'brain' | 'trash' | 'plus' | 'close' | 'loader' | 'pause' | 'play' | 'chat' | 'history' | 'chevronLeft' | 'chevronRight' | 'dashboard';
 
 interface IconProps {
   name: IconName;
@@ -24,6 +24,7 @@ const ICONS: Record<IconName, React.ReactNode> = {
   history: <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />,
   chevronLeft: <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />,
   chevronRight: <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />,
+  dashboard: <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 8.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6A2.25 2.25 0 0115.75 3.75h2.25A2.25 2.25 0 0120.25 6v2.25a2.25 2.25 0 01-2.25 2.25h-2.25A2.25 2.25 0 0113.5 8.25V6zM13.5 15.75A2.25 2.25 0 0115.75 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25h-2.25a2.25 2.25 0 01-2.25-2.25v-2.25z" />,
 };
 
 export const Icon: React.FC<IconProps> = ({ name, className }) => (

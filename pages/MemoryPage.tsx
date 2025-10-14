@@ -3,11 +3,12 @@ import { Icon } from '../components/Icon';
 
 interface MemoryPageProps {
   memory: string[];
-  setMemory: React.Dispatch<React.SetStateAction<string[]>>;
+  setMemory: (newMemory: string[]) => Promise<void>;
 }
 
 export default function MemoryPage({ memory, setMemory }: MemoryPageProps) {
   const [localMemory, setLocalMemory] = useState<string[]>(memory);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleMemoryChange = (index: number, value: string) => {
     const newMemory = [...localMemory];
@@ -24,8 +25,10 @@ export default function MemoryPage({ memory, setMemory }: MemoryPageProps) {
     setLocalMemory(prev => [...prev, '']);
   }
 
-  const handleSaveChanges = () => {
-    setMemory(localMemory.filter(item => item.trim() !== '')); // Remove empty memories on save
+  const handleSaveChanges = async () => {
+    setIsSaving(true);
+    await setMemory(localMemory.filter(item => item.trim() !== '')); // Remove empty memories on save
+    setIsSaving(false);
   };
 
   return (
@@ -65,9 +68,10 @@ export default function MemoryPage({ memory, setMemory }: MemoryPageProps) {
       <footer className="flex-shrink-0 flex justify-end">
         <button
           onClick={handleSaveChanges}
-          className="bg-gradient-to-r from-brand-secondary-glow to-brand-tertiary-glow text-on-brand font-bold py-2 px-6 rounded-full flex items-center transition-all duration-300 shadow-lg transform hover:scale-105"
+          disabled={isSaving}
+          className="bg-gradient-to-r from-brand-secondary-glow to-brand-tertiary-glow text-on-brand font-bold py-2 px-6 rounded-full flex items-center transition-all duration-300 shadow-lg transform hover:scale-105 disabled:opacity-50"
         >
-          Save Changes
+          {isSaving ? 'Saving...' : 'Save Changes'}
         </button>
       </footer>
     </div>

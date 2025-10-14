@@ -1,15 +1,15 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { useGeminiLive } from '../hooks/useGeminiLive';
-import type { Settings, HistoryEntry } from '../types';
+import type { Assistant, HistoryEntry } from '../types';
 
 import { AssistantAvatar } from '../components/AssistantAvatar';
 import { ConversationControls } from '../components/ConversationControls';
 import { TranscriptionDisplay } from '../components/TranscriptionDisplay';
 
 interface ConversationPageProps {
-  settings: Settings;
+  settings: Assistant;
   memory: string[];
-  setMemory: React.Dispatch<React.SetStateAction<string[]>>;
+  setMemory: (newMemory: string[]) => Promise<void>;
   addHistoryEntry: (entry: HistoryEntry) => void;
 }
 
@@ -30,9 +30,13 @@ export default function ConversationPage({
       ${settings.prompt}
     `.trim().replace(/\s+/g, ' ');
 
-  const handleSaveToMemory = useCallback((info: string) => {
-    setMemory(prev => [...prev, info]);
-  }, [setMemory]);
+  const handleSaveToMemory = useCallback(async (info: string) => {
+    // Note: This adds to the existing memory array and saves the whole new array.
+    if (!memory.includes(info)) {
+      const newMemory = [...memory, info];
+      await setMemory(newMemory);
+    }
+  }, [memory, setMemory]);
 
   const handleTurnComplete = useCallback((userTranscript: string, assistantTranscript: string) => {
       if (userTranscript.trim() || assistantTranscript.trim()) {

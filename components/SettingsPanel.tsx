@@ -1,11 +1,11 @@
 import React, { useCallback } from 'react';
-import type { Settings, Personality } from '../types';
+import type { Assistant, Personality } from '../types';
 import { VOICE_OPTIONS, PERSONALITY_TRAITS, ATTITUDE_OPTIONS } from '../constants';
 import { SelectionButton } from './SelectionButton';
 
 interface SettingsPanelProps {
-  settings: Settings;
-  onSettingsChange: React.Dispatch<React.SetStateAction<Settings>>;
+  settings: Omit<Assistant, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Assistant;
+  onSettingsChange: React.Dispatch<React.SetStateAction<any>>;
   disabled: boolean;
 }
 
@@ -48,7 +48,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onSettin
         }
     }, [onSettingsChange]);
 
-    const handleChange = <T extends HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,>(field: keyof Settings) => 
+    const handleChange = <T extends HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,>(field: keyof Assistant) => 
         (e: React.ChangeEvent<T>) => {
         onSettingsChange(prev => ({ ...prev, [field]: e.target.value }));
     };

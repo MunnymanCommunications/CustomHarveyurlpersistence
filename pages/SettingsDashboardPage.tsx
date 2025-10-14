@@ -1,11 +1,11 @@
 import React from 'react';
 import { SettingsPanel } from '../components/SettingsPanel';
-import type { Settings } from '../types';
+import type { Assistant } from '../types';
 import { Icon } from '../components/Icon';
 
 interface SettingsDashboardPageProps {
-  settings: Settings;
-  onSettingsChange: React.Dispatch<React.SetStateAction<Settings>>;
+  settings: Assistant;
+  onSettingsChange: React.Dispatch<React.SetStateAction<Assistant>>;
 }
 
 export default function SettingsDashboardPage({ settings, onSettingsChange }: SettingsDashboardPageProps) {

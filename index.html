@@ -13,13 +13,26 @@
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.24.0",
-    "ogl": "https://aistudiocdn.com/ogl@^1.0.11"
+    "ogl": "https://aistudiocdn.com/ogl@^1.0.11",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
   }
 }
 </script>
 </head>
 <body>
   <div id="root"></div>
+  <script>
+    // Injects Supabase and Gemini credentials into the environment for client-side access.
+    // These placeholder values (e.g., %%SUPABASE_URL%%) are replaced by the deployment
+    // platform's build command using environment variables.
+    window.process = {
+      env: {
+        SUPABASE_URL: '%%SUPABASE_URL%%',
+        SUPABASE_ANON_KEY: '%%SUPABASE_ANON_KEY%%',
+        API_KEY: '%%API_KEY%%'
+      }
+    };
+  </script>
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>

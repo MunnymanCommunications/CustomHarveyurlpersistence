@@ -1,14 +1,14 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import Stepper, { Step } from '../components/stepper/Stepper';
-import type { Settings, Personality, Attitude, VoiceOption } from '../types';
-import { ATTITUDE_OPTIONS, PERSONALITY_TRAITS, VOICE_SETTINGS } from '../constants';
+import type { Assistant, Personality, Attitude, VoiceOption } from '../types';
+import { ATTITUDE_OPTIONS, PERSONALITY_TRAITS, VOICE_SETTINGS, DEFAULT_ASSISTANT_DATA } from '../constants';
 import { Icon } from '../components/Icon';
 import { SelectionButton } from '../components/SelectionButton';
+import { supabase } from '../lib/supabaseClient';
+
 
 interface SettingsPageProps {
-  settings: Settings;
-  onSettingsChange: React.Dispatch<React.SetStateAction<Settings>>;
-  onComplete: () => void;
+  onComplete: (newAssistantId: string) => void;
 }
 
 const StepHeader: React.FC<{ title: string, description: string }> = ({ title, description }) => (
@@ -39,7 +39,8 @@ const VoiceSelectionCard: React.FC<{
 );
 
 
-export default function SettingsPage({ settings, onSettingsChange, onComplete }: SettingsPageProps) {
+export default function SettingsPage({ onComplete }: SettingsPageProps) {
+    const [settings, setSettings] = useState(DEFAULT_ASSISTANT_DATA);
     const [playingVoice, setPlayingVoice] = useState<string | null>(null);
 
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,19 +49,19 @@ export default function SettingsPage({ settings, onSettingsChange, onComplete }:
             const reader = new FileReader();
             reader.onload = (event) => {
                 if (event.target && typeof event.target.result === 'string') {
-                    onSettingsChange(prev => ({ ...prev, avatar: event.target.result as string }));
+                    setSettings(prev => ({ ...prev, avatar: event.target.result as string }));
                 }
             };
             reader.readAsDataURL(file);
         }
-    }, [onSettingsChange]);
+    }, []);
 
-    const handleChange = <K extends keyof Settings>(field: K, value: Settings[K]) => {
-        onSettingsChange(prev => ({ ...prev, [field]: value }));
+    const handleChange = <K extends keyof typeof DEFAULT_ASSISTANT_DATA>(field: K, value: (typeof DEFAULT_ASSISTANT_DATA)[K]) => {
+        setSettings(prev => ({ ...prev, [field]: value }));
     };
 
     const togglePersonality = (trait: Personality) => {
-        onSettingsChange(prev => {
+        setSettings(prev => {
             const newPersonalities = prev.personality.includes(trait)
                 ? prev.personality.filter(p => p !== trait)
                 : [...prev.personality, trait];
@@ -85,6 +86,28 @@ export default function SettingsPage({ settings, onSettingsChange, onComplete }:
         }
     };
 
+    const handleCreateAssistant = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            alert("You must be logged in to create an assistant.");
+            return;
+        }
+
+        const assistantToInsert = { ...settings, user_id: user.id };
+        const { data, error } = await supabase
+            .from('assistants')
+            .insert(assistantToInsert)
+            .select('id')
+            .single();
+
+        if (error || !data) {
+            console.error("Error creating assistant:", error);
+            alert("Could not create assistant. Please try again.");
+        } else {
+            onComplete(data.id);
+        }
+    };
+
     useEffect(() => {
         // Pre-load voices for speech synthesis
         window.speechSynthesis.getVoices();
@@ -94,7 +117,7 @@ export default function SettingsPage({ settings, onSettingsChange, onComplete }:
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <Stepper onFinalStepCompleted={onComplete} backButtonText="Previous" nextButtonText="Next">
+      <Stepper onFinalStepCompleted={handleCreateAssistant} backButtonText="Previous" nextButtonText="Next">
         <Step>
             <StepHeader title="Welcome! Let's build your AI." description="First, let's give your assistant a name and an avatar." />
             <div className="flex flex-col sm:flex-row items-center gap-8">

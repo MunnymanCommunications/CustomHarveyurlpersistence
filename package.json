@@ -1,5 +1,5 @@
 {
-  "name": "customizable-ai-voice-assistant",
+  "name": "fire-base-customizable-ai-voice-assistant",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,7 +12,8 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "@google/genai": "^1.24.0",
-    "ogl": "^1.0.11"
+    "ogl": "^1.0.11",
+    "@supabase/supabase-js": "2"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
