@@ -85,10 +85,12 @@ export const useGeminiLive = ({ voice, systemInstruction, onSaveToMemory, onTurn
         setError(null);
         
         try {
-            if (!process.env.API_KEY) {
-                throw new Error("API_KEY environment variable not set.");
+            // FIX: Cast window to `any` to access the non-standard `process.env` property injected at build time.
+            const apiKey = (window as any).process.env.API_KEY;
+            if (!apiKey || apiKey.startsWith('%%')) {
+                throw new Error("Gemini API_KEY was not provided or not replaced during the build process. Please check your deployment environment variables.");
             }
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: apiKey });
 
             let nextStartTime = 0;
             const sources = new Set<AudioBufferSourceNode>();
