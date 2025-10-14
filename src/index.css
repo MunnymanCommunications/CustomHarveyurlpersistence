@@ -1,1 +1,52 @@
-full contents of src/index.css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-base-light text-text-primary font-sans;
+    background-image: radial-gradient(circle at top left, theme('colors.brand-light / 10%'), transparent 40%),
+                      radial-gradient(circle at bottom right, theme('colors.brand-secondary-glow / 10%'), transparent 50%);
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .glassmorphic {
+    @apply bg-white/50 backdrop-blur-xl border border-white/30 shadow-lg;
+  }
+  .settings-input {
+    @apply w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent text-text-primary;
+  }
+}
+
+@layer utilities {
+  .animate-breathing {
+    animation: breathing 4s ease-in-out infinite;
+  }
+  .animate-pulse-strong {
+    animation: pulse-strong 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+   .animate-pulse-slow {
+    animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@keyframes breathing {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+@keyframes pulse-strong {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes pulse-slow {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
