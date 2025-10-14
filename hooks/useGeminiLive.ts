@@ -1,6 +1,11 @@
+// FIX: Add Vite client types to handle import.meta.env
+/// <reference types="vite/client" />
+
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration } from '@google/genai';
+// FIX: Removed .ts extension for proper module resolution.
 import { createBlob, decode, decodeAudioData } from '../utils/audio';
+// FIX: Removed .ts extension for proper module resolution.
 import type { VoiceOption, ConversationStatus } from '../types';
 
 const SAVE_MEMORY_FUNCTION: FunctionDeclaration = {
@@ -24,6 +29,8 @@ interface UseGeminiLiveProps {
     onSaveToMemory: (info: string) => void;
     onTurnComplete: (userTranscript: string, assistantTranscript: string) => void;
 }
+
+const apiKey = import.meta.env.VITE_API_KEY;
 
 export const useGeminiLive = ({ voice, systemInstruction, onSaveToMemory, onTurnComplete }: UseGeminiLiveProps) => {
     const [sessionStatus, setSessionStatus] = useState<ConversationStatus>('IDLE');
@@ -52,7 +59,6 @@ export const useGeminiLive = ({ voice, systemInstruction, onSaveToMemory, onTurn
             sessionRef.current.close();
             sessionRef.current = null;
         }
-        // FIX: Ensure all audio nodes are disconnected to prevent resource leaks.
         if (scriptProcessorRef.current) {
             scriptProcessorRef.current.disconnect();
             scriptProcessorRef.current.onaudioprocess = null;
@@ -85,11 +91,8 @@ export const useGeminiLive = ({ voice, systemInstruction, onSaveToMemory, onTurn
         setError(null);
         
         try {
-            // Access the config object injected by index.html
-            const APP_CONFIG = (window as any).__APP_CONFIG__ || {};
-            const apiKey = APP_CONFIG.API_KEY;
-            if (!apiKey || apiKey.startsWith('%%')) {
-                throw new Error("Gemini API_KEY was not provided or not replaced during the build process. Please check your deployment environment variables.");
+            if (!apiKey) {
+                throw new Error("Gemini API key (VITE_API_KEY) is missing. Please check your environment variables.");
             }
             const ai = new GoogleGenAI({ apiKey: apiKey });
 

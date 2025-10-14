@@ -1,40 +1,28 @@
-<!-- Deployment version: 1.1 -->
+
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Customizable AI Voice Assistant</title>
-  <link rel="stylesheet" href="/index.css">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Customizable AI Voice Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
   <script type="importmap">
 {
   "imports": {
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.4",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.24.0",
-    "ogl": "https://aistudiocdn.com/ogl@^1.0.11",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "vite": "https://aistudiocdn.com/vite@^7.1.10",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.75.0",
+    "ogl": "https://aistudiocdn.com/ogl@^1.0.11"
   }
 }
 </script>
 </head>
-<body>
-  <div id="root"></div>
-  <script>
-    // Injects Supabase and Gemini credentials into a dedicated global config object.
-    // This is a more robust method than mocking `process.env`. The placeholders
-    // (e.g., %%SUPABASE_URL%%) are replaced by the deployment platform's build command.
-    window.__APP_CONFIG__ = {
-      SUPABASE_URL: '%%SUPABASE_URL%%',
-      SUPABASE_ANON_KEY: '%%SUPABASE_ANON_KEY%%',
-      API_KEY: '%%API_KEY%%'
-    };
-  </script>
-  <script type="module">
-    import { initializeApp } from '/index.tsx';
-    initializeApp();
-  </script>
-</body>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
