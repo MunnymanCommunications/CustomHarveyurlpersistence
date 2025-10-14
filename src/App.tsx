@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { getSupabase } from './lib/supabaseClient.ts';
 import type { Session } from '@supabase/supabase-js';

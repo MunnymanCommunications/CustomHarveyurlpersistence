@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import Stepper, { Step } from '../components/stepper/Stepper.tsx';
 import type { Personality, VoiceOption } from '../types.ts';
