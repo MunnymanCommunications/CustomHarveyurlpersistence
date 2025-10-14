@@ -1,12 +1,9 @@
-// FIX: Add Vite client types to handle import.meta.env
-/// <reference types="vite/client" />
-
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration } from '@google/genai';
-// FIX: Removed .ts extension for proper module resolution.
-import { createBlob, decode, decodeAudioData } from '../utils/audio';
-// FIX: Removed .ts extension for proper module resolution.
-import type { VoiceOption, ConversationStatus } from '../types';
+// FIX: Added .ts extension for proper module resolution.
+import { createBlob, decode, decodeAudioData } from '../utils/audio.ts';
+// FIX: Added .ts extension for proper module resolution.
+import type { VoiceOption, ConversationStatus } from '../types.ts';
 
 const SAVE_MEMORY_FUNCTION: FunctionDeclaration = {
     name: 'saveToMemory',
@@ -30,7 +27,8 @@ interface UseGeminiLiveProps {
     onTurnComplete: (userTranscript: string, assistantTranscript: string) => void;
 }
 
-const apiKey = import.meta.env.VITE_API_KEY;
+// FIX: Cast import.meta to any to bypass TypeScript environment type errors.
+const apiKey = (import.meta as any).env.VITE_API_KEY;
 
 export const useGeminiLive = ({ voice, systemInstruction, onSaveToMemory, onTurnComplete }: UseGeminiLiveProps) => {
     const [sessionStatus, setSessionStatus] = useState<ConversationStatus>('IDLE');

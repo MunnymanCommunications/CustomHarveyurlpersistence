@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import { useLocalStorage } from '../hooks/useLocalStorage.ts';
@@ -171,6 +170,7 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
                 memory={memory}
                 setMemory={handleSetMemory}
                 addHistoryEntry={addHistoryEntry}
+                onNavigateToMemory={() => handleNavigate('memory')}
             />
             );
         }

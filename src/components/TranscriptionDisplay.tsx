@@ -1,20 +1,18 @@
-
 import React from 'react';
 
 interface TranscriptionDisplayProps {
   userTranscript: string;
   assistantTranscript: string;
-  isSpeaking: boolean;
 }
 
-export const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({ userTranscript, assistantTranscript, isSpeaking }) => {
+export const TranscriptionDisplay: React.FC<TranscriptionDisplayProps> = ({ userTranscript, assistantTranscript }) => {
   return (
-    <div className="w-full max-w-2xl text-center min-h-[6rem] p-4">
-      <p className="text-xl text-text-secondary transition-opacity duration-300" style={{ opacity: userTranscript ? 1 : 0 }}>
-        {userTranscript || '...'}
+    <div className="text-center min-h-[6rem] flex flex-col justify-center items-center p-4">
+      <p className="text-2xl md:text-3xl text-text-primary transition-opacity duration-300 opacity-90 min-h-[2.5rem]">
+        <span className="text-brand-tertiary-glow">{assistantTranscript}</span>
       </p>
-      <p className="text-2xl font-semibold text-text-primary mt-2 transition-opacity duration-300" style={{ opacity: assistantTranscript || isSpeaking ? 1 : 0 }}>
-        {assistantTranscript || (isSpeaking ? '...' : '')}
+      <p className="text-lg md:text-xl text-text-secondary transition-opacity duration-300 h-8 mt-2">
+        {userTranscript}
       </p>
     </div>
   );

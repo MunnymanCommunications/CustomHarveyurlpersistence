@@ -1,44 +1,29 @@
-
 import React from 'react';
+import Orb from './orb/Orb.tsx';
 import type { ConversationStatus } from '../types.ts';
-import { Icon } from './Icon.tsx';
 
 interface AssistantAvatarProps {
   avatarUrl: string;
   isSpeaking: boolean;
-  sessionStatus: ConversationStatus;
+  status: ConversationStatus;
 }
 
-export const AssistantAvatar: React.FC<AssistantAvatarProps> = ({ avatarUrl, isSpeaking, sessionStatus }) => {
-    const getStatusIndicator = () => {
-        switch(sessionStatus) {
-            case 'IDLE':
-                return <div className="absolute -bottom-2 -right-2 bg-gray-400 rounded-full p-2 border-4 border-base-lighter z-20"><Icon name="micOff" className="w-6 h-6 text-on-brand"/></div>;
-            case 'CONNECTING':
-                return <div className="absolute -bottom-2 -right-2 bg-yellow-400 rounded-full p-2 border-4 border-base-lighter animate-pulse z-20"><Icon name="connection" className="w-6 h-6 text-on-brand"/></div>;
-            case 'ACTIVE':
-                return <div className="absolute -bottom-2 -right-2 bg-green-400 rounded-full p-2 border-4 border-base-lighter z-20"><Icon name="micOn" className="w-6 h-6 text-on-brand"/></div>;
-            case 'ERROR':
-                return <div className="absolute -bottom-2 -right-2 bg-red-400 rounded-full p-2 border-4 border-base-lighter z-20"><Icon name="error" className="w-6 h-6 text-on-brand"/></div>;
-            default:
-                return null;
-        }
-    }
+export const AssistantAvatar: React.FC<AssistantAvatarProps> = ({ avatarUrl, isSpeaking, status }) => {
+  const isBreathing = status === 'ACTIVE' && !isSpeaking;
+  const showOrb = status === 'ACTIVE' || status === 'CONNECTING';
 
-    return (
-        <div className="relative w-48 h-48 md:w-64 md:h-64 flex items-center justify-center">
-            {/* Pulsating ring for speaking state */}
-            <div 
-                className={`absolute inset-0 rounded-full bg-gradient-to-br from-brand-primary-glow to-brand-quaternary-glow transition-all duration-500 ease-in-out
-                    ${isSpeaking ? 'animate-pulse-slow opacity-30' : 'opacity-0 scale-75'}`}
-            ></div>
-            <img
-                src={avatarUrl}
-                alt="Assistant Avatar"
-                className={`relative w-3/4 h-3/4 rounded-full object-cover z-10 shadow-2xl transition-transform duration-300
-                    ${isSpeaking ? 'scale-105' : 'scale-100'}`}
-            />
-            {getStatusIndicator()}
+  return (
+    <div className="relative w-48 h-48 md:w-64 md:h-64 mx-auto">
+      {showOrb && (
+        <div className={`absolute inset-0 transition-opacity duration-500 ${isSpeaking ? 'animate-pulse-strong' : ''} ${isBreathing ? 'animate-breathing' : ''}`}>
+          <Orb forceHoverState={isSpeaking || isBreathing} rotateOnHover={false} />
         </div>
-    );
+      )}
+      <img
+        src={avatarUrl}
+        alt="Assistant Avatar"
+        className={`w-full h-full rounded-full object-cover shadow-2xl transition-transform duration-500 transform ${showOrb ? 'scale-75' : 'scale-100'}`}
+      />
+    </div>
+  );
 };

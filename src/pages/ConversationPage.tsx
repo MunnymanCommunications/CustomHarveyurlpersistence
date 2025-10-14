@@ -1,61 +1,56 @@
-
-import React, { useCallback } from 'react';
-import { useGeminiLive } from '../hooks/useGeminiLive.ts';
+import React, { useMemo } from 'react';
 import type { Assistant, HistoryEntry } from '../types.ts';
-
+import { useGeminiLive } from '../hooks/useGeminiLive.ts';
 import { AssistantAvatar } from '../components/AssistantAvatar.tsx';
-import { ConversationControls } from '../components/ConversationControls.tsx';
 import { TranscriptionDisplay } from '../components/TranscriptionDisplay.tsx';
+import { ConversationControls } from '../components/ConversationControls.tsx';
+import { MemoryBank } from '../components/MemoryBank.tsx';
 
 interface ConversationPageProps {
   settings: Assistant;
   memory: string[];
   setMemory: (newMemory: string[]) => Promise<void>;
   addHistoryEntry: (entry: HistoryEntry) => void;
+  onNavigateToMemory: () => void;
 }
 
-export default function ConversationPage({ 
-    settings, 
-    memory, 
-    setMemory,
-    addHistoryEntry,
-}: ConversationPageProps) {
-
-  const systemInstruction = `
-      The current date and time is ${new Date().toLocaleString()}.
-      Your name is ${settings.name}.
-      Your personality traits are: ${settings.personality.join(', ')}.
-      Your attitude is: ${settings.attitude}.
-      You have the following information in your knowledge base: ${settings.knowledgeBase}.
-      The user has provided these memories for you to reference: ${memory.join('; ')}.
-      ${settings.prompt}
-    `.trim().replace(/\s+/g, ' ');
-
-  const handleSaveToMemory = useCallback(async (info: string) => {
-    if (!memory.includes(info)) {
-      const newMemory = [...memory, info];
-      await setMemory(newMemory);
+export default function ConversationPage({ settings, memory, setMemory, addHistoryEntry, onNavigateToMemory }: ConversationPageProps) {
+  const systemInstruction = useMemo(() => {
+    let instruction = `Your name is ${settings.name}.`;
+    instruction += `\nYour personality is: ${settings.personality.join(', ')}.`;
+    instruction += `\nYour attitude is: ${settings.attitude}.`;
+    instruction += `\nThis is your knowledge base, treat it as your own long-term memory about the user and the world:\n${settings.knowledgeBase}`;
+    if(memory.length > 0) {
+        instruction += `\nThis is information you have saved about the user in this session, act as if you know it:\n- ${memory.join('\n- ')}`;
     }
-  }, [memory, setMemory]);
+    instruction += `\nThis is a custom prompt you must follow: ${settings.prompt}`;
+    return instruction;
+  }, [settings, memory]);
 
-  const handleTurnComplete = useCallback((userTranscript: string, assistantTranscript: string) => {
-      if (userTranscript.trim() || assistantTranscript.trim()) {
-        addHistoryEntry({
-          user: userTranscript,
-          assistant: assistantTranscript,
-          timestamp: new Date().toISOString(),
-        });
-      }
-  }, [addHistoryEntry]);
+  const handleSaveToMemory = async (info: string) => {
+    if (!memory.includes(info)) {
+      await setMemory([...memory, info]);
+    }
+  };
 
-  const { 
-    sessionStatus, 
-    startSession, 
-    stopSession, 
-    isSpeaking, 
-    userTranscript, 
-    assistantTranscript, 
-    error 
+  const handleTurnComplete = (userTranscript: string, assistantTranscript: string) => {
+    if (userTranscript.trim() || assistantTranscript.trim()) {
+      addHistoryEntry({
+        user: userTranscript,
+        assistant: assistantTranscript,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  };
+
+  const {
+    sessionStatus,
+    startSession,
+    stopSession,
+    isSpeaking,
+    userTranscript,
+    assistantTranscript,
+    error,
   } = useGeminiLive({
     voice: settings.voice,
     systemInstruction,
@@ -63,40 +58,32 @@ export default function ConversationPage({
     onTurnComplete: handleTurnComplete,
   });
 
-  const handleMainClick = useCallback(() => {
-    if (sessionStatus === 'IDLE' || sessionStatus === 'ERROR') {
-      startSession();
-    }
-  }, [sessionStatus, startSession]);
-
   return (
-    <div className="w-full h-full mx-auto flex flex-col items-center justify-center text-center">
-      <main 
-        onClick={handleMainClick}
-        className={`flex flex-col items-center justify-center flex-grow w-full transition-colors ${
-          (sessionStatus === 'IDLE' || sessionStatus === 'ERROR') ? 'cursor-pointer' : ''
-        }`}
-      >
-        <AssistantAvatar 
-          avatarUrl={settings.avatar}
-          isSpeaking={isSpeaking}
-          sessionStatus={sessionStatus}
-        />
-        <TranscriptionDisplay 
-          userTranscript={userTranscript}
-          assistantTranscript={assistantTranscript}
-          isSpeaking={isSpeaking}
-        />
-      </main>
+    <div className="h-full flex flex-col justify-between items-center text-center p-4">
+        <div className="absolute top-4 right-4 z-10">
+            <MemoryBank memory={memory} onEdit={onNavigateToMemory} />
+        </div>
+        
+        <div className="flex-grow flex flex-col items-center justify-center w-full">
+            <AssistantAvatar 
+                avatarUrl={settings.avatar} 
+                isSpeaking={isSpeaking}
+                status={sessionStatus}
+            />
+            <TranscriptionDisplay
+                userTranscript={userTranscript}
+                assistantTranscript={assistantTranscript}
+            />
+        </div>
 
-      <footer className="w-full flex flex-col items-center justify-center gap-4 pb-4">
-        {error && <p className="text-red-500 bg-red-100 px-4 py-2 rounded-md">{error}</p>}
-        <ConversationControls 
-          onStart={startSession}
-          onStop={stopSession}
-          status={sessionStatus}
-        />
-      </footer>
+        <div className="w-full max-w-md">
+            {error && <p className="text-danger mb-4">Error: {error}</p>}
+            <ConversationControls
+                onStart={startSession}
+                onStop={stopSession}
+                status={sessionStatus}
+            />
+        </div>
     </div>
   );
 }
