@@ -1,4 +1,3 @@
-// FIX: Populating file with the SettingsPanel component.
 import React from 'react';
 import type { Assistant, PersonalityTrait, AttitudeOption, VoiceOption } from '../types.ts';
 import { PERSONALITY_TRAITS, ATTITUDE_OPTIONS, VOICE_SETTINGS } from '../constants.ts';
@@ -121,13 +120,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onSettin
 
       {/* Knowledge Base */}
       <div>
-        <label htmlFor="knowledgeBase" className="settings-label">Knowledge Base</label>
+        <label htmlFor="knowledge_base" className="settings-label">Knowledge Base</label>
         <p className="settings-description">Provide background information, facts, or context. The AI will treat this as its established knowledge.</p>
         <textarea
-          id="knowledgeBase"
-          name="knowledgeBase"
+          id="knowledge_base"
+          name="knowledge_base"
           rows={5}
-          value={settings.knowledgeBase || ''}
+          value={settings.knowledge_base || ''}
           onChange={handleSimpleChange}
           disabled={disabled}
           className="settings-input mt-2"

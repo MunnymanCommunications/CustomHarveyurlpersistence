@@ -1,5 +1,5 @@
-
 import React, { useState, Children, isValidElement } from 'react';
+import './Stepper.css';
 
 // The Step component is a simple container for step content.
 export const Step: React.FC<{ children: React.ReactNode }> = ({ children }) => <>{children}</>;

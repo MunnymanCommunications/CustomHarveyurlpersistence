@@ -1,4 +1,3 @@
-// FIX: Populating file with the SettingsPage component for new assistant creation.
 import React, { useState } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import Stepper, { Step } from '../components/stepper/Stepper.tsx';
@@ -17,7 +16,7 @@ const DEFAULT_SETTINGS: Partial<Assistant> = {
     personality: [],
     attitude: 'Practical',
     voice: 'Zephyr',
-    knowledgeBase: '',
+    knowledge_base: '',
     prompt: '',
 };
 
@@ -63,26 +62,26 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
         return;
     }
 
-    const newAssistant: Omit<Assistant, 'id' | 'created_at' | 'user_id'> = {
+    const newAssistantData = {
         name: settings.name,
         avatar: settings.avatar || DEFAULT_AVATAR_URL,
         personality: settings.personality || [],
         attitude: settings.attitude || 'Practical',
         voice: settings.voice || 'Zephyr',
-        knowledgeBase: settings.knowledgeBase || '',
+        knowledge_base: settings.knowledge_base || '',
         prompt: settings.prompt || '',
     };
     
     const { data, error: insertError } = await supabase
         .from('assistants')
-        .insert({ ...newAssistant, user_id: user.id })
+        .insert({ ...newAssistantData, user_id: user.id })
         .select()
         .single();
 
     setIsSaving(false);
 
     if (insertError) {
-        setError(insertError.message);
+        setError(`Failed to create assistant: ${insertError.message}`);
         console.error("Error creating assistant:", insertError);
     } else if(data) {
         onComplete(data.id);
@@ -182,13 +181,13 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
           <h2 className="step-header">Fine-tune its knowledge.</h2>
           <div className="text-left space-y-6 mt-4">
              <div>
-                <label htmlFor="knowledgeBase" className="settings-label">Knowledge Base</label>
+                <label htmlFor="knowledge_base" className="settings-label">Knowledge Base</label>
                 <p className="settings-description">Provide background information or context. (Optional)</p>
                 <textarea
-                  id="knowledgeBase"
+                  id="knowledge_base"
                   rows={4}
-                  value={settings.knowledgeBase || ''}
-                  onChange={(e) => handleSettingsChange({ knowledgeBase: e.target.value })}
+                  value={settings.knowledge_base || ''}
+                  onChange={(e) => handleSettingsChange({ knowledge_base: e.target.value })}
                   className="settings-input mt-2"
                   placeholder="E.g., The user, John Doe, is 45 years old and works in tech..."
                 />

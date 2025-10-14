@@ -19,7 +19,8 @@ export default function ConversationPage({ settings, memory, setMemory, addHisto
     let instruction = `Your name is ${settings.name}.`;
     instruction += `\nYour personality is: ${settings.personality.join(', ')}.`;
     instruction += `\nYour attitude is: ${settings.attitude}.`;
-    instruction += `\nThis is your knowledge base, treat it as your own long-term memory about the user and the world:\n${settings.knowledgeBase}`;
+    // FIX: Corrected property access from `knowledgeBase` to `knowledge_base` to match the Assistant type.
+    instruction += `\nThis is your knowledge base, treat it as your own long-term memory about the user and the world:\n${settings.knowledge_base}`;
     if(memory.length > 0) {
         instruction += `\nThis is information you have saved about the user in this session, act as if you know it:\n- ${memory.join('\n- ')}`;
     }
