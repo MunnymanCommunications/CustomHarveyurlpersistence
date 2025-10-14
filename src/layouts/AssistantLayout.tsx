@@ -1,15 +1,13 @@
-// FIX: Populating file with the AssistantLayout component.
 import React, { useState, useEffect } from 'react';
-import { getSupabase } from '../lib/supabaseClient.ts';
-import type { Assistant, HistoryEntry } from '../types.ts';
-import { useLocalStorage } from '../hooks/useLocalStorage.ts';
-
-import { Navigation } from '../components/Navigation.tsx';
-import ConversationPage from '../pages/ConversationPage.tsx';
-import MemoryPage from '../pages/MemoryPage.tsx';
-import HistoryPage from '../pages/HistoryPage.tsx';
-import SettingsDashboardPage from '../pages/SettingsDashboardPage.tsx';
-import { Icon } from '../components/Icon.tsx';
+import { getSupabase } from '../lib/supabaseClient';
+import type { Assistant, HistoryEntry } from '../types';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import { Navigation } from '../components/Navigation';
+import ConversationPage from '../pages/ConversationPage';
+import MemoryPage from '../pages/MemoryPage';
+import HistoryPage from '../pages/HistoryPage';
+import SettingsDashboardPage from '../pages/SettingsDashboardPage';
+import { Icon } from '../components/Icon';
 
 interface AssistantLayoutProps {
   assistantId: string;
@@ -18,15 +16,17 @@ interface AssistantLayoutProps {
 type Page = 'conversation' | 'memory' | 'history' | 'settings';
 
 export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
-  const [assistant, setAssistant] = useState<Assistant | null>(null);
+  const [settings, setSettings] = useState<Assistant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<Page>('conversation');
-  const [isNavMobileOpen, setNavMobileOpen] = useState(false);
-  const [isNavCollapsed, setNavCollapsed] = useLocalStorage('navCollapsed', false);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isNavCollapsed, setIsNavCollapsed] = useLocalStorage('navCollapsed', false);
 
-  const [memory, setMemory] = useLocalStorage<string[]>(`memory_${assistantId}`, []);
-  const [history, setHistory] = useLocalStorage<HistoryEntry[]>(`history_${assistantId}`, []);
+  const [memory, setMemory] = useLocalStorage<string[]>(`assistant_memory_${assistantId}`, []);
+  const [history, setHistory] = useLocalStorage<HistoryEntry[]>(`assistant_history_${assistantId}`, []);
 
   useEffect(() => {
     const fetchAssistant = async () => {
@@ -41,60 +41,78 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
 
       if (error) {
         console.error('Error fetching assistant:', error);
-        setError('Could not load the assistant. It might not exist or you may not have permission to view it.');
+        setError(`Could not load assistant. ${error.message}`);
+      } else if (data) {
+        setSettings(data as Assistant);
       } else {
-        setAssistant(data as Assistant);
+        setError('Assistant not found.');
       }
       setLoading(false);
     };
 
-    fetchAssistant();
+    if (assistantId) {
+        fetchAssistant();
+    }
   }, [assistantId]);
 
+  const handleSettingsChange = (newPartialSettings: Partial<Assistant>) => {
+    setSettings(prev => (prev ? { ...prev, ...newPartialSettings } : null));
+  };
+
+  const handleSaveSettings = async () => {
+      if (!settings) return;
+      setIsSaving(true);
+      const supabase = getSupabase();
+      const { name, avatar, personality, attitude, voice, knowledge_base, prompt } = settings;
+      const { error } = await supabase
+          .from('assistants')
+          .update({ name, avatar, personality, attitude, voice, knowledge_base, prompt })
+          .eq('id', assistantId);
+
+      if (error) {
+          console.error('Error updating assistant:', error);
+          alert(`Error saving settings: ${error.message}`);
+      }
+      setIsSaving(false);
+  };
+
+  const setMemoryPersistent = async (newMemory: string[]) => {
+    setMemory(newMemory);
+    return Promise.resolve();
+  };
+  
   const addHistoryEntry = (entry: HistoryEntry) => {
-    setHistory(prev => [...prev, entry]);
+    setHistory(prev => [entry, ...prev]);
   };
   
   const clearHistory = () => {
     setHistory([]);
   };
-  
-  const updateMemory = async (newMemory: string[]) => {
-    setMemory(newMemory);
-    // No-op for async compatibility with MemoryPage's props
-    return Promise.resolve();
-  };
-  
-  const handleSettingsChange = (newSettings: Assistant) => {
-    setAssistant(newSettings);
-    // Here you would typically save the updated settings to the database.
-    const saveSettings = async () => {
-        const supabase = getSupabase();
-        const { error } = await supabase
-            .from('assistants')
-            .update(newSettings)
-            .eq('id', newSettings.id);
 
-        if (error) {
-            console.error("Failed to save settings:", error);
-            // Optionally, show an error to the user.
-        }
-    };
-    saveSettings();
-  };
-
-  const renderPage = () => {
-    if (!assistant) return null;
+  const renderCurrentPage = () => {
+    if (!settings) return null;
 
     switch (currentPage) {
       case 'conversation':
-        return <ConversationPage settings={assistant} memory={memory} setMemory={updateMemory} addHistoryEntry={addHistoryEntry} onNavigateToMemory={() => setCurrentPage('memory')} />;
+        return <ConversationPage 
+                    settings={settings} 
+                    memory={memory} 
+                    setMemory={setMemoryPersistent} 
+                    addHistoryEntry={addHistoryEntry}
+                    onNavigateToMemory={() => setCurrentPage('memory')}
+                />;
       case 'memory':
-        return <MemoryPage memory={memory} setMemory={updateMemory} />;
+        return <MemoryPage 
+                    memory={memory} 
+                    setMemory={setMemoryPersistent}
+                />;
       case 'history':
         return <HistoryPage history={history} onClear={clearHistory} />;
       case 'settings':
-        return <SettingsDashboardPage settings={assistant} onSettingsChange={(updatedAssistant) => handleSettingsChange({ ...assistant, ...updatedAssistant })} />;
+        return <SettingsDashboardPage 
+                    settings={settings} 
+                    onSettingsChange={handleSettingsChange}
+                />;
       default:
         return null;
     }
@@ -103,48 +121,59 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow"/>
-        <p className="ml-4 text-xl">Loading Assistant...</p>
+        <Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow" />
       </div>
     );
   }
 
-  if (error) {
+  if (error || !settings) {
     return (
       <div className="flex flex-col items-center justify-center h-screen text-center p-4">
-        <Icon name="error" className="w-16 h-16 text-danger mb-4"/>
-        <h1 className="text-2xl font-bold mb-2">An Error Occurred</h1>
-        <p className="text-text-secondary mb-6">{error}</p>
-        <a href="#/" className="bg-brand-secondary-glow text-on-brand font-bold py-2 px-6 rounded-full">
+        <Icon name="error" className="w-16 h-16 text-danger mb-4" />
+        <h1 className="text-2xl font-bold text-text-primary">Something went wrong</h1>
+        <p className="text-text-secondary mt-2">{error || 'Could not load the assistant.'}</p>
+        <a href="#/" className="mt-6 bg-brand-secondary-glow text-on-brand font-bold py-2 px-4 rounded-full">
           Back to Dashboard
         </a>
       </div>
     );
   }
-  
-  if (!assistant) {
-      return null; // Should be covered by error state
-  }
 
   return (
-    <div className="h-screen w-full flex bg-base-light overflow-hidden">
-      <Navigation 
+    <div className="flex h-screen bg-base-light overflow-hidden">
+      <Navigation
         currentPage={currentPage}
         onNavigate={setCurrentPage}
-        assistantName={assistant.name}
-        assistantAvatar={assistant.avatar}
-        isMobileOpen={isNavMobileOpen}
-        onMobileClose={() => setNavMobileOpen(false)}
+        assistantName={settings.name}
+        assistantAvatar={settings.avatar}
+        isMobileOpen={isMobileNavOpen}
+        onMobileClose={() => setIsMobileNavOpen(false)}
         isCollapsed={isNavCollapsed}
-        onToggleCollapse={() => setNavCollapsed(prev => !prev)}
+        onToggleCollapse={() => setIsNavCollapsed(prev => !prev)}
       />
-      <main className={`flex-grow transition-all duration-300 ease-in-out ${isNavCollapsed ? 'md:ml-24' : 'md:ml-72'}`}>
-        <div className="h-full w-full p-2 sm:p-4">
-          <button onClick={() => setNavMobileOpen(true)} className="md:hidden absolute top-4 left-4 p-2 bg-white/50 rounded-full z-10">
-            <Icon name="dashboard" className="w-6 h-6"/>
-          </a >
-          {renderPage()}
+      <main className="flex-grow flex flex-col relative w-full overflow-hidden">
+        <button onClick={() => setIsMobileNavOpen(true)} className="md:hidden absolute top-4 left-4 z-20 p-2 bg-white/70 backdrop-blur-sm rounded-full shadow-md">
+            <Icon name="dashboard" className="w-6 h-6 text-text-primary"/>
+        </button>
+        <div className="flex-grow p-4 md:p-8 overflow-y-auto w-full">
+            {renderCurrentPage()}
         </div>
+        {currentPage === 'settings' && (
+            <footer className="flex-shrink-0 p-4 bg-white/80 backdrop-blur-sm border-t border-border-color flex justify-end items-center">
+                <button 
+                    onClick={handleSaveSettings}
+                    disabled={isSaving}
+                    className="bg-gradient-to-r from-brand-secondary-glow to-brand-tertiary-glow text-on-brand font-bold py-2 px-6 rounded-full flex items-center transition-all duration-300 shadow-lg transform hover:scale-105 disabled:opacity-50"
+                >
+                    {isSaving ? (
+                        <>
+                          <Icon name="loader" className="w-5 h-5 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                    ) : 'Save Changes'}
+                </button>
+            </footer>
+        )}
       </main>
     </div>
   );

@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { SettingsPanel } from '../components/SettingsPanel.tsx';
 import type { Assistant } from '../types.ts';
@@ -6,7 +7,8 @@ import { Icon } from '../components/Icon.tsx';
 
 interface SettingsDashboardPageProps {
   settings: Assistant;
-  onSettingsChange: React.Dispatch<React.SetStateAction<Assistant>>;
+  // FIX: Corrected prop type to align with how it's used in SettingsPanel.
+  onSettingsChange: (newSettings: Partial<Assistant>) => void;
 }
 
 export default function SettingsDashboardPage({ settings, onSettingsChange }: SettingsDashboardPageProps) {
