@@ -1,103 +1,155 @@
-
-import React, { useCallback } from 'react';
-import type { Assistant, Personality } from '../types.ts';
-import { VOICE_OPTIONS, PERSONALITY_TRAITS, ATTITUDE_OPTIONS } from '../constants.ts';
+// FIX: Populating file with the SettingsPanel component.
+import React from 'react';
+import type { Assistant, PersonalityTrait, AttitudeOption, VoiceOption } from '../types.ts';
+import { PERSONALITY_TRAITS, ATTITUDE_OPTIONS, VOICE_SETTINGS } from '../constants.ts';
 import { SelectionButton } from './SelectionButton.tsx';
 
 interface SettingsPanelProps {
-  settings: Omit<Assistant, 'id' | 'user_id' | 'created_at' | 'updated_at'> | Assistant;
-  onSettingsChange: React.Dispatch<React.SetStateAction<any>>;
-  disabled: boolean;
+  settings: Partial<Assistant>;
+  onSettingsChange: (newSettings: Partial<Assistant>) => void;
+  disabled?: boolean;
 }
 
-const SettingsInput: React.FC<{ label: string; id: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; disabled: boolean; type?: string; accept?: string }> = ({ label, id, value, onChange, disabled, type="text", accept }) => (
-    <div>
-        <label htmlFor={id} className="block text-sm font-medium text-text-secondary mb-1">{label}</label>
-        <input type={type} id={id} value={type !== "file" ? value : undefined} onChange={onChange} disabled={disabled} className="settings-input" accept={accept} />
-    </div>
-);
+export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onSettingsChange, disabled = false }) => {
+  const handleSimpleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    onSettingsChange({ ...settings, [e.target.name]: e.target.value });
+  };
 
-const SettingsTextarea: React.FC<{ label: string; id: string; value: string; onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void; rows: number; disabled: boolean; }> = ({ label, id, value, onChange, rows, disabled }) => (
-    <div>
-        <label htmlFor={id} className="block text-sm font-medium text-text-secondary mb-1">{label}</label>
-        <textarea id={id} value={value} onChange={onChange} rows={rows} disabled={disabled} className="settings-textarea" />
-    </div>
-);
+  const togglePersonality = (trait: PersonalityTrait) => {
+    const currentTraits = settings.personality || [];
+    const newTraits = currentTraits.includes(trait)
+      ? currentTraits.filter(t => t !== trait)
+      : [...currentTraits, trait];
+    onSettingsChange({ ...settings, personality: newTraits });
+  };
 
-const SettingsSelect: React.FC<{ label: string; id: string; value: string; onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void; options: readonly string[]; disabled: boolean; }> = ({ label, id, value, onChange, options, disabled }) => (
-    <div>
-        <label htmlFor={id} className="block text-sm font-medium text-text-secondary mb-1">{label}</label>
-        <select id={id} value={value} onChange={onChange} disabled={disabled} className="settings-select">
-            {options.map(option => <option key={option} value={option}>{option}</option>)}
-        </select>
-    </div>
-);
+  const setAttitude = (attitude: AttitudeOption) => {
+    onSettingsChange({ ...settings, attitude });
+  };
+  
+  const setVoice = (voice: VoiceOption) => {
+    onSettingsChange({ ...settings, voice });
+  };
 
-
-export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onSettingsChange, disabled }) => {
-    
-    const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                if (event.target && typeof event.target.result === 'string') {
-                    onSettingsChange(prev => ({ ...prev, avatar: event.target.result as string }));
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-    }, [onSettingsChange]);
-
-    const handleChange = <T extends HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,>(field: keyof Assistant) => 
-        (e: React.ChangeEvent<T>) => {
-        onSettingsChange(prev => ({ ...prev, [field]: e.target.value }));
-    };
-
-    const togglePersonality = (trait: Personality) => {
-        if (disabled) return;
-        onSettingsChange(prev => {
-            const newPersonalities = prev.personality.includes(trait)
-                ? prev.personality.filter(p => p !== trait)
-                : [...prev.personality, trait];
-            // Ensure at least one personality is always selected
-            if (newPersonalities.length === 0) return prev;
-            return { ...prev, personality: newPersonalities };
-        });
-    };
-
-    return (
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <SettingsInput label="Name" id="name" value={settings.name} onChange={handleChange('name')} disabled={disabled} />
-                <SettingsInput label="Avatar" id="avatar" type="file" accept="image/*" onChange={handleFileChange} disabled={disabled} />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-text-secondary mb-2">Personality</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                {PERSONALITY_TRAITS.map(trait => (
-                  <SelectionButton 
-                    key={trait} 
-                    onClick={() => togglePersonality(trait)} 
-                    isActive={settings.personality.includes(trait)}
-                    disabled={disabled}
-                    size="sm"
-                  >
-                    {trait}
-                  </SelectionButton>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <SettingsSelect label="Attitude" id="attitude" value={settings.attitude} onChange={handleChange('attitude')} options={[...ATTITUDE_OPTIONS]} disabled={disabled} />
-                <SettingsSelect label="Voice" id="voice" value={settings.voice} onChange={handleChange('voice')} options={[...VOICE_OPTIONS]} disabled={disabled} />
-            </div>
-            
-            <SettingsTextarea label="Knowledge Base" id="knowledgeBase" value={settings.knowledgeBase} onChange={handleChange('knowledgeBase')} rows={4} disabled={disabled} />
-            
-            <SettingsTextarea label="Custom Prompt" id="prompt" value={settings.prompt} onChange={handleChange('prompt')} rows={3} disabled={disabled} />
+  return (
+    <div className="space-y-8">
+      {/* Name and Avatar */}
+      <div className="flex flex-col sm:flex-row items-center gap-6">
+        <div className="relative group">
+          <img src={settings.avatar} alt="Avatar" className="w-24 h-24 rounded-full object-cover shadow-lg"/>
+          <input
+            type="text"
+            name="avatar"
+            value={settings.avatar || ''}
+            onChange={handleSimpleChange}
+            placeholder="Image URL"
+            disabled={disabled}
+            className="absolute bottom-0 w-full text-xs p-1 text-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-b-full"
+          />
         </div>
-    );
+        <div className="flex-grow w-full">
+          <label htmlFor="name" className="settings-label">Assistant Name</label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            value={settings.name || ''}
+            onChange={handleSimpleChange}
+            disabled={disabled}
+            className="settings-input"
+            placeholder="E.g., Jarvis"
+          />
+        </div>
+      </div>
+      
+      {/* Personality Traits */}
+      <div>
+        <label className="settings-label">Personality Traits</label>
+        <p className="settings-description">Select up to 5 traits that best describe your assistant.</p>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mt-2">
+          {PERSONALITY_TRAITS.map(trait => (
+            <SelectionButton
+              key={trait}
+              onClick={() => togglePersonality(trait)}
+              isActive={settings.personality?.includes(trait) ?? false}
+              disabled={disabled || (!settings.personality?.includes(trait) && (settings.personality?.length ?? 0) >= 5)}
+              size="sm"
+            >
+              {trait}
+            </SelectionButton>
+          ))}
+        </div>
+      </div>
+      
+      {/* Attitude */}
+      <div>
+        <label className="settings-label">Attitude</label>
+        <p className="settings-description">Choose the overall attitude and communication style.</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
+          {ATTITUDE_OPTIONS.map(attitude => (
+            <SelectionButton
+              key={attitude}
+              onClick={() => setAttitude(attitude)}
+              isActive={settings.attitude === attitude}
+              disabled={disabled}
+              size="md"
+            >
+              {attitude}
+            </SelectionButton>
+          ))}
+        </div>
+      </div>
+
+      {/* Voice */}
+      <div>
+        <label className="settings-label">Voice</label>
+        <p className="settings-description">Select the voice for your assistant.</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
+          {VOICE_SETTINGS.map(voice => (
+            <SelectionButton
+              key={voice.value}
+              onClick={() => setVoice(voice.value)}
+              isActive={settings.voice === voice.value}
+              disabled={disabled}
+              size="md"
+            >
+              {voice.name}
+            </SelectionButton>
+          ))}
+        </div>
+      </div>
+
+      {/* Knowledge Base */}
+      <div>
+        <label htmlFor="knowledgeBase" className="settings-label">Knowledge Base</label>
+        <p className="settings-description">Provide background information, facts, or context. The AI will treat this as its established knowledge.</p>
+        <textarea
+          id="knowledgeBase"
+          name="knowledgeBase"
+          rows={5}
+          value={settings.knowledgeBase || ''}
+          onChange={handleSimpleChange}
+          disabled={disabled}
+          className="settings-input mt-2"
+          placeholder="E.g., I am a financial advisor bot specializing in retirement planning. The user, John Doe, is 45 years old and works in tech..."
+        />
+      </div>
+
+      {/* Custom Prompt */}
+      <div>
+        <label htmlFor="prompt" className="settings-label">Custom Prompt</label>
+        <p className="settings-description">Give specific instructions or rules for the AI to follow. This is a powerful way to guide its behavior.</p>
+        <textarea
+          id="prompt"
+          name="prompt"
+          rows={5}
+          value={settings.prompt || ''}
+          onChange={handleSimpleChange}
+          disabled={disabled}
+          className="settings-input mt-2"
+          placeholder="E.g., Always respond in a cheerful and optimistic tone. Never provide medical advice. Keep responses under 100 words."
+        />
+      </div>
+    </div>
+  );
 };

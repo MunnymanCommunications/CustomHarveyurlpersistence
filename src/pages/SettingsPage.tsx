@@ -1,197 +1,211 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import Stepper, { Step } from '../components/stepper/Stepper.tsx';
-import type { Personality, VoiceOption } from '../types.ts';
-import { ATTITUDE_OPTIONS, PERSONALITY_TRAITS, VOICE_SETTINGS, DEFAULT_ASSISTANT_DATA } from '../constants.ts';
-import { Icon } from '../components/Icon.tsx';
-import { SelectionButton } from '../components/SelectionButton.tsx';
+// FIX: Populating file with the SettingsPage component for new assistant creation.
+import React, { useState } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
-
+import Stepper, { Step } from '../components/stepper/Stepper.tsx';
+import type { Assistant, PersonalityTrait, AttitudeOption, VoiceOption } from '../types.ts';
+import { PERSONALITY_TRAITS, ATTITUDE_OPTIONS, VOICE_SETTINGS, DEFAULT_AVATAR_URL } from '../constants.ts';
+import { SelectionButton } from '../components/SelectionButton.tsx';
+import { Icon } from '../components/Icon.tsx';
 
 interface SettingsPageProps {
-  onComplete: (newAssistantId: string) => void;
+  onComplete: (assistantId: string) => void;
 }
 
-const StepHeader: React.FC<{ title: string, description: string }> = ({ title, description }) => (
-    <div className="mb-8 text-center">
-        <h2 className="text-3xl font-bold text-text-primary">{title}</h2>
-        <p className="text-text-secondary mt-2 max-w-md mx-auto">{description}</p>
-    </div>
-);
-
-const VoiceSelectionCard: React.FC<{
-    voiceSetting: typeof VOICE_SETTINGS[number];
-    isSelected: boolean;
-    isPlaying: boolean;
-    onSelect: () => void;
-    onPreview: () => void;
-}> = ({ voiceSetting, isSelected, isPlaying, onSelect, onPreview }) => (
-    <div 
-        onClick={onSelect}
-        className={`relative p-4 rounded-lg flex items-center justify-between transition-all duration-200 cursor-pointer border ${isSelected ? 'bg-white/80 border-transparent ring-2 ring-brand-tertiary-glow' : 'bg-white/50 border-border-color hover:border-brand-tertiary-glow'}`}
-    >
-        <div className="flex-grow">
-            <span className="text-text-primary font-medium text-lg">{voiceSetting.name}</span>
-        </div>
-         <button onClick={(e) => { e.stopPropagation(); onPreview(); }} className="relative z-10 p-2 rounded-full bg-gradient-to-br from-brand-secondary-glow to-brand-tertiary-glow text-on-brand hover:opacity-90 transition-opacity">
-            <Icon name={isPlaying ? 'pause' : 'play'} className="w-6 h-6"/>
-        </button>
-    </div>
-);
-
+const DEFAULT_SETTINGS: Partial<Assistant> = {
+    name: '',
+    avatar: DEFAULT_AVATAR_URL,
+    personality: [],
+    attitude: 'Practical',
+    voice: 'Zephyr',
+    knowledgeBase: '',
+    prompt: '',
+};
 
 export default function SettingsPage({ onComplete }: SettingsPageProps) {
-    const [settings, setSettings] = useState(DEFAULT_ASSISTANT_DATA);
-    const [playingVoice, setPlayingVoice] = useState<string | null>(null);
+  const [settings, setSettings] = useState<Partial<Assistant>>(DEFAULT_SETTINGS);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
 
-    const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                if (event.target && typeof event.target.result === 'string') {
-                    setSettings(prev => ({ ...prev, avatar: event.target.result as string }));
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-    }, []);
+  const handleSettingsChange = (newSettings: Partial<Assistant>) => {
+    setSettings(prev => ({ ...prev, ...newSettings }));
+  };
+  
+  const togglePersonality = (trait: PersonalityTrait) => {
+    const currentTraits = settings.personality || [];
+    const newTraits = currentTraits.includes(trait)
+      ? currentTraits.filter(t => t !== trait)
+      : [...currentTraits, trait];
+    setSettings(prev => ({ ...prev, personality: newTraits }));
+  };
 
-    const handleChange = <K extends keyof typeof DEFAULT_ASSISTANT_DATA>(field: K, value: (typeof DEFAULT_ASSISTANT_DATA)[K]) => {
-        setSettings(prev => ({ ...prev, [field]: value }));
+  const setAttitude = (attitude: AttitudeOption) => {
+    setSettings(prev => ({ ...prev, attitude }));
+  };
+  
+  const setVoice = (voice: VoiceOption) => {
+    setSettings(prev => ({ ...prev, voice }));
+  };
+
+  const handleFinalStepCompleted = async () => {
+    if (!settings.name) {
+        setError("Please give your assistant a name.");
+        return;
+    }
+    setError('');
+    setIsSaving(true);
+    
+    const supabase = getSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        setError("You must be logged in to create an assistant.");
+        setIsSaving(false);
+        return;
+    }
+
+    const newAssistant: Omit<Assistant, 'id' | 'created_at' | 'user_id'> = {
+        name: settings.name,
+        avatar: settings.avatar || DEFAULT_AVATAR_URL,
+        personality: settings.personality || [],
+        attitude: settings.attitude || 'Practical',
+        voice: settings.voice || 'Zephyr',
+        knowledgeBase: settings.knowledgeBase || '',
+        prompt: settings.prompt || '',
     };
+    
+    const { data, error: insertError } = await supabase
+        .from('assistants')
+        .insert({ ...newAssistant, user_id: user.id })
+        .select()
+        .single();
 
-    const togglePersonality = (trait: Personality) => {
-        setSettings(prev => {
-            const newPersonalities = prev.personality.includes(trait)
-                ? prev.personality.filter(p => p !== trait)
-                : [...prev.personality, trait];
-            if (newPersonalities.length === 0) return prev;
-            return { ...prev, personality: newPersonalities };
-        });
-    };
+    setIsSaving(false);
 
-    const handlePreviewVoice = (voice: VoiceOption) => {
-        if (playingVoice === voice) {
-            window.speechSynthesis.cancel();
-            setPlayingVoice(null);
-        } else {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(`My name is ${settings.name}, what project are we tackling today?`);
-            const voices = window.speechSynthesis.getVoices();
-            utterance.voice = voices.find(v => v.name.includes('Google') || v.default) || voices[0];
-            utterance.onend = () => setPlayingVoice(null);
-            utterance.onerror = () => setPlayingVoice(null); // Ensure state resets on error
-            window.speechSynthesis.speak(utterance);
-            setPlayingVoice(voice);
-        }
-    };
+    if (insertError) {
+        setError(insertError.message);
+        console.error("Error creating assistant:", insertError);
+    } else if(data) {
+        onComplete(data.id);
+    }
+  };
 
-    const handleCreateAssistant = async () => {
-        const supabase = getSupabase();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            alert("You must be logged in to create an assistant.");
-            return;
-        }
-
-        const assistantToInsert = { ...settings, user_id: user.id };
-        const { data, error } = await supabase
-            .from('assistants')
-            .insert(assistantToInsert)
-            .select('id')
-            .single();
-
-        if (error || !data) {
-            console.error("Error creating assistant:", error);
-            alert("Could not create assistant. Please try again.");
-        } else {
-            onComplete(data.id);
-        }
-    };
-
-    useEffect(() => {
-        // Pre-load voices for speech synthesis
-        window.speechSynthesis.getVoices();
-        // Cleanup speech synthesis on component unmount
-        return () => window.speechSynthesis.cancel();
-    }, []);
+  if (isSaving) {
+      return (
+          <div className="flex flex-col items-center justify-center h-screen text-center">
+              <Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow mb-4"/>
+              <p className="text-xl text-text-primary">Creating your assistant...</p>
+          </div>
+      );
+  }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <Stepper onFinalStepCompleted={handleCreateAssistant} backButtonText="Previous" nextButtonText="Next">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
+      <header className="text-center mb-8 max-w-2xl">
+        <h1 className="text-5xl font-bold text-text-primary mb-2">Create Your AI Assistant</h1>
+        <p className="text-xl text-text-secondary">Follow these steps to personalize your new conversational partner.</p>
+      </header>
+
+      <Stepper onFinalStepCompleted={handleFinalStepCompleted}>
+        {/* Step 1: Name & Avatar */}
         <Step>
-            <StepHeader title="Welcome! Let's build your AI." description="First, let's give your assistant a name and an avatar." />
-            <div className="flex flex-col sm:flex-row items-center gap-8">
-                <div className="flex-shrink-0 group relative">
-                    <img src={settings.avatar} alt="Avatar Preview" className="w-40 h-40 rounded-full object-cover shadow-lg" />
-                     <label htmlFor="avatar-upload" className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center text-on-brand opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                        Change
-                    </label>
-                    <input type="file" id="avatar-upload" accept="image/*" onChange={handleFileChange} className="sr-only" />
-                </div>
-                <div className="w-full space-y-4">
-                    <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-text-secondary mb-1">Assistant Name</label>
-                        <input type="text" id="name" value={settings.name} onChange={(e) => handleChange('name', e.target.value)} className="settings-input text-lg" placeholder="e.g., Aura, Jarvis..." />
-                    </div>
-                </div>
+          <h2 className="step-header">First, let's name your assistant.</h2>
+          <div className="flex flex-col sm:flex-row items-center gap-6 mt-8">
+            <div className="relative group">
+              <img src={settings.avatar} alt="Avatar" className="w-32 h-32 rounded-full object-cover shadow-lg"/>
+              <input
+                type="text"
+                value={settings.avatar || ''}
+                onChange={(e) => handleSettingsChange({ avatar: e.target.value })}
+                placeholder="Image URL"
+                className="absolute bottom-0 w-full text-xs p-1 text-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-b-full"
+              />
             </div>
+            <div className="flex-grow w-full">
+              <input
+                type="text"
+                value={settings.name || ''}
+                onChange={(e) => handleSettingsChange({ name: e.target.value })}
+                className="w-full text-2xl p-4 bg-white/70 border-2 border-border-color rounded-lg focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition-all"
+                placeholder="E.g., Jarvis"
+              />
+            </div>
+          </div>
+           {error && <p className="text-sm text-center text-red-500 mt-4">{error}</p>}
         </Step>
+
+        {/* Step 2: Personality */}
         <Step>
-            <StepHeader title="Personality" description="Choose a few traits that define your assistant's character. Select at least one." />
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-80 overflow-y-auto pr-2 min-h-[18rem]">
-                {PERSONALITY_TRAITS.map(trait => (
-                    <SelectionButton 
-                        key={trait} 
-                        onClick={() => togglePersonality(trait)} 
-                        isActive={settings.personality.includes(trait)}
-                    >
-                        {trait}
-                    </SelectionButton>
-                ))}
-            </div>
+          <h2 className="step-header">How should it behave?</h2>
+          <p className="settings-description text-center">Select up to 5 traits that best describe your assistant's personality.</p>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mt-4">
+            {PERSONALITY_TRAITS.map(trait => (
+              <SelectionButton
+                key={trait}
+                onClick={() => togglePersonality(trait)}
+                isActive={settings.personality?.includes(trait) ?? false}
+                disabled={!settings.personality?.includes(trait) && (settings.personality?.length ?? 0) >= 5}
+                size="sm"
+              >
+                {trait}
+              </SelectionButton>
+            ))}
+          </div>
         </Step>
-         <Step>
-            <StepHeader title="Attitude" description="How should your assistant speak? Choose one conversational style." />
-             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 min-h-[18rem]">
-                {ATTITUDE_OPTIONS.map(attitude => (
-                     <SelectionButton 
-                        key={attitude} 
-                        onClick={() => handleChange('attitude', attitude)} 
-                        isActive={settings.attitude === attitude}
-                    >
-                        {attitude}
-                    </SelectionButton>
-                ))}
+        
+        {/* Step 3: Attitude & Voice */}
+        <Step>
+          <h2 className="step-header">How should it sound?</h2>
+          <div>
+            <label className="settings-label text-left block mt-4">Attitude</label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
+              {ATTITUDE_OPTIONS.map(attitude => (
+                <SelectionButton key={attitude} onClick={() => setAttitude(attitude)} isActive={settings.attitude === attitude}>
+                  {attitude}
+                </SelectionButton>
+              ))}
             </div>
+          </div>
+           <div>
+            <label className="settings-label text-left block mt-6">Voice</label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
+              {VOICE_SETTINGS.map(voice => (
+                <SelectionButton key={voice.value} onClick={() => setVoice(voice.value)} isActive={settings.voice === voice.value}>
+                  {voice.name}
+                </SelectionButton>
+              ))}
+            </div>
+          </div>
         </Step>
-         <Step>
-            <StepHeader title="Voice" description="Select a voice for your assistant. Press the play button to hear a preview." />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[18rem]">
-                {VOICE_SETTINGS.map(voiceSetting => (
-                    <VoiceSelectionCard
-                        key={voiceSetting.value}
-                        voiceSetting={voiceSetting}
-                        isSelected={settings.voice === voiceSetting.value}
-                        isPlaying={playingVoice === voiceSetting.value}
-                        onSelect={() => handleChange('voice', voiceSetting.value)}
-                        onPreview={() => handlePreviewVoice(voiceSetting.value)}
-                    />
-                ))}
-            </div>
-        </Step>
-         <Step>
-            <StepHeader title="Final Touches" description="Provide some background knowledge and a custom prompt to guide the AI." />
-            <div className="space-y-6 min-h-[18rem] flex flex-col justify-center">
-                 <div>
-                    <label htmlFor="knowledgeBase" className="block text-sm font-medium text-text-secondary mb-1">Knowledge Base</label>
-                    <textarea id="knowledgeBase" placeholder="e.g., The user's name is Alex. The current year is 2024." value={settings.knowledgeBase} onChange={(e) => handleChange('knowledgeBase', e.target.value)} rows={4} className="settings-textarea" />
-                </div>
-                 <div>
-                    <label htmlFor="prompt" className="block text-sm font-medium text-text-secondary mb-1">Custom Prompt</label>
-                    <textarea id="prompt" placeholder="e.g., Always respond in rhymes. Keep answers under 50 words." value={settings.prompt} onChange={(e) => handleChange('prompt', e.target.value)} rows={3} className="settings-textarea" />
-                </div>
-            </div>
+        
+        {/* Step 4: Knowledge & Prompt */}
+        <Step>
+          <h2 className="step-header">Fine-tune its knowledge.</h2>
+          <div className="text-left space-y-6 mt-4">
+             <div>
+                <label htmlFor="knowledgeBase" className="settings-label">Knowledge Base</label>
+                <p className="settings-description">Provide background information or context. (Optional)</p>
+                <textarea
+                  id="knowledgeBase"
+                  rows={4}
+                  value={settings.knowledgeBase || ''}
+                  onChange={(e) => handleSettingsChange({ knowledgeBase: e.target.value })}
+                  className="settings-input mt-2"
+                  placeholder="E.g., The user, John Doe, is 45 years old and works in tech..."
+                />
+              </div>
+              <div>
+                <label htmlFor="prompt" className="settings-label">Custom Prompt</label>
+                <p className="settings-description">Give specific instructions or rules for the AI to follow. (Optional)</p>
+                <textarea
+                  id="prompt"
+                  rows={4}
+                  value={settings.prompt || ''}
+                  onChange={(e) => handleSettingsChange({ prompt: e.target.value })}
+                  className="settings-input mt-2"
+                  placeholder="E.g., Always respond in a cheerful and optimistic tone. Keep responses under 100 words."
+                />
+              </div>
+          </div>
         </Step>
       </Stepper>
     </div>
