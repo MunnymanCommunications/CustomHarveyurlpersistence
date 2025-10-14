@@ -1,17 +1,19 @@
 import React from 'react';
-import type { Assistant, PersonalityTrait, AttitudeOption, VoiceOption } from '../types.ts';
+import type { Assistant, AttitudeOption, PersonalityTrait, VoiceOption } from '../types.ts';
 import { PERSONALITY_TRAITS, ATTITUDE_OPTIONS, VOICE_SETTINGS } from '../constants.ts';
+import { AvatarUploader } from './AvatarUploader.tsx';
 import { SelectionButton } from './SelectionButton.tsx';
 
 interface SettingsPanelProps {
   settings: Partial<Assistant>;
   onSettingsChange: (newSettings: Partial<Assistant>) => void;
-  disabled?: boolean;
+  onAvatarFileChange?: (file: File) => void;
+  disabled: boolean;
 }
 
-export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onSettingsChange, disabled = false }) => {
-  const handleSimpleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    onSettingsChange({ ...settings, [e.target.name]: e.target.value });
+export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onSettingsChange, onAvatarFileChange, disabled }) => {
+  const handleFieldChange = (field: keyof Assistant, value: any) => {
+    onSettingsChange({ [field]: value });
   };
 
   const togglePersonality = (trait: PersonalityTrait) => {
@@ -19,59 +21,51 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onSettin
     const newTraits = currentTraits.includes(trait)
       ? currentTraits.filter(t => t !== trait)
       : [...currentTraits, trait];
-    onSettingsChange({ ...settings, personality: newTraits });
-  };
-
-  const setAttitude = (attitude: AttitudeOption) => {
-    onSettingsChange({ ...settings, attitude });
+    onSettingsChange({ personality: newTraits });
   };
   
-  const setVoice = (voice: VoiceOption) => {
-    onSettingsChange({ ...settings, voice });
-  };
-
   return (
     <div className="space-y-8">
-      {/* Name and Avatar */}
-      <div className="flex flex-col sm:flex-row items-center gap-6">
-        <div className="relative group">
-          <img src={settings.avatar} alt="Avatar" className="w-24 h-24 rounded-full object-cover shadow-lg"/>
-          <input
-            type="text"
-            name="avatar"
-            value={settings.avatar || ''}
-            onChange={handleSimpleChange}
-            placeholder="Image URL"
-            disabled={disabled}
-            className="absolute bottom-0 w-full text-xs p-1 text-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-b-full"
-          />
+      {/* Basic Info */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+        <div className="md:col-span-1">
+          <h3 className="text-lg font-semibold text-text-primary">Avatar & Name</h3>
+          <p className="text-sm text-text-secondary">Choose a visual identity for your assistant.</p>
         </div>
-        <div className="flex-grow w-full">
-          <label htmlFor="name" className="settings-label">Assistant Name</label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            value={settings.name || ''}
-            onChange={handleSimpleChange}
-            disabled={disabled}
-            className="settings-input"
-            placeholder="E.g., Jarvis"
-          />
+        <div className="md:col-span-2 flex flex-col md:flex-row items-center gap-6 glassmorphic p-6 rounded-lg">
+          {onAvatarFileChange && (
+            <AvatarUploader 
+              avatarUrl={settings.avatar || ''} 
+              onAvatarChange={onAvatarFileChange} 
+              disabled={disabled} 
+            />
+          )}
+          <div className="w-full">
+            <label htmlFor="name" className="block text-sm font-medium text-text-primary mb-2">Assistant Name</label>
+            <input
+              id="name"
+              type="text"
+              className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent"
+              value={settings.name || ''}
+              onChange={(e) => handleFieldChange('name', e.target.value)}
+              placeholder="e.g., Sparky"
+              disabled={disabled}
+            />
+          </div>
         </div>
       </div>
-      
-      {/* Personality Traits */}
+
+      {/* Personality */}
       <div>
-        <label className="settings-label">Personality Traits</label>
-        <p className="settings-description">Select up to 5 traits that best describe your assistant.</p>
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mt-2">
+        <h3 className="text-lg font-semibold text-text-primary">Personality Traits</h3>
+        <p className="text-sm text-text-secondary mb-4">Select multiple traits to define its character.</p>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
           {PERSONALITY_TRAITS.map(trait => (
             <SelectionButton
               key={trait}
               onClick={() => togglePersonality(trait)}
-              isActive={settings.personality?.includes(trait) ?? false}
-              disabled={disabled || (!settings.personality?.includes(trait) && (settings.personality?.length ?? 0) >= 5)}
+              isActive={(settings.personality || []).includes(trait)}
+              disabled={disabled}
               size="sm"
             >
               {trait}
@@ -82,16 +76,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onSettin
       
       {/* Attitude */}
       <div>
-        <label className="settings-label">Attitude</label>
-        <p className="settings-description">Choose the overall attitude and communication style.</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
+        <h3 className="text-lg font-semibold text-text-primary">Attitude</h3>
+        <p className="text-sm text-text-secondary mb-4">Choose one primary attitude or worldview.</p>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
           {ATTITUDE_OPTIONS.map(attitude => (
             <SelectionButton
               key={attitude}
-              onClick={() => setAttitude(attitude)}
+              onClick={() => handleFieldChange('attitude', attitude)}
               isActive={settings.attitude === attitude}
               disabled={disabled}
-              size="md"
             >
               {attitude}
             </SelectionButton>
@@ -101,16 +94,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onSettin
 
       {/* Voice */}
       <div>
-        <label className="settings-label">Voice</label>
-        <p className="settings-description">Select the voice for your assistant.</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-2">
+        <h3 className="text-lg font-semibold text-text-primary">Voice</h3>
+        <p className="text-sm text-text-secondary mb-4">Select the voice for your assistant.</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {VOICE_SETTINGS.map(voice => (
             <SelectionButton
               key={voice.value}
-              onClick={() => setVoice(voice.value)}
+              onClick={() => handleFieldChange('voice', voice.value)}
               isActive={settings.voice === voice.value}
               disabled={disabled}
-              size="md"
             >
               {voice.name}
             </SelectionButton>
@@ -118,35 +110,16 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onSettin
         </div>
       </div>
 
-      {/* Knowledge Base */}
+      {/* Prompt */}
       <div>
-        <label htmlFor="knowledge_base" className="settings-label">Knowledge Base</label>
-        <p className="settings-description">Provide background information, facts, or context. The AI will treat this as its established knowledge.</p>
+        <h3 className="text-lg font-semibold text-text-primary">Core Prompt</h3>
+        <p className="text-sm text-text-secondary mb-4">Provide a detailed system prompt to guide the assistant's behavior, role, and constraints.</p>
         <textarea
-          id="knowledge_base"
-          name="knowledge_base"
-          rows={5}
-          value={settings.knowledge_base || ''}
-          onChange={handleSimpleChange}
-          disabled={disabled}
-          className="settings-input mt-2"
-          placeholder="E.g., I am a financial advisor bot specializing in retirement planning. The user, John Doe, is 45 years old and works in tech..."
-        />
-      </div>
-
-      {/* Custom Prompt */}
-      <div>
-        <label htmlFor="prompt" className="settings-label">Custom Prompt</label>
-        <p className="settings-description">Give specific instructions or rules for the AI to follow. This is a powerful way to guide its behavior.</p>
-        <textarea
-          id="prompt"
-          name="prompt"
-          rows={5}
-          value={settings.prompt || ''}
-          onChange={handleSimpleChange}
-          disabled={disabled}
-          className="settings-input mt-2"
-          placeholder="E.g., Always respond in a cheerful and optimistic tone. Never provide medical advice. Keep responses under 100 words."
+            className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent h-32"
+            value={settings.prompt || ''}
+            onChange={(e) => handleFieldChange('prompt', e.target.value)}
+            placeholder="e.g., You are a helpful assistant that specializes in creative writing..."
+            disabled={disabled}
         />
       </div>
     </div>
