@@ -1,22 +1,21 @@
-import { useState, useRef, useCallback } from 'react';
-// Fix: Correct import for GoogleGenAI and related types.
-import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration, LiveSession } from '@google/genai';
-import { createBlob, decode, decodeAudioData } from '../utils/audio.ts';
-import type { ConversationStatus, VoiceOption } from '../types.ts';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import {
+  GoogleGenAI,
+  LiveServerMessage,
+  Modality,
+  type LiveSession,
+  type FunctionDeclaration,
+  Type,
+  type Blob as GenAI_Blob,
+} from '@google/genai';
+import type { ConversationStatus, VoiceOption } from '../types';
+import { createBlob, decode, decodeAudioData } from '../utils/audio';
 
-// Get API key from environment variables
-const API_KEY = (import.meta as any).env.VITE_API_KEY;
-if (!API_KEY) {
-    throw new Error("VITE_API_KEY is not set in the environment variables.");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
-
-const SAVE_TO_MEMORY_TOOL: FunctionDeclaration = {
-  name: 'save_to_memory',
-  description: 'Saves a piece of information about the user to a long-term memory bank. Use this when the user explicitly tells you to remember something or provides a key piece of personal information.',
+const saveToMemoryFunctionDeclaration: FunctionDeclaration = {
+  name: 'saveToMemory',
   parameters: {
     type: Type.OBJECT,
+    description: 'Saves a piece of key information about the user to a long-term memory bank. Use this ONLY when the user explicitly asks you to remember something or provides a critical piece of personal information (e.g., name, preferences, facts).',
     properties: {
       info: {
         type: Type.STRING,
@@ -34,219 +33,229 @@ interface UseGeminiLiveProps {
   onTurnComplete: (userTranscript: string, assistantTranscript: string) => void;
 }
 
+// NOTE: This hook manages a complex state machine for live audio streaming.
+// It is designed to be self-contained and handles setup, teardown, and event processing.
 export function useGeminiLive({ voice, systemInstruction, onSaveToMemory, onTurnComplete }: UseGeminiLiveProps) {
-    const [sessionStatus, setSessionStatus] = useState<ConversationStatus>('IDLE');
-    const [isSpeaking, setIsSpeaking] = useState(false);
-    const [userTranscript, setUserTranscript] = useState('');
-    const [assistantTranscript, setAssistantTranscript] = useState('');
-    const [error, setError] = useState<string | null>(null);
+  const [sessionStatus, setSessionStatus] = useState<ConversationStatus>('IDLE');
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [userTranscript, setUserTranscript] = useState('');
+  const [assistantTranscript, setAssistantTranscript] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-    const sessionPromiseRef = useRef<Promise<LiveSession> | null>(null);
-    const mediaStreamRef = useRef<MediaStream | null>(null);
-    const audioContextRef = useRef<AudioContext | null>(null);
-    const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
-    const mediaStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-    
-    const outputAudioContextRef = useRef<AudioContext | null>(null);
-    const outputGainNodeRef = useRef<GainNode | null>(null);
-    const nextStartTimeRef = useRef(0);
-    const audioQueueRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  const ai = useRef<GoogleGenAI | null>(null);
+  const sessionPromise = useRef<Promise<LiveSession> | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const outputAudioContextRef = useRef<AudioContext | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const nextStartTime = useRef(0);
+  const audioSources = useRef<Set<AudioBufferSourceNode>>(new Set());
 
-    const currentInputTranscriptionRef = useRef('');
-    const currentOutputTranscriptionRef = useRef('');
+  const currentInputTranscription = useRef('');
+  const currentOutputTranscription = useRef('');
 
-    const startSession = useCallback(async () => {
-        setSessionStatus('CONNECTING');
-        setError(null);
-        setUserTranscript('');
-        setAssistantTranscript('');
-        currentInputTranscriptionRef.current = '';
-        currentOutputTranscriptionRef.current = '';
+  useEffect(() => {
+    // Per guidelines, initialize with API key from process.env.
+    // We assume the build environment makes this variable available.
+    ai.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  }, []);
 
+  const stopSession = useCallback(async () => {
+    if (sessionPromise.current) {
         try {
-            // Setup input audio context
-            const inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-            audioContextRef.current = inputAudioContext;
+            const session = await sessionPromise.current;
+            session.close();
+        } catch (e) {
+            console.error("Error closing session:", e);
+        }
+    }
+    
+    streamRef.current?.getTracks().forEach(track => track.stop());
+    
+    if (scriptProcessorRef.current && sourceNodeRef.current && audioContextRef.current) {
+        try {
+            sourceNodeRef.current.disconnect(scriptProcessorRef.current);
+            scriptProcessorRef.current.disconnect(audioContextRef.current.destination);
+        } catch(e) { /* ignore disconnect errors on already closed contexts */ }
+    }
 
-            // Setup output audio context
-            const outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-            outputAudioContextRef.current = outputAudioContext;
-            const outputGainNode = outputAudioContext.createGain();
-            outputGainNode.connect(outputAudioContext.destination);
-            outputGainNodeRef.current = outputGainNode;
+    scriptProcessorRef.current = null;
+    sourceNodeRef.current = null;
+    streamRef.current = null;
+    sessionPromise.current = null;
+
+    audioContextRef.current?.close();
+    outputAudioContextRef.current?.close();
+    audioContextRef.current = null;
+    outputAudioContextRef.current = null;
+
+    audioSources.current.forEach(source => source.stop());
+    audioSources.current.clear();
+    nextStartTime.current = 0;
+
+    // Reset state
+    if (sessionStatus !== 'ERROR') {
+        setSessionStatus('IDLE');
+    }
+    setIsSpeaking(false);
+    setUserTranscript('');
+    setAssistantTranscript('');
+    currentInputTranscription.current = '';
+    currentOutputTranscription.current = '';
+
+  }, [sessionStatus]);
+
+  const startSession = useCallback(async () => {
+    if (sessionStatus !== 'IDLE' && sessionStatus !== 'ERROR') return;
+    
+    if (!ai.current) {
+      setError("Gemini AI client not initialized. Check API Key configuration.");
+      setSessionStatus('ERROR');
+      return;
+    }
+
+    setSessionStatus('CONNECTING');
+    setError(null);
+    setUserTranscript('');
+    setAssistantTranscript('');
+    currentInputTranscription.current = '';
+    currentOutputTranscription.current = '';
+
+    try {
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+      outputAudioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+      nextStartTime.current = 0;
+
+      sessionPromise.current = ai.current.live.connect({
+        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+        config: {
+          responseModalities: [Modality.AUDIO],
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
+          },
+          systemInstruction,
+          tools: [{ functionDeclarations: [saveToMemoryFunctionDeclaration] }],
+        },
+        callbacks: {
+          onopen: async () => {
+            setSessionStatus('ACTIVE');
+            streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+            sourceNodeRef.current = audioContextRef.current!.createMediaStreamSource(streamRef.current);
+            scriptProcessorRef.current = audioContextRef.current!.createScriptProcessor(4096, 1, 1);
             
-            // Get microphone access
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaStreamRef.current = stream;
+            scriptProcessorRef.current.onaudioprocess = (audioProcessingEvent) => {
+              const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
+              const pcmBlob: GenAI_Blob = createBlob(inputData);
+              sessionPromise.current?.then((session) => {
+                  session.sendRealtimeInput({ media: pcmBlob });
+              });
+            };
+            sourceNodeRef.current.connect(scriptProcessorRef.current);
+            scriptProcessorRef.current.connect(audioContextRef.current!.destination);
+          },
+          onmessage: async (message: LiveServerMessage) => {
+            if (message.serverContent?.inputTranscription) {
+                const text = message.serverContent.inputTranscription.text;
+                currentInputTranscription.current += text;
+                setUserTranscript(currentInputTranscription.current);
+            }
+            if (message.serverContent?.outputTranscription) {
+                const text = message.serverContent.outputTranscription.text;
+                currentOutputTranscription.current += text;
+                setAssistantTranscript(currentOutputTranscription.current);
+            }
+            if (message.serverContent?.turnComplete) {
+                onTurnComplete(currentInputTranscription.current.trim(), currentOutputTranscription.current.trim());
+                currentInputTranscription.current = '';
+                currentOutputTranscription.current = '';
+            }
 
-            sessionPromiseRef.current = ai.live.connect({
-                model: 'gemini-2.5-flash-native-audio-preview-09-2025',
-                config: {
-                    responseModalities: [Modality.AUDIO],
-                    speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
-                    systemInstruction: systemInstruction,
-                    inputAudioTranscription: {},
-                    outputAudioTranscription: {},
-                    tools: [{ functionDeclarations: [SAVE_TO_MEMORY_TOOL] }],
-                },
-                callbacks: {
-                    onopen: () => {
-                        setSessionStatus('ACTIVE');
-                        const source = inputAudioContext.createMediaStreamSource(stream);
-                        mediaStreamSourceRef.current = source;
-                        const scriptProcessor = inputAudioContext.createScriptProcessor(4096, 1, 1);
-                        scriptProcessorRef.current = scriptProcessor;
+            const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData.data;
+            if (base64Audio) {
+              setIsSpeaking(true);
+              const outputCtx = outputAudioContextRef.current!;
+              nextStartTime.current = Math.max(nextStartTime.current, outputCtx.currentTime);
+              
+              const audioBuffer = await decodeAudioData(decode(base64Audio), outputCtx, 24000, 1);
+              const source = outputCtx.createBufferSource();
+              source.buffer = audioBuffer;
+              source.connect(outputCtx.destination);
+              source.start(nextStartTime.current);
 
-                        scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
-                            const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
-                            const pcmBlob = createBlob(inputData);
-                            if (sessionPromiseRef.current) {
-                                sessionPromiseRef.current.then((session) => {
-                                    session.sendRealtimeInput({ media: pcmBlob });
-                                });
-                            }
-                        };
-                        source.connect(scriptProcessor);
-                        scriptProcessor.connect(inputAudioContext.destination);
-                    },
-                    onmessage: async (message: LiveServerMessage) => {
-                        // Handle audio output
-                        const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-                        if (base64Audio && outputAudioContextRef.current && outputGainNodeRef.current) {
-                            setIsSpeaking(true);
-                            nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outputAudioContextRef.current.currentTime);
-                            const audioBuffer = await decodeAudioData(decode(base64Audio), outputAudioContextRef.current, 24000, 1);
-                            
-                            const sourceNode = outputAudioContextRef.current.createBufferSource();
-                            sourceNode.buffer = audioBuffer;
-                            sourceNode.connect(outputGainNodeRef.current);
-                            sourceNode.addEventListener('ended', () => {
-                                audioQueueRef.current.delete(sourceNode);
-                                if (audioQueueRef.current.size === 0) {
-                                    setIsSpeaking(false);
+              nextStartTime.current += audioBuffer.duration;
+              audioSources.current.add(source);
+
+              source.onended = () => {
+                audioSources.current.delete(source);
+                if (audioSources.current.size === 0) {
+                  setIsSpeaking(false);
+                }
+              };
+            }
+
+            if (message.serverContent?.interrupted) {
+                audioSources.current.forEach(source => source.stop());
+                audioSources.current.clear();
+                nextStartTime.current = 0;
+                setIsSpeaking(false);
+            }
+
+            if (message.toolCall) {
+                for (const fc of message.toolCall.functionCalls) {
+                    if (fc.name === 'saveToMemory' && fc.args.info) {
+                        await onSaveToMemory(fc.args.info as string);
+                        sessionPromise.current?.then(session => {
+                            session.sendToolResponse({
+                                functionResponses: {
+                                    id: fc.id,
+                                    name: fc.name,
+                                    response: { result: 'OK, I have saved that information.' },
                                 }
                             });
-                            sourceNode.start(nextStartTimeRef.current);
-                            nextStartTimeRef.current += audioBuffer.duration;
-                            audioQueueRef.current.add(sourceNode);
-                        }
-
-                        // Handle transcriptions
-                        if (message.serverContent?.inputTranscription) {
-                            currentInputTranscriptionRef.current += message.serverContent.inputTranscription.text;
-                            setUserTranscript(currentInputTranscriptionRef.current);
-                        }
-                        if (message.serverContent?.outputTranscription) {
-                            currentOutputTranscriptionRef.current += message.serverContent.outputTranscription.text;
-                            setAssistantTranscript(currentOutputTranscriptionRef.current);
-                        }
-                        if (message.serverContent?.turnComplete) {
-                            onTurnComplete(currentInputTranscriptionRef.current, currentOutputTranscriptionRef.current);
-                            const fullInput = currentInputTranscriptionRef.current; // copy before clearing
-                            currentInputTranscriptionRef.current = '';
-                            currentOutputTranscriptionRef.current = '';
-                            if (fullInput.trim() !== '') { // only clear display if there was input
-                                setUserTranscript('');
-                                setAssistantTranscript('');
-                            }
-                        }
-                        if(message.serverContent?.interrupted) {
-                            for(const sourceNode of audioQueueRef.current.values()) {
-                                sourceNode.stop();
-                                audioQueueRef.current.delete(sourceNode);
-                            }
-                            nextStartTimeRef.current = 0;
-                            setIsSpeaking(false);
-                        }
-
-                        // Handle tool calls
-                        if (message.toolCall?.functionCalls) {
-                            for (const fc of message.toolCall.functionCalls) {
-                                if (fc.name === 'save_to_memory') {
-                                    await onSaveToMemory(fc.args.info);
-                                    if(sessionPromiseRef.current) {
-                                        sessionPromiseRef.current.then(session => {
-                                            session.sendToolResponse({
-                                                functionResponses: {
-                                                    id: fc.id,
-                                                    name: fc.name,
-                                                    response: { result: "OK, I've remembered that." },
-                                                }
-                                            });
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    onerror: (e) => {
-                        console.error("Session error:", e);
-                        setError("Connection error. Please try again.");
-                        setSessionStatus('ERROR');
-                        // stopSession is called in onclose which is triggered by error
-                    },
-                    onclose: () => {
-                        stopSession(); // ensure cleanup on close
-                    },
+                        });
+                    }
                 }
-            });
-
-        } catch (e: any) {
-            console.error("Failed to start session:", e);
-            setError(e.message || "Failed to access microphone. Please check permissions.");
+            }
+          },
+          onerror: (e: ErrorEvent) => {
+            console.error('Session error:', e);
+            setError(`Connection error: ${e.message || 'An unknown error occurred.'}`);
             setSessionStatus('ERROR');
-        }
-    }, [voice, systemInstruction, onSaveToMemory, onTurnComplete]);
+            stopSession();
+          },
+          onclose: () => {
+            if(sessionStatus !== 'ERROR') {
+                stopSession();
+            }
+          },
+        },
+      });
 
-    const stopSession = useCallback(() => {
-        if (sessionStatus === 'IDLE') return; // Prevent multiple calls
+    } catch (e: any) {
+      console.error("Failed to start session:", e);
+      setError(e.message || "An unknown error occurred.");
+      setSessionStatus('ERROR');
+      stopSession();
+    }
+  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, sessionStatus, stopSession]);
 
-        // Close Gemini session first
-        if (sessionPromiseRef.current) {
-            sessionPromiseRef.current.then(session => session.close()).catch(console.error);
-            sessionPromiseRef.current = null;
-        }
-
-        // Stop microphone processing
-        if (scriptProcessorRef.current) {
-            scriptProcessorRef.current.disconnect();
-            scriptProcessorRef.current = null;
-        }
-        if (mediaStreamSourceRef.current) {
-            mediaStreamSourceRef.current.disconnect();
-            mediaStreamSourceRef.current = null;
-        }
-        if (mediaStreamRef.current) {
-            mediaStreamRef.current.getTracks().forEach(track => track.stop());
-            mediaStreamRef.current = null;
-        }
-        if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-            audioContextRef.current.close();
-            audioContextRef.current = null;
-        }
-
-        // Stop audio playback
-        for(const source of audioQueueRef.current.values()) {
-            try { source.stop(); } catch(e) {/* already stopped */}
-        }
-        audioQueueRef.current.clear();
-        if (outputAudioContextRef.current && outputAudioContextRef.current.state !== 'closed') {
-            outputAudioContextRef.current.close();
-            outputAudioContextRef.current = null;
-        }
-        
-        setSessionStatus('IDLE');
-        setIsSpeaking(false);
-        nextStartTimeRef.current = 0;
-    }, [sessionStatus]);
-
-    return {
-        sessionStatus,
-        startSession,
-        stopSession,
-        isSpeaking,
-        userTranscript,
-        assistantTranscript,
-        error
+  useEffect(() => {
+    // Cleanup on unmount
+    return () => {
+      stopSession();
     };
+  }, [stopSession]);
+
+  return {
+    sessionStatus,
+    startSession,
+    stopSession,
+    isSpeaking,
+    userTranscript,
+    assistantTranscript,
+    error,
+  };
 }

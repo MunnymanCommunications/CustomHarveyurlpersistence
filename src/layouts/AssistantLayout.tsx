@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { getSupabase } from '../lib/supabaseClient.ts';
-import type { Assistant, HistoryEntry } from '../types.ts';
-import { useLocalStorage } from '../hooks/useLocalStorage.ts';
-
-import ConversationPage from '../pages/ConversationPage.tsx';
-import MemoryPage from '../pages/MemoryPage.tsx';
-import HistoryPage from '../pages/HistoryPage.tsx';
-import SettingsDashboardPage from '../pages/SettingsDashboardPage.tsx';
-import { Navigation } from '../components/Navigation.tsx';
-import { Icon } from '../components/Icon.tsx';
+import React, { useState, useEffect } from 'react';
+import { getSupabase } from '../lib/supabaseClient';
+import type { Assistant, HistoryEntry } from '../types';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import { Icon } from '../components/Icon';
+import { Navigation } from '../components/Navigation';
+import ConversationPage from '../pages/ConversationPage';
+import MemoryPage from '../pages/MemoryPage';
+import HistoryPage from '../pages/HistoryPage';
+import SettingsDashboardPage from '../pages/SettingsDashboardPage';
 
 interface AssistantLayoutProps {
   assistantId: string;
@@ -21,11 +20,11 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<Page>('conversation');
-
-  // State management using useLocalStorage to persist across sessions
+  
+  // Per-assistant local storage for memory and history
   const [memory, setMemory] = useLocalStorage<string[]>(`memory_${assistantId}`, []);
   const [history, setHistory] = useLocalStorage<HistoryEntry[]>(`history_${assistantId}`, []);
-
+  
   const [isNavMobileOpen, setNavMobileOpen] = useState(false);
   const [isNavCollapsed, setNavCollapsed] = useLocalStorage('nav_collapsed', false);
 
@@ -34,15 +33,15 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
       setLoading(true);
       setError(null);
       const supabase = getSupabase();
-      const { data, error: fetchError } = await supabase
+      const { data, error } = await supabase
         .from('assistants')
         .select('*')
         .eq('id', assistantId)
         .single();
-      
-      if (fetchError) {
-        console.error("Error fetching assistant:", fetchError);
-        setError("Could not load assistant data.");
+
+      if (error) {
+        console.error('Error fetching assistant:', error);
+        setError('Could not load assistant data. It might not exist or you may not have access.');
       } else {
         setAssistant(data as Assistant);
       }
@@ -52,80 +51,83 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
     fetchAssistant();
   }, [assistantId]);
 
-  const handleSaveToMemory = useCallback(async (info: string) => {
+  const handleSaveToMemory = async (info: string) => {
     if (!memory.includes(info)) {
       setMemory(prev => [...prev, info]);
     }
-  }, [memory, setMemory]);
+  };
   
-  const handleTurnComplete = useCallback((entry: HistoryEntry) => {
+  const handleAddTurnToHistory = (entry: HistoryEntry) => {
     setHistory(prev => [entry, ...prev]);
-  }, [setHistory]);
-
-  const handleClearHistory = useCallback(() => {
+  };
+  
+  const handleClearHistory = () => {
     setHistory([]);
-  }, [setHistory]);
+  };
 
   const handleSettingsChange = async (newSettings: Partial<Assistant>) => {
     if (!assistant) return;
+    
     const updatedAssistant = { ...assistant, ...newSettings };
     setAssistant(updatedAssistant);
-
+    
     const supabase = getSupabase();
-    const { error: updateError } = await supabase
+    const { error } = await supabase
         .from('assistants')
         .update(newSettings)
         .eq('id', assistant.id);
     
-    if (updateError) {
-        console.error("Error updating settings:", updateError);
-        // Optionally revert state or show an error message
+    if (error) {
+        console.error("Failed to update settings:", error);
+        // Optionally revert state
+        setError("Failed to save settings.");
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-          <Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow"/>
+        <Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow" />
       </div>
     );
   }
 
   if (error || !assistant) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen text-center">
-          <Icon name="error" className="w-12 h-12 text-danger mb-4"/>
-          <h2 className="text-2xl font-bold text-text-primary">Error</h2>
-          <p className="text-text-secondary">{error || "Assistant not found."}</p>
-          <a href="#/" className="mt-4 text-brand-secondary-glow hover:underline">Go to Dashboard</a>
+      <div className="flex flex-col items-center justify-center h-screen text-center p-4">
+        <Icon name="error" className="w-16 h-16 text-danger mb-4" />
+        <h1 className="text-2xl font-bold text-text-primary">Assistant Not Found</h1>
+        <p className="text-text-secondary mt-2">{error || 'The requested assistant could not be found.'}</p>
+        <a href="#/" className="mt-6 bg-brand-secondary-glow text-on-brand font-bold py-2 px-4 rounded-full">
+          Back to Dashboard
+        </a>
       </div>
     );
   }
 
   const renderPage = () => {
     switch (currentPage) {
+      case 'conversation':
+        return <ConversationPage 
+                    assistant={assistant} 
+                    memory={memory}
+                    onSaveToMemory={handleSaveToMemory}
+                    onTurnComplete={handleAddTurnToHistory}
+                    onNavigateToMemory={() => setCurrentPage('memory')}
+                />;
       case 'memory':
         return <MemoryPage memory={memory} setMemory={setMemory} />;
       case 'history':
         return <HistoryPage history={history} onClear={handleClearHistory} />;
       case 'settings':
         return <SettingsDashboardPage settings={assistant} onSettingsChange={handleSettingsChange} />;
-      case 'conversation':
       default:
-        return (
-          <ConversationPage
-            assistant={assistant}
-            memory={memory}
-            onSaveToMemory={handleSaveToMemory}
-            onTurnComplete={handleTurnComplete}
-            onNavigateToMemory={() => setCurrentPage('memory')}
-          />
-        );
+        return null;
     }
   };
 
   return (
-    <div className="h-screen w-screen flex overflow-hidden bg-base-light font-sans">
+    <div className="flex h-screen bg-base-light overflow-hidden">
       <Navigation
         currentPage={currentPage}
         onNavigate={setCurrentPage}
@@ -136,8 +138,10 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
         isCollapsed={isNavCollapsed}
         onToggleCollapse={() => setNavCollapsed(prev => !prev)}
       />
-      <main className="flex-1 flex flex-col relative p-4 transition-all duration-300">
-         <button onClick={() => setNavMobileOpen(true)} className="md:hidden absolute top-4 left-4 z-20 p-2 bg-white/70 rounded-full shadow-md">
+      
+      <main className="flex-1 flex flex-col p-4 md:p-6 transition-all duration-300 relative">
+        {/* Mobile Nav Toggle */}
+        <button onClick={() => setNavMobileOpen(true)} className="md:hidden absolute top-4 left-4 z-30 p-2 bg-white/50 rounded-full">
             <Icon name="dashboard" className="w-6 h-6"/>
         </button>
         {renderPage()}
