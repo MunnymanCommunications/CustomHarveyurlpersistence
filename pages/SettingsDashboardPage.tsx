@@ -1,0 +1,24 @@
+import React from 'react';
+import { SettingsPanel } from '../components/SettingsPanel';
+import type { Settings } from '../types';
+import { Icon } from '../components/Icon';
+
+interface SettingsDashboardPageProps {
+  settings: Settings;
+  onSettingsChange: React.Dispatch<React.SetStateAction<Settings>>;
+}
+
+export default function SettingsDashboardPage({ settings, onSettingsChange }: SettingsDashboardPageProps) {
+  return (
+    <div className="w-full max-w-4xl mx-auto glassmorphic p-4 sm:p-8 h-full overflow-y-auto">
+      <header className="mb-8">
+          <h1 className="text-3xl font-bold text-text-primary flex items-center">
+              <Icon name="settings" className="w-8 h-8 mr-4" />
+              Settings
+          </h1>
+          <p className="text-text-secondary mt-2">Adjust your AI assistant's personality, knowledge, and voice.</p>
+      </header>
+      <SettingsPanel settings={settings} onSettingsChange={onSettingsChange} disabled={false} />
+    </div>
+  );
+}

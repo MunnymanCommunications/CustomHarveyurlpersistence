@@ -1,0 +1,7 @@
+{
+  "name": "Customizable AI Voice Assistant",
+  "description": "A fully customizable AI voice assistant with a visual avatar, personality traits, knowledge base, and a memory system. It uses low-latency websockets for real-time conversation.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
