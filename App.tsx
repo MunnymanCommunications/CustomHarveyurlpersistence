@@ -6,6 +6,7 @@ import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import AssistantLayout from './layouts/AssistantLayout';
+import { Icon } from './components/Icon';
 
 const parseHash = () => {
     const hash = window.location.hash;
@@ -34,6 +35,10 @@ export default function App() {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             setLoading(false);
+        }).catch(err => {
+            // Also stop loading on error, so the user isn't stuck.
+            console.error("Error getting session:", err);
+            setLoading(false);
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -57,7 +62,11 @@ export default function App() {
     };
 
     if (loading) {
-        return <div id="root"></div>; // Shows "Loading Assistant..." from CSS
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow"/>
+            </div>
+        );
     }
     
     if (!session) {
