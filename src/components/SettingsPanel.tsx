@@ -1,8 +1,12 @@
 import React from 'react';
-import type { Assistant, AttitudeOption, PersonalityTrait, VoiceOption } from '../types.ts';
-import { PERSONALITY_TRAITS, ATTITUDE_OPTIONS, VOICE_SETTINGS } from '../constants.ts';
-import { AvatarUploader } from './AvatarUploader.tsx';
+import type { Assistant } from '../types.ts';
+import {
+  PERSONALITY_TRAITS,
+  ATTITUDE_OPTIONS,
+  VOICE_SETTINGS,
+} from '../constants.ts';
 import { SelectionButton } from './SelectionButton.tsx';
+import { AvatarUploader } from './AvatarUploader.tsx';
 
 interface SettingsPanelProps {
   settings: Partial<Assistant>;
@@ -11,117 +15,130 @@ interface SettingsPanelProps {
   disabled: boolean;
 }
 
-export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onSettingsChange, onAvatarFileChange, disabled }) => {
+const SettingsSection: React.FC<{ title: string; description: string; children: React.ReactNode }> = ({ title, description, children }) => (
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 py-6 border-b border-border-color">
+    <div className="md:col-span-1">
+      <h3 className="font-semibold text-text-primary">{title}</h3>
+      <p className="text-sm text-text-secondary mt-1">{description}</p>
+    </div>
+    <div className="md:col-span-2 space-y-4">
+      {children}
+    </div>
+  </div>
+);
+
+export const SettingsPanel: React.FC<SettingsPanelProps> = ({
+  settings,
+  onSettingsChange,
+  onAvatarFileChange,
+  disabled,
+}) => {
   const handleFieldChange = (field: keyof Assistant, value: any) => {
     onSettingsChange({ [field]: value });
   };
-
-  const togglePersonality = (trait: PersonalityTrait) => {
+  
+  const togglePersonality = (trait: string) => {
     const currentTraits = settings.personality || [];
-    const newTraits = currentTraits.includes(trait)
+    const newTraits = currentTraits.includes(trait as any)
       ? currentTraits.filter(t => t !== trait)
       : [...currentTraits, trait];
-    onSettingsChange({ personality: newTraits });
+    onSettingsChange({ personality: newTraits as any });
   };
-  
+
   return (
-    <div className="space-y-8">
-      {/* Basic Info */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-        <div className="md:col-span-1">
-          <h3 className="text-lg font-semibold text-text-primary">Avatar & Name</h3>
-          <p className="text-sm text-text-secondary">Choose a visual identity for your assistant.</p>
-        </div>
-        <div className="md:col-span-2 flex flex-col md:flex-row items-center gap-6 glassmorphic p-6 rounded-lg">
-          {onAvatarFileChange && (
-            <AvatarUploader 
-              avatarUrl={settings.avatar || ''} 
-              onAvatarChange={onAvatarFileChange} 
-              disabled={disabled} 
-            />
-          )}
-          <div className="w-full">
-            <label htmlFor="name" className="block text-sm font-medium text-text-primary mb-2">Assistant Name</label>
+    <div className="space-y-6">
+      <SettingsSection title="Name & Avatar" description="Give your assistant a unique identity.">
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+            {onAvatarFileChange && (
+                 <AvatarUploader 
+                    avatarUrl={settings.avatar || ''} 
+                    onAvatarChange={onAvatarFileChange}
+                    disabled={disabled}
+                />
+            )}
             <input
-              id="name"
-              type="text"
-              className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent"
-              value={settings.name || ''}
-              onChange={(e) => handleFieldChange('name', e.target.value)}
-              placeholder="e.g., Sparky"
-              disabled={disabled}
+                type="text"
+                placeholder="Assistant Name (e.g., Jarvis)"
+                value={settings.name || ''}
+                onChange={e => handleFieldChange('name', e.target.value)}
+                disabled={disabled}
+                className="settings-input w-full"
+                required
             />
-          </div>
         </div>
-      </div>
-
-      {/* Personality */}
-      <div>
-        <h3 className="text-lg font-semibold text-text-primary">Personality Traits</h3>
-        <p className="text-sm text-text-secondary mb-4">Select multiple traits to define its character.</p>
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
-          {PERSONALITY_TRAITS.map(trait => (
-            <SelectionButton
-              key={trait}
-              onClick={() => togglePersonality(trait)}
-              isActive={(settings.personality || []).includes(trait)}
-              disabled={disabled}
-              size="sm"
-            >
-              {trait}
-            </SelectionButton>
-          ))}
-        </div>
-      </div>
+      </SettingsSection>
       
-      {/* Attitude */}
-      <div>
-        <h3 className="text-lg font-semibold text-text-primary">Attitude</h3>
-        <p className="text-sm text-text-secondary mb-4">Choose one primary attitude or worldview.</p>
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-          {ATTITUDE_OPTIONS.map(attitude => (
-            <SelectionButton
-              key={attitude}
-              onClick={() => handleFieldChange('attitude', attitude)}
-              isActive={settings.attitude === attitude}
-              disabled={disabled}
-            >
-              {attitude}
-            </SelectionButton>
-          ))}
-        </div>
-      </div>
-
-      {/* Voice */}
-      <div>
-        <h3 className="text-lg font-semibold text-text-primary">Voice</h3>
-        <p className="text-sm text-text-secondary mb-4">Select the voice for your assistant.</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-          {VOICE_SETTINGS.map(voice => (
-            <SelectionButton
-              key={voice.value}
-              onClick={() => handleFieldChange('voice', voice.value)}
-              isActive={settings.voice === voice.value}
-              disabled={disabled}
-            >
-              {voice.name}
-            </SelectionButton>
-          ))}
-        </div>
-      </div>
-
-      {/* Prompt */}
-      <div>
-        <h3 className="text-lg font-semibold text-text-primary">Core Prompt</h3>
-        <p className="text-sm text-text-secondary mb-4">Provide a detailed system prompt to guide the assistant's behavior, role, and constraints.</p>
+      <SettingsSection title="Core Prompt" description="The main instruction that guides your assistant's behavior. Be specific.">
         <textarea
-            className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent h-32"
-            value={settings.prompt || ''}
-            onChange={(e) => handleFieldChange('prompt', e.target.value)}
-            placeholder="e.g., You are a helpful assistant that specializes in creative writing..."
-            disabled={disabled}
+          value={settings.prompt || ''}
+          onChange={e => handleFieldChange('prompt', e.target.value)}
+          disabled={disabled}
+          className="settings-input min-h-[120px] w-full"
+          placeholder="e.g., You are a witty companion who speaks like a 1920s detective..."
         />
-      </div>
+      </SettingsSection>
+
+      <SettingsSection title="Personality Traits" description="Select up to 5 traits. This adds nuance to the core prompt.">
+        <div className="flex flex-wrap gap-2">
+            {PERSONALITY_TRAITS.map(trait => (
+                <button 
+                    key={trait} 
+                    type="button"
+                    onClick={() => togglePersonality(trait)}
+                    disabled={disabled || (settings.personality && settings.personality.length >= 5 && !settings.personality.includes(trait))}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                        settings.personality?.includes(trait)
+                            ? 'bg-brand-secondary-glow text-on-brand border-transparent'
+                            : 'bg-white/50 text-text-secondary border-border-color hover:border-brand-secondary-glow'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                    {trait}
+                </button>
+            ))}
+        </div>
+      </SettingsSection>
+
+      <SettingsSection title="Attitude" description="What is the assistant's general outlook or style?">
+         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {ATTITUDE_OPTIONS.map(option => (
+                <SelectionButton
+                    key={option}
+                    onClick={() => handleFieldChange('attitude', option)}
+                    isActive={settings.attitude === option}
+                    disabled={disabled}
+                    size="sm"
+                >
+                    {option}
+                </SelectionButton>
+            ))}
+        </div>
+      </SettingsSection>
+
+       <SettingsSection title="Voice" description="Choose the voice your assistant will use to speak.">
+         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {VOICE_SETTINGS.map(({name, value}) => (
+                <SelectionButton
+                    key={value}
+                    onClick={() => handleFieldChange('voice', value)}
+                    isActive={settings.voice === value}
+                    disabled={disabled}
+                    size="sm"
+                >
+                    {name}
+                </SelectionButton>
+            ))}
+        </div>
+      </SettingsSection>
+      
+      <SettingsSection title="Knowledge Base" description="Add specific information, facts, or data points. This content is prioritized in responses.">
+          <textarea
+              value={settings.knowledge_base || ''}
+              onChange={e => handleFieldChange('knowledge_base', e.target.value)}
+              disabled={disabled}
+              className="settings-input min-h-[120px] w-full"
+              placeholder="e.g., The user's name is Alex. Alex works as a designer. Alex's favorite color is blue."
+          />
+      </SettingsSection>
     </div>
   );
 };

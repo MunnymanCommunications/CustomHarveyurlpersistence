@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import type { Assistant, HistoryEntry } from '../types.ts';
-import { useLocalStorage } from '../hooks/useLocalStorage.ts';
 import { Icon } from '../components/Icon.tsx';
 import { Navigation } from '../components/Navigation.tsx';
+import { useLocalStorage } from '../hooks/useLocalStorage.ts';
+
 import ConversationPage from '../pages/ConversationPage.tsx';
 import MemoryPage from '../pages/MemoryPage.tsx';
 import HistoryPage from '../pages/HistoryPage.tsx';
@@ -11,79 +12,86 @@ import SettingsDashboardPage from '../pages/SettingsDashboardPage.tsx';
 
 type Page = 'conversation' | 'memory' | 'history' | 'settings';
 
-interface AssistantLayoutProps {
-  assistantId: string;
-}
-
-export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
+export default function AssistantLayout({ assistantId }: { assistantId: string }) {
   const [assistant, setAssistant] = useState<Assistant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<Page>('conversation');
-  const [isMobileNavOpen, setMobileNavOpen] = useState(false);
-  const [isNavCollapsed, setNavCollapsed] = useLocalStorage('navCollapsed', false);
+  
+  const [memory, setMemory] = useLocalStorage<string[]>(`memory-${assistantId}`, []);
+  const [history, setHistory] = useLocalStorage<HistoryEntry[]>(`history-${assistantId}`, []);
 
-  // Per-assistant memory and history
-  const [memory, setMemory] = useLocalStorage<string[]>(`memory_${assistantId}`, []);
-  const [history, setHistory] = useLocalStorage<HistoryEntry[]>(`history_${assistantId}`, []);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isNavCollapsed, setIsNavCollapsed] = useLocalStorage('isNavCollapsed', false);
 
   useEffect(() => {
     const fetchAssistant = async () => {
-      setLoading(true);
-      setError(null);
-      const supabase = getSupabase();
-      const { data, error } = await supabase
-        .from('assistants')
-        .select('*')
-        .eq('id', assistantId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching assistant:', error);
-        setError('Could not load assistant data. Please try again.');
-      } else {
-        setAssistant(data as Assistant);
+      if (!assistantId) {
+        setError("No assistant ID provided.");
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+      try {
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+          .from('assistants')
+          .select('*')
+          .eq('id', assistantId)
+          .single();
+        
+        if (error) throw error;
+        if (data) {
+          setAssistant(data as Assistant);
+        } else {
+          setError("Assistant not found.");
+        }
+      } catch (e: any) {
+        console.error("Error fetching assistant:", e);
+        setError(e.message || "Failed to load assistant data.");
+      } finally {
+        setLoading(false);
+      }
     };
-
     fetchAssistant();
   }, [assistantId]);
 
-  const handleSaveToMemory = async (info: string) => {
-    setMemory(prev => [...new Set([...prev, info])]); // Use Set to avoid duplicates
-  };
-  
-  const handleUpdateMemory = async (newMemory: string[]) => {
+  const saveToMemory = useCallback(async (info: string) => {
+    const newMemory = [...memory, info];
     setMemory(newMemory);
-  };
-  
-  const handleTurnComplete = (entry: HistoryEntry) => {
-    setHistory(prev => [entry, ...prev]);
-  };
-  
-  const handleClearHistory = () => {
+    // In a real app, you might also persist this to a database.
+  }, [memory, setMemory]);
+
+  const addHistoryEntry = useCallback((entry: HistoryEntry) => {
+    setHistory(prev => [...prev, entry]);
+  }, [setHistory]);
+
+  const clearHistory = useCallback(() => {
     setHistory([]);
-  };
+  }, [setHistory]);
 
-  const handleSettingsChange = async (newSettings: Partial<Assistant>) => {
+  const updateAssistantSettings = useCallback(async (newSettings: Partial<Assistant>) => {
     if (!assistant) return;
-    const updatedAssistant = { ...assistant, ...newSettings };
-    setAssistant(updatedAssistant); // Optimistic update
-
-    const supabase = getSupabase();
-    const { error } = await supabase
-        .from('assistants')
-        .update(newSettings)
-        .eq('id', assistant.id);
-    
-    if (error) {
-        setError("Failed to save settings. Please try again.");
-        // Revert optimistic update
-        const { data } = await supabase.from('assistants').select('*').eq('id', assistant.id).single();
-        if (data) setAssistant(data as Assistant);
+    setLoading(true);
+    try {
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+            .from('assistants')
+            .update(newSettings)
+            .eq('id', assistant.id)
+            .select()
+            .single();
+        
+        if (error) throw error;
+        if (data) {
+            setAssistant(data as Assistant);
+        }
+    } catch (e: any) {
+        console.error("Error updating settings:", e);
+        setError(e.message || "Failed to save settings.");
+    } finally {
+        setLoading(false);
     }
-  };
+  }, [assistant]);
 
 
   if (loading) {
@@ -94,58 +102,66 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
     );
   }
 
-  if (error || !assistant) {
+  if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-screen text-center">
         <Icon name="error" className="w-16 h-16 text-danger mb-4"/>
         <h2 className="text-2xl font-bold text-text-primary">Oops! Something went wrong.</h2>
-        <p className="text-text-secondary mt-2">{error || "The requested assistant could not be found."}</p>
+        <p className="text-text-secondary mt-2">{error}</p>
         <a href="#/" className="mt-6 bg-brand-secondary-glow text-on-brand font-bold py-2 px-4 rounded-full">Back to Dashboard</a>
       </div>
     );
   }
-  
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'memory':
-        return <MemoryPage memory={memory} setMemory={handleUpdateMemory} />;
-      case 'history':
-        return <HistoryPage history={history} onClear={handleClearHistory} />;
-      case 'settings':
-        return <SettingsDashboardPage settings={assistant} onSettingsChange={handleSettingsChange} />;
+
+  if (!assistant) {
+    return null; // or a 'not found' component
+  }
+
+  const renderCurrentPage = () => {
+    switch(currentPage) {
       case 'conversation':
+        return <ConversationPage 
+                    assistant={assistant} 
+                    memory={memory} 
+                    onSaveToMemory={saveToMemory}
+                    onTurnComplete={addHistoryEntry}
+                    onNavigateToMemory={() => setCurrentPage('memory')}
+                />;
+      case 'memory':
+        return <MemoryPage memory={memory} setMemory={async (m) => setMemory(m)} />;
+      case 'history':
+        return <HistoryPage history={history} onClear={clearHistory} />;
+      case 'settings':
+        return <SettingsDashboardPage settings={assistant} onSettingsChange={updateAssistantSettings} />;
       default:
-        return (
-          <ConversationPage
-            assistant={assistant}
-            memory={memory}
-            onSaveToMemory={handleSaveToMemory}
-            onTurnComplete={handleTurnComplete}
-            onNavigateToMemory={() => setCurrentPage('memory')}
-          />
-        );
+        return null;
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen w-full flex bg-base-light">
-      <Navigation
+    <div className="flex h-screen bg-base-light overflow-hidden">
+      <Navigation 
         currentPage={currentPage}
         onNavigate={setCurrentPage}
         assistantName={assistant.name}
         assistantAvatar={assistant.avatar}
         isMobileOpen={isMobileNavOpen}
-        onMobileClose={() => setMobileNavOpen(false)}
+        onMobileClose={() => setIsMobileNavOpen(false)}
         isCollapsed={isNavCollapsed}
-        onToggleCollapse={() => setNavCollapsed(prev => !prev)}
+        onToggleCollapse={() => setIsNavCollapsed(prev => !prev)}
       />
-      <main className="flex-grow flex flex-col p-4 relative">
-        {/* Mobile nav toggle */}
-        <button onClick={() => setMobileNavOpen(true)} className="md:hidden absolute top-4 left-4 p-2 bg-white/50 rounded-full z-20">
-          <Icon name="dashboard" className="w-6 h-6 text-text-primary"/>
-        </button>
-        <div className="w-full h-full flex-grow flex items-center justify-center">
-             {renderPage()}
+      <main className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isNavCollapsed ? 'md:ml-24' : 'md:ml-72'}`}>
+        <div className="md:hidden p-2 flex justify-between items-center bg-white/50 backdrop-blur-sm border-b border-border-color">
+            <a href="#/" className="flex items-center gap-2 text-text-secondary hover:text-text-primary">
+                <Icon name="chevronLeft" className="w-5 h-5"/>
+                <span>Dashboard</span>
+            </a>
+            <button onClick={() => setIsMobileNavOpen(true)} className="p-2">
+                <Icon name="settings" className="w-6 h-6"/>
+            </button>
+        </div>
+        <div className="flex-1 p-4 overflow-y-auto">
+             {renderCurrentPage()}
         </div>
       </main>
     </div>
