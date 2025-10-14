@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import Stepper, { Step } from '../components/stepper/Stepper';
-import type { Assistant, Personality, Attitude, VoiceOption } from '../types';
+import type { Personality, VoiceOption } from '../types';
 import { ATTITUDE_OPTIONS, PERSONALITY_TRAITS, VOICE_SETTINGS, DEFAULT_ASSISTANT_DATA } from '../constants';
 import { Icon } from '../components/Icon';
 import { SelectionButton } from '../components/SelectionButton';

@@ -1,21 +1,13 @@
-import type { Assistant, Personality, Attitude } from './types';
+import type { Assistant } from './types';
+import { VOICE_SETTINGS_DEFINITIONS, PERSONALITY_TRAITS_DEFINITIONS, ATTITUDE_OPTIONS_DEFINITIONS } from './definitions';
 
-// FIX: Removed explicit type annotation from `VOICE_SETTINGS` to break a circular dependency
-// with `types.ts`. The type is now correctly inferred from the `as const` assertion, which
-// resolves the "circularly references itself" and "referenced directly or indirectly in its own type annotation" errors.
-export const VOICE_SETTINGS = [
-    { name: 'Neutral', value: 'Zephyr' },
-    { name: 'Female - Standard', value: 'Kore' },
-    { name: 'Male - Standard', value: 'Puck' },
-    { name: 'Male - Strong', value: 'Fenrir' },
-    { name: 'Male - Deep', value: 'Charon' },
-] as const;
+// Re-export the definitions for components to use.
+export const VOICE_SETTINGS = VOICE_SETTINGS_DEFINITIONS;
+export const PERSONALITY_TRAITS = PERSONALITY_TRAITS_DEFINITIONS;
+export const ATTITUDE_OPTIONS = ATTITUDE_OPTIONS_DEFINITIONS;
 
-// FIX: Added the missing `VOICE_OPTIONS` export required by the `SettingsPanel` component.
+// Create derived constants.
 export const VOICE_OPTIONS = VOICE_SETTINGS.map(s => s.value);
-
-export const PERSONALITY_TRAITS: Personality[] = ['Friendly', 'Witty', 'Formal', 'Creative', 'Analytical', 'Sarcastic', 'Enthusiastic', 'Calm', 'Energetic', 'Curious', 'Patient', 'Humorous', 'Stoic', 'Wise', 'Playful', 'Direct', 'Mysterious', 'Empathetic', 'Loyal', 'Independent', 'Assertive', 'Gentle', 'Introverted', 'Extroverted', 'Imaginative'];
-export const ATTITUDE_OPTIONS: Attitude[] = ['Country Simple', 'City Smooth', 'Practical', 'Analytical', 'Scientific', 'Historical', 'Storyteller', 'Boomer', 'Gen Z', 'Classical'];
 
 export const DEFAULT_ASSISTANT_DATA: Omit<Assistant, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
   name: 'Aura',

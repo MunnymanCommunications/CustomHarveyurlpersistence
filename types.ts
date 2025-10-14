@@ -1,11 +1,13 @@
-// All possible personality traits. These should match the values in constants.ts
-export type Personality = 'Friendly' | 'Witty' | 'Formal' | 'Creative' | 'Analytical' | 'Sarcastic' | 'Enthusiastic' | 'Calm' | 'Energetic' | 'Curious' | 'Patient' | 'Humorous' | 'Stoic' | 'Wise' | 'Playful' | 'Direct' | 'Mysterious' | 'Empathetic' | 'Loyal' | 'Independent' | 'Assertive' | 'Gentle' | 'Introverted' | 'Extroverted' | 'Imaginative';
+import type { PERSONALITY_TRAITS_DEFINITIONS, ATTITUDE_OPTIONS_DEFINITIONS, VOICE_SETTINGS_DEFINITIONS } from './definitions';
 
-// All possible attitudes. These should match the values in constants.ts
-export type Attitude = 'Country Simple' | 'City Smooth' | 'Practical' | 'Analytical' | 'Scientific' | 'Historical' | 'Storyteller' | 'Boomer' | 'Gen Z' | 'Classical';
+// All possible personality traits, derived from the single source of truth.
+export type Personality = typeof PERSONALITY_TRAITS_DEFINITIONS[number];
 
-// All possible voice options from Google GenAI. These should match the values in constants.ts
-export type VoiceOption = 'Zephyr' | 'Kore' | 'Puck' | 'Fenrir' | 'Charon';
+// All possible attitudes, derived from the single source of truth.
+export type Attitude = typeof ATTITUDE_OPTIONS_DEFINITIONS[number];
+
+// All possible voice options, derived from the single source of truth.
+export type VoiceOption = typeof VOICE_SETTINGS_DEFINITIONS[number]['value'];
 
 // The settings that define the AI assistant's persona, matching the database schema.
 export interface Assistant {

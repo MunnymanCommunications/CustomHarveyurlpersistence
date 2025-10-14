@@ -90,8 +90,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, onSettin
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <SettingsSelect label="Attitude" id="attitude" value={settings.attitude} onChange={handleChange('attitude')} options={ATTITUDE_OPTIONS} disabled={disabled} />
-                <SettingsSelect label="Voice" id="voice" value={settings.voice} onChange={handleChange('voice')} options={VOICE_OPTIONS} disabled={disabled} />
+                <SettingsSelect label="Attitude" id="attitude" value={settings.attitude} onChange={handleChange('attitude')} options={[...ATTITUDE_OPTIONS]} disabled={disabled} />
+                <SettingsSelect label="Voice" id="voice" value={settings.voice} onChange={handleChange('voice')} options={[...VOICE_OPTIONS]} disabled={disabled} />
             </div>
             
             <SettingsTextarea label="Knowledge Base" id="knowledgeBase" value={settings.knowledgeBase} onChange={handleChange('knowledgeBase')} rows={4} disabled={disabled} />
