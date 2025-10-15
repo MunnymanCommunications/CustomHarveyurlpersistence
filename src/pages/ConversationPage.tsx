@@ -32,6 +32,18 @@ export default function ConversationPage({
     }
   };
 
+  // Construct a comprehensive system instruction for the AI
+  const systemInstruction = `You are an AI assistant named ${assistant.name}.
+Your personality traits are: ${assistant.personality.join(', ')}.
+Your attitude is: ${assistant.attitude}.
+Your core instruction is: ${assistant.prompt}
+
+Based on this persona, engage in a conversation with the user.
+
+Key information about the user to remember and draw upon (long-term memory):
+${memory.join('\n')}
+`;
+
   const {
     sessionStatus,
     startSession,
@@ -42,7 +54,7 @@ export default function ConversationPage({
     error
   } = useGeminiLive({
     voice: assistant.voice,
-    systemInstruction: `${assistant.prompt}\n\nKey information about the user to remember: ${memory.join(', ')}`,
+    systemInstruction: systemInstruction,
     onSaveToMemory: onSaveToMemory,
     onTurnComplete: handleTurnComplete,
   });
