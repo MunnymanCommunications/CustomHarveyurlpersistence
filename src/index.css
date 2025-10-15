@@ -1,1 +1,30 @@
-full contents of src/index.css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-base-light text-text-primary antialiased;
+    background-image: radial-gradient(circle at top right, theme('colors.brand-tertiary-glow / 0.1'), transparent 40%),
+                      radial-gradient(circle at bottom left, theme('colors.brand-secondary-glow / 0.1'), transparent 50%);
+    background-attachment: fixed;
+  }
+
+  /* Custom scrollbar for better aesthetics */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: theme('colors.base-medium');
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: theme('colors.brand-tertiary');
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: theme('colors.brand-secondary');
+  }
+}
