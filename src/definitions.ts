@@ -1,4 +1,13 @@
 
+// FIX: Add a global declaration for process.env to resolve TypeScript errors
+// when accessing environment variables. This allows using process.env safely
+// across the application.
+declare var process: {
+  env: {
+    [key: string]: string | undefined
+  }
+};
+
 // This file contains the raw data definitions and should have NO IMPORTS.
 // It serves as the single source of truth to prevent circular dependencies.
 

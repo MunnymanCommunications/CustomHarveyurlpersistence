@@ -1,5 +1,3 @@
-/// <reference types="vite/client" />
-
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   GoogleGenAI,
@@ -71,12 +69,14 @@ export function useGeminiLive({
   const currentOutputTranscriptionRef = useRef('');
 
   useEffect(() => {
-    if (!import.meta.env.VITE_API_KEY) {
+    // FIX: Use process.env.API_KEY as per Gemini API guidelines.
+    // The value is injected at build time by Vite's `define` config.
+    if (!process.env.API_KEY) {
       setError('API key is not configured. Please set VITE_API_KEY in your environment.');
       setSessionStatus('ERROR');
       return;
     }
-    aiRef.current = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    aiRef.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }, []);
 
   const playNextInQueue = useCallback(() => {
