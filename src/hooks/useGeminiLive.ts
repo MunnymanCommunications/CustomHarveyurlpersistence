@@ -58,11 +58,11 @@ export function useGeminiLive({
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const mediaStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
-  // Audio playback queue
-  const audioQueueRef = useRef<{ buffer: AudioBuffer; source: AudioBufferSourceNode }[]>([]);
+  // Audio playback state
   const nextStartTimeRef = useRef(0);
-  const isPlayingRef = useRef(false);
   const sourcesRef = useRef(new Set<AudioBufferSourceNode>());
+  // FIX: Replaced `NodeJS.Timeout` with `ReturnType<typeof setTimeout>` to use the correct browser-compatible type.
+  const speakingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Transcription state
   const currentInputTranscriptionRef = useRef('');
@@ -79,37 +79,6 @@ export function useGeminiLive({
       return;
     }
     aiRef.current = new GoogleGenAI({ apiKey });
-  }, []);
-
-  const playNextInQueue = useCallback(() => {
-    if (audioQueueRef.current.length === 0 || isPlayingRef.current) {
-      if (audioQueueRef.current.length === 0) {
-        setIsSpeaking(false);
-      }
-      return;
-    }
-
-    isPlayingRef.current = true;
-    setIsSpeaking(true);
-    const { buffer, source } = audioQueueRef.current.shift()!;
-    const outputNode = outputAudioContextRef.current!.createGain();
-    outputNode.connect(outputAudioContextRef.current!.destination);
-
-    source.buffer = buffer;
-    source.connect(outputNode);
-
-    source.onended = () => {
-      sourcesRef.current.delete(source);
-      isPlayingRef.current = false;
-      playNextInQueue();
-    };
-
-    const currentTime = outputAudioContextRef.current!.currentTime;
-    nextStartTimeRef.current = Math.max(nextStartTimeRef.current, currentTime);
-
-    source.start(nextStartTimeRef.current);
-    nextStartTimeRef.current += buffer.duration;
-    sourcesRef.current.add(source);
   }, []);
 
   const stopSession = useCallback(async () => {
@@ -145,8 +114,10 @@ export function useGeminiLive({
     // Clear audio queue and stop speaking
     sourcesRef.current.forEach(source => source.stop());
     sourcesRef.current.clear();
-    audioQueueRef.current = [];
-    isPlayingRef.current = false;
+    if (speakingTimeoutRef.current) {
+      clearTimeout(speakingTimeoutRef.current);
+      speakingTimeoutRef.current = null;
+    }
     setIsSpeaking(false);
     nextStartTimeRef.current = 0;
 
@@ -265,6 +236,12 @@ export function useGeminiLive({
                     // Handle audio output
                     const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
                     if (base64Audio && outputAudioContextRef.current) {
+                        if (speakingTimeoutRef.current) {
+                            clearTimeout(speakingTimeoutRef.current);
+                            speakingTimeoutRef.current = null;
+                        }
+                        setIsSpeaking(true);
+
                         const audioBytes = decode(base64Audio);
                         const audioBuffer = await decodeAudioData(
                             audioBytes,
@@ -273,15 +250,28 @@ export function useGeminiLive({
                             1
                         );
                         const source = outputAudioContextRef.current.createBufferSource();
-                        audioQueueRef.current.push({ buffer: audioBuffer, source });
-                        playNextInQueue();
+                        source.buffer = audioBuffer;
+                        const outputNode = outputAudioContextRef.current.createGain();
+                        outputNode.connect(outputAudioContextRef.current.destination);
+                        source.connect(outputNode);
+                        
+                        source.onended = () => {
+                            sourcesRef.current.delete(source);
+                            if (sourcesRef.current.size === 0) {
+                                speakingTimeoutRef.current = setTimeout(() => setIsSpeaking(false), 200);
+                            }
+                        };
+                        sourcesRef.current.add(source);
+
+                        const currentTime = outputAudioContextRef.current.currentTime;
+                        const startTime = Math.max(currentTime, nextStartTimeRef.current);
+                        source.start(startTime);
+                        nextStartTimeRef.current = startTime + audioBuffer.duration;
                     }
                     
                     if (message.serverContent?.interrupted) {
                        sourcesRef.current.forEach(source => source.stop());
                        sourcesRef.current.clear();
-                       audioQueueRef.current = [];
-                       isPlayingRef.current = false;
                        setIsSpeaking(false);
                        nextStartTimeRef.current = 0;
                     }
@@ -317,7 +307,7 @@ export function useGeminiLive({
       setError(err.message || 'Failed to start the microphone.');
       setSessionStatus('ERROR');
     }
-  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, playNextInQueue, stopSession]);
+  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, stopSession]);
 
   // Cleanup effect
   useEffect(() => {
