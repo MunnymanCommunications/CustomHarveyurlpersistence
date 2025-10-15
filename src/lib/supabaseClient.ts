@@ -1,10 +1,13 @@
+// FIX: Add a reference to Vite's client types to make `import.meta.env` available.
+/// <reference types="vite/client" />
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 let supabaseInstance: SupabaseClient | null = null;
 
-// FIX: Use process.env to access environment variables, as import.meta.env is not available in this environment.
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+// FIX: Use import.meta.env, the Vite-standard way to access environment variables.
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
     const errorContainer = document.getElementById('root');
