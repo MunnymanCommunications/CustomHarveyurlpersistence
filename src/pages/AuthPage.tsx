@@ -1,4 +1,3 @@
-import React from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';

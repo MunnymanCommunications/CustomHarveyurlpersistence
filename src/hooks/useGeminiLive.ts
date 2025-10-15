@@ -223,18 +223,29 @@ export function useGeminiLive({
                     }
 
                     // Handle tool calls
-                    if (message.toolCall) {
+                    if (message.toolCall?.functionCalls) {
                         for (const fc of message.toolCall.functionCalls) {
                             if (fc.name === 'saveToMemory') {
                                 try {
-                                    await onSaveToMemory(fc.args.info);
-                                    sessionPromise.then(session => session.sendToolResponse({
-                                        functionResponses: {
-                                            id: fc.id,
-                                            name: fc.name,
-                                            response: { result: "Successfully saved to memory." }
-                                        }
-                                    }));
+                                    const info = fc.args?.info;
+                                    if (typeof info === 'string') {
+                                        await onSaveToMemory(info);
+                                        sessionPromise.then(session => session.sendToolResponse({
+                                            functionResponses: {
+                                                id: fc.id,
+                                                name: fc.name,
+                                                response: { result: "Successfully saved to memory." }
+                                            }
+                                        }));
+                                    } else {
+                                        sessionPromise.then(session => session.sendToolResponse({
+                                             functionResponses: {
+                                                id: fc.id,
+                                                name: fc.name,
+                                                response: { result: "Failed to save to memory, info was not provided." }
+                                            }
+                                        }));
+                                    }
                                 } catch (e) {
                                     console.error("Failed to save to memory:", e);
                                     sessionPromise.then(session => session.sendToolResponse({
@@ -250,7 +261,7 @@ export function useGeminiLive({
                     }
 
                     // Handle audio output
-                    const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+                    const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
                     if (base64Audio && outputAudioContextRef.current) {
                         const audioBytes = decode(base64Audio);
                         const audioBuffer = await decodeAudioData(

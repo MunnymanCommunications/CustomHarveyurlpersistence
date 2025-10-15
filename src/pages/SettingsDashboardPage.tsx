@@ -1,6 +1,3 @@
-
-
-import React from 'react';
 import { SettingsPanel } from '../components/SettingsPanel.tsx';
 import type { Assistant } from '../types.ts';
 import { Icon } from '../components/Icon.tsx';

@@ -1,4 +1,3 @@
-import React from 'react';
 import { useGeminiLive } from '../hooks/useGeminiLive.ts';
 import type { Assistant, HistoryEntry } from '../types.ts';
 import { AssistantAvatar } from '../components/AssistantAvatar.tsx';

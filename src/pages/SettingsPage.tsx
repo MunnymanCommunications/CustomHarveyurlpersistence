@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Stepper, { Step } from '../components/stepper/Stepper.tsx';
 import { SettingsPanel } from '../components/SettingsPanel.tsx';
 import type { Assistant } from '../types.ts';

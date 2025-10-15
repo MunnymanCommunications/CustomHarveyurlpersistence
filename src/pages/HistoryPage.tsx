@@ -1,5 +1,3 @@
-
-import React from 'react';
 import { Icon } from '../components/Icon.tsx';
 import type { HistoryEntry } from '../types.ts';
 
