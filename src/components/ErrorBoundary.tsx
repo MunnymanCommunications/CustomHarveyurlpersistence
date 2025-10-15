@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { Icon } from './Icon.tsx';
 
 interface Props {
@@ -11,9 +11,9 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  // FIX: Removed `public` modifiers from class members to align with common
-  // React/TypeScript style and prevent potential tooling issues. `public` is
-  // the default accessibility and is conventionally omitted.
+  // FIX: Initializing state in the constructor for broader compatibility.
+  // Class field properties can sometimes cause issues with older tooling,
+  // potentially leading to incorrect type inference for inherited members like `props`.
   state: State = {
     hasError: false,
   };
