@@ -28,3 +28,9 @@
     background: theme('colors.brand-secondary');
   }
 }
+
+@layer components {
+  .glassmorphic {
+    @apply bg-white/60 backdrop-blur-xl border border-white/20 shadow-xl;
+  }
+}

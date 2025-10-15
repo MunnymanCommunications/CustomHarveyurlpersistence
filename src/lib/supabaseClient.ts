@@ -2,9 +2,9 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 let supabaseInstance: SupabaseClient | null = null;
 
-// FIX: Cast import.meta to any to bypass TypeScript environment type errors.
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+// FIX: Use process.env to access environment variables, as import.meta.env is not available in this environment.
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
     const errorContainer = document.getElementById('root');

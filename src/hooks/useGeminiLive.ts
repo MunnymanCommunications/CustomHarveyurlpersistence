@@ -69,14 +69,13 @@ export function useGeminiLive({
   const currentOutputTranscriptionRef = useRef('');
 
   useEffect(() => {
-    // The API key MUST be provided via the `VITE_API_KEY` environment variable.
-    if (!(import.meta as any).env.VITE_API_KEY) {
-      setError('API key is not configured. Please set VITE_API_KEY in your environment.');
+    // The API key must be obtained from the `API_KEY` environment variable.
+    if (!process.env.API_KEY) {
+      setError('API key is not configured. Please set API_KEY in your environment.');
       setSessionStatus('ERROR');
       return;
     }
-    // FIX: Correctly initialize GoogleGenAI with a named apiKey parameter.
-    aiRef.current = new GoogleGenAI({ apiKey: (import.meta as any).env.VITE_API_KEY });
+    aiRef.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }, []);
 
   const playNextInQueue = useCallback(() => {
