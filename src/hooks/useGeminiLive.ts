@@ -1,4 +1,3 @@
-// FIX: Add a reference to Vite's client types to make `import.meta.env` available.
 /// <reference types="vite/client" />
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -72,7 +71,6 @@ export function useGeminiLive({
   const currentOutputTranscriptionRef = useRef('');
 
   useEffect(() => {
-    // The API key must be obtained from the `VITE_API_KEY` environment variable for Vite projects.
     if (!import.meta.env.VITE_API_KEY) {
       setError('API key is not configured. Please set VITE_API_KEY in your environment.');
       setSessionStatus('ERROR');
