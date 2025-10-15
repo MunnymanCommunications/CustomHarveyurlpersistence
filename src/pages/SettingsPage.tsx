@@ -75,7 +75,7 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
         if (insertError) throw insertError;
         
         // 2. Seed memory from the knowledge_base text area
-        const initialMemories = settings.knowledge_base
+        const initialMemories = (settings.knowledge_base || '')
             .split('\n')
             .map(line => line.trim())
             .filter(line => line.length > 0);
