@@ -9,10 +9,11 @@ import {
 } from '../constants.ts';
 
 interface SettingsPanelProps {
-  settings: Partial<Assistant>;
-  onSettingsChange: (newSettings: Partial<Assistant>) => void;
+  settings: Partial<Assistant & { knowledge_base?: string }>;
+  onSettingsChange: (newSettings: Partial<Assistant & { knowledge_base?: string }>) => void;
   onAvatarFileChange?: (file: File) => void;
   disabled: boolean;
+  showKnowledgeBase?: boolean;
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
@@ -20,6 +21,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onSettingsChange,
   onAvatarFileChange,
   disabled,
+  showKnowledgeBase = false,
 }) => {
   const handlePersonalityToggle = (trait: PersonalityTrait) => {
     const currentTraits = settings.personality || [];
@@ -125,21 +127,23 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       </div>
 
       {/* Knowledge & Prompt */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <h3 className="text-lg font-semibold text-text-primary">Knowledge Base</h3>
-          <p className="text-sm text-text-secondary mt-1">
-            Provide context or data for the assistant to draw upon (optional).
-          </p>
-          <textarea
-            value={settings.knowledge_base || ''}
-            onChange={e => onSettingsChange({ knowledge_base: e.target.value })}
-            className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition mt-2"
-            rows={5}
-            placeholder="e.g., The user's name is Alex. Alex is a software engineer..."
-            disabled={disabled}
-          />
-        </div>
+      <div className={`grid grid-cols-1 ${showKnowledgeBase ? 'md:grid-cols-2' : ''} gap-6`}>
+        {showKnowledgeBase && (
+          <div>
+            <h3 className="text-lg font-semibold text-text-primary">Knowledge Base</h3>
+            <p className="text-sm text-text-secondary mt-1">
+              Provide initial facts for the assistant to draw upon (optional). Each line will become a separate memory.
+            </p>
+            <textarea
+              value={settings.knowledge_base || ''}
+              onChange={e => onSettingsChange({ knowledge_base: e.target.value })}
+              className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition mt-2"
+              rows={5}
+              placeholder="e.g., The user's name is Alex.&#10;Alex is a software engineer..."
+              disabled={disabled}
+            />
+          </div>
+        )}
         <div>
           <h3 className="text-lg font-semibold text-text-primary">System Prompt</h3>
           <p className="text-sm text-text-secondary mt-1">

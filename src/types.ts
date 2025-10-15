@@ -18,8 +18,15 @@ export interface Assistant {
   personality: PersonalityTrait[];
   attitude: AttitudeOption;
   voice: VoiceOption;
-  knowledge_base: string; // FIX: Changed from knowledgeBase
   prompt: string;
+  created_at: string;
+}
+
+export interface MemoryItem {
+  id: number;
+  assistant_id: string;
+  user_id: string;
+  content: string;
   created_at: string;
 }
 

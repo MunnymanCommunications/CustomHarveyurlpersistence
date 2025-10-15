@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
-import type { Assistant, HistoryEntry } from '../types.ts';
+import type { Assistant, HistoryEntry, MemoryItem } from '../types.ts';
 import { useLocalStorage } from '../hooks/useLocalStorage.ts';
 
 import { Navigation } from '../components/Navigation.tsx';
@@ -19,6 +19,7 @@ interface AssistantLayoutProps {
 
 export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
     const [assistant, setAssistant] = useState<Assistant | null>(null);
+    const [memories, setMemories] = useState<MemoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState<Page>('conversation');
@@ -28,47 +29,67 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
     const [isNavCollapsed, setIsNavCollapsed] = useLocalStorage('is_nav_collapsed', false);
 
-    useEffect(() => {
-        const fetchAssistant = async () => {
-            const supabase = getSupabase();
-            const { data, error } = await supabase
-                .from('assistants')
-                .select('*')
-                .eq('id', assistantId)
-                .single();
+    const fetchAssistantData = useCallback(async () => {
+        const supabase = getSupabase();
+        const { data: assistantData, error: assistantError } = await supabase
+            .from('assistants')
+            .select('*')
+            .eq('id', assistantId)
+            .single();
 
-            if (error) {
-                console.error("Error fetching assistant:", error);
-                setError("Could not load assistant data.");
-            } else {
-                setAssistant(data as Assistant);
-            }
-            setLoading(false);
-        };
+        if (assistantError) {
+            console.error("Error fetching assistant:", assistantError);
+            throw new Error("Could not load assistant data.");
+        }
+        
+        setAssistant(assistantData as Assistant);
 
-        fetchAssistant();
+        const { data: memoryData, error: memoryError } = await supabase
+            .from('memory_items')
+            .select('*')
+            .eq('assistant_id', assistantId)
+            .order('created_at', { ascending: true });
+        
+        if (memoryError) {
+            console.error("Error fetching memories:", memoryError);
+            throw new Error("Could not load assistant memories.");
+        }
+
+        setMemories(memoryData as MemoryItem[]);
+
     }, [assistantId]);
+
+
+    useEffect(() => {
+        setLoading(true);
+        fetchAssistantData()
+            .catch(e => setError(e.message))
+            .finally(() => setLoading(false));
+    }, [assistantId, fetchAssistantData]);
+
 
     const handleSaveToMemory = async (info: string) => {
         if (!assistant) return;
-        const currentKnowledge = assistant.knowledge_base || '';
-        if (currentKnowledge.includes(info)) return; // Avoid duplicates
-
-        const newKnowledge = (currentKnowledge ? currentKnowledge + '\n' : '') + info;
-        
-        // Optimistic update
-        setAssistant(prev => prev ? { ...prev, knowledge_base: newKnowledge } : null);
+        if (memories.some(mem => mem.content === info)) return; // Avoid duplicates
 
         const supabase = getSupabase();
-        const { error: updateError } = await supabase
-            .from('assistants')
-            .update({ knowledge_base: newKnowledge })
-            .eq('id', assistant.id);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-        if (updateError) {
-            console.error("Error saving to memory:", updateError);
-            // Revert optimistic update on error
-            setAssistant(prev => prev ? { ...prev, knowledge_base: currentKnowledge } : null);
+        const { data: newMemory, error: insertError } = await supabase
+            .from('memory_items')
+            .insert({
+                assistant_id: assistant.id,
+                user_id: user.id,
+                content: info
+            })
+            .select()
+            .single();
+
+        if (insertError) {
+            console.error("Error saving to memory:", insertError);
+        } else if (newMemory) {
+            setMemories(prev => [...prev, newMemory as MemoryItem]);
         }
     };
 
@@ -80,33 +101,49 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
         setHistory([]);
     }
 
-    const handleMemorySave = async (newKnowledge: string) => {
-        if (!assistant) return;
-        const supabase = getSupabase();
-        const { data, error } = await supabase
-            .from('assistants')
-            .update({ knowledge_base: newKnowledge })
-            .eq('id', assistant.id)
-            .select()
-            .single();
+    const handleAddMemory = async (content: string) => {
+        await handleSaveToMemory(content);
+    };
 
+    const handleUpdateMemory = async (id: number, content: string) => {
+        const originalMemories = [...memories];
+        // Optimistic update
+        setMemories(prev => prev.map(m => m.id === id ? { ...m, content } : m));
+        
+        const supabase = getSupabase();
+        const { error } = await supabase
+            .from('memory_items')
+            .update({ content })
+            .eq('id', id);
+        
         if (error) {
             console.error("Error updating memory:", error);
-            // Optionally show an error to the user
-        } else {
-            setAssistant(data as Assistant);
+            setMemories(originalMemories); // Revert on error
+        }
+    };
+
+    const handleDeleteMemory = async (id: number) => {
+        const originalMemories = [...memories];
+        // Optimistic update
+        setMemories(prev => prev.filter(m => m.id !== id));
+
+        const supabase = getSupabase();
+        const { error } = await supabase
+            .from('memory_items')
+            .delete()
+            .eq('id', id);
+        
+        if (error) {
+            console.error("Error deleting memory:", error);
+            setMemories(originalMemories); // Revert on error
         }
     };
     
     const handleSettingsChange = async (newSettings: Partial<Assistant>) => {
         if (!assistant) return;
         
-        // Ensure avatar is not part of this partial update unless it's a new URL string.
-        // File objects should be handled separately where avatar uploads happen.
         const settingsToUpdate = { ...newSettings };
-        delete (settingsToUpdate as any).avatarFile;
-
-
+        
         const supabase = getSupabase();
         const { data, error } = await supabase
             .from('assistants')
@@ -128,15 +165,17 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
             case 'conversation':
                 return <ConversationPage 
                     assistant={assistant} 
-                    memory={assistant.knowledge_base.split('\n').filter(Boolean)} 
+                    memory={memories.map(m => m.content)} 
                     onSaveToMemory={handleSaveToMemory}
                     onTurnComplete={handleTurnComplete}
                     onNavigateToMemory={() => setCurrentPage('memory')}
                 />;
             case 'memory':
                 return <MemoryPage 
-                    knowledgeBase={assistant.knowledge_base}
-                    onSave={handleMemorySave}
+                    memories={memories}
+                    onAdd={handleAddMemory}
+                    onUpdate={handleUpdateMemory}
+                    onDelete={handleDeleteMemory}
                 />;
             case 'history':
                 return <HistoryPage history={history} onClear={handleClearHistory} />;

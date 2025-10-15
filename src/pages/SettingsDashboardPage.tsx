@@ -4,7 +4,6 @@ import { Icon } from '../components/Icon.tsx';
 
 interface SettingsDashboardPageProps {
   settings: Assistant;
-  // FIX: Corrected prop type to align with how it's used in SettingsPanel.
   onSettingsChange: (newSettings: Partial<Assistant>) => void;
 }
 

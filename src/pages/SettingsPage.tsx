@@ -10,7 +10,7 @@ interface SettingsPageProps {
   onComplete: (assistantId: string) => void;
 }
 
-const INITIAL_SETTINGS: Partial<Assistant> = {
+const INITIAL_SETTINGS: Partial<Assistant & { knowledge_base: string }> = {
   name: '',
   avatar: DEFAULT_AVATAR_URL,
   personality: [],
@@ -21,12 +21,12 @@ const INITIAL_SETTINGS: Partial<Assistant> = {
 };
 
 export default function SettingsPage({ onComplete }: SettingsPageProps) {
-  const [settings, setSettings] = useState<Partial<Assistant>>(INITIAL_SETTINGS);
+  const [settings, setSettings] = useState(INITIAL_SETTINGS);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSettingsChange = (newSettings: Partial<Assistant>) => {
+  const handleSettingsChange = (newSettings: Partial<Assistant & { knowledge_base: string }>) => {
     setSettings(prev => ({ ...prev, ...newSettings }));
   };
 
@@ -57,7 +57,7 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("User not authenticated");
 
-        // 1. Insert assistant data to get an ID
+        // 1. Insert assistant data (without knowledge_base) to get an ID
         const { data: newAssistant, error: insertError } = await supabase
             .from('assistants')
             .insert({
@@ -66,7 +66,6 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
                 personality: settings.personality,
                 attitude: settings.attitude,
                 voice: settings.voice,
-                knowledge_base: settings.knowledge_base,
                 prompt: settings.prompt,
                 avatar: DEFAULT_AVATAR_URL, // Start with default
             })
@@ -75,13 +74,29 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
 
         if (insertError) throw insertError;
         
+        // 2. Seed memory from the knowledge_base text area
+        const initialMemories = settings.knowledge_base
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
+
+        if (initialMemories.length > 0) {
+            const memoryRecords = initialMemories.map(content => ({
+                assistant_id: newAssistant.id,
+                user_id: user.id,
+                content: content,
+            }));
+            const { error: memoryError } = await supabase.from('memory_items').insert(memoryRecords);
+            if (memoryError) throw memoryError;
+        }
+
         let finalAvatarUrl = newAssistant.avatar;
 
-        // 2. If there's a new avatar file, upload it
+        // 3. If there's a new avatar file, upload it
         if (avatarFile) {
             finalAvatarUrl = await uploadAvatar(user.id, newAssistant.id, avatarFile);
             
-            // 3. Update the assistant with the new avatar URL
+            // 4. Update the assistant with the new avatar URL
             const { error: updateError } = await supabase
                 .from('assistants')
                 .update({ avatar: finalAvatarUrl })
@@ -124,6 +139,7 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
                 onSettingsChange={handleSettingsChange}
                 onAvatarFileChange={setAvatarFile}
                 disabled={isSaving}
+                showKnowledgeBase={true}
             />
         </Step>
         <Step>
