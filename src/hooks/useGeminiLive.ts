@@ -71,12 +71,14 @@ export function useGeminiLive({
   useEffect(() => {
     // FIX: Use process.env.API_KEY as per Gemini API guidelines.
     // The value is injected at build time by Vite's `define` config.
-    if (!process.env.API_KEY) {
+    // Added a check for 'undefined' string to handle missing env vars.
+    const apiKey = process.env.API_KEY;
+    if (!apiKey || apiKey === 'undefined') {
       setError('API key is not configured. Please set VITE_API_KEY in your environment.');
       setSessionStatus('ERROR');
       return;
     }
-    aiRef.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    aiRef.current = new GoogleGenAI({ apiKey });
   }, []);
 
   const playNextInQueue = useCallback(() => {

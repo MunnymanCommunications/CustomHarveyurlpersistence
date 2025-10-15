@@ -6,7 +6,8 @@ let supabaseInstance: SupabaseClient | null = null;
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
+// FIX: Added a check for the literal string 'undefined' which can occur if env vars are not set at build time.
+if (!supabaseUrl || supabaseUrl === 'undefined' || !supabaseAnonKey || supabaseAnonKey === 'undefined') {
     const errorContainer = document.getElementById('root');
     if (errorContainer) {
         errorContainer.innerHTML = `
