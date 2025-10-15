@@ -11,12 +11,14 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  // FIX: Initializing state in the constructor for broader compatibility.
-  // Class field properties can sometimes cause issues with older tooling,
-  // potentially leading to incorrect type inference for inherited members like `props`.
-  state: State = {
-    hasError: false,
-  };
+  // FIX: Using a class field for state initialization can cause issues where `this.props` is not available.
+  // Switched to a constructor to ensure `super(props)` is called, which correctly initializes the component's props.
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+    };
+  }
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
