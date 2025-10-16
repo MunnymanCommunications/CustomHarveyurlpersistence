@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Icon } from './Icon.tsx';
 
@@ -14,11 +13,11 @@ export const MemoryBank: React.FC<MemoryBankProps> = ({ memory, onEdit }) => {
 
   return (
     <div className="glassmorphic p-3 rounded-lg max-w-xs">
-      <h3 className="text-sm font-semibold text-text-primary mb-2 flex items-center">
+      <h3 className="text-sm font-semibold text-text-primary dark:text-dark-text-primary mb-2 flex items-center">
         <Icon name="brain" className="w-4 h-4 mr-2" />
         Memory Bank
       </h3>
-      <ul className="space-y-1 text-xs text-text-secondary list-disc list-inside max-h-24 overflow-y-auto">
+      <ul className="space-y-1 text-xs text-text-secondary dark:text-dark-text-secondary list-disc list-inside max-h-24 overflow-y-auto">
         {memory.slice(0, 3).map((item, index) => (
           <li key={index} className="truncate">{item}</li>
         ))}

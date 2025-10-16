@@ -166,6 +166,7 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
                 return <ConversationPage 
                     assistant={assistant} 
                     memory={memories.map(m => m.content)} 
+                    history={history}
                     onSaveToMemory={handleSaveToMemory}
                     onTurnComplete={handleTurnComplete}
                     onNavigateToMemory={() => setCurrentPage('memory')}
@@ -198,14 +199,14 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
         return (
             <div className="flex flex-col items-center justify-center h-screen text-center">
                 <Icon name="error" className="w-16 h-16 text-danger mb-4" />
-                <h1 className="text-2xl font-bold text-text-primary">{error || "Assistant not found."}</h1>
+                <h1 className="text-2xl font-bold text-text-primary dark:text-dark-text-primary">{error || "Assistant not found."}</h1>
                 <a href="#/" className="mt-4 text-brand-secondary-glow hover:underline">Go to Dashboard</a>
             </div>
         );
     }
 
     return (
-        <div className="flex h-screen bg-base-light overflow-hidden">
+        <div className="flex h-screen bg-base-light dark:bg-dark-base-light overflow-hidden">
             <Navigation 
                 currentPage={currentPage}
                 onNavigate={setCurrentPage}
@@ -219,10 +220,10 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
             
             <main className="flex-1 flex flex-col p-4 md:p-6 transition-all duration-300 relative">
                 <button 
-                    className="md:hidden absolute top-4 left-4 z-50 p-2 bg-white/70 rounded-full shadow-md"
+                    className="md:hidden absolute top-4 left-4 z-50 p-2 bg-white/70 rounded-full shadow-md dark:bg-dark-base-medium/70"
                     onClick={() => setIsMobileNavOpen(true)}
                 >
-                    <Icon name="settings" className="w-6 h-6"/>
+                    <Icon name="settings" className="w-6 h-6 text-text-primary dark:text-dark-text-primary"/>
                 </button>
                 {renderPage()}
             </main>

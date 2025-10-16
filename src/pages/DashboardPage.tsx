@@ -46,12 +46,12 @@ export default function DashboardPage() {
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto w-full min-h-screen">
         <header className="flex justify-between items-center mb-8">
-             <h1 className="text-4xl font-bold text-text-primary">Your Assistants</h1>
-             <button onClick={handleLogout} className="bg-base-light hover:bg-base-medium text-text-primary font-bold py-2 px-4 rounded-full">Logout</button>
+             <h1 className="text-4xl font-bold text-text-primary dark:text-dark-text-primary">Your Assistants</h1>
+             <button onClick={handleLogout} className="bg-base-light hover:bg-base-medium text-text-primary font-bold py-2 px-4 rounded-full dark:bg-dark-base-medium dark:hover:bg-dark-border-color dark:text-dark-text-primary">Logout</button>
         </header>
        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <a href="#/assistant/new" className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-base-medium rounded-2xl text-text-secondary hover:bg-base-light hover:border-brand-secondary-glow transition-all duration-300 min-h-[200px]">
+            <a href="#/assistant/new" className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-base-medium rounded-2xl text-text-secondary hover:bg-base-light hover:border-brand-secondary-glow transition-all duration-300 min-h-[200px] dark:border-dark-border-color dark:text-dark-text-secondary dark:hover:bg-dark-base-medium">
                 <Icon name="plus" className="w-10 h-10 mb-2"/>
                 <span className="font-semibold">Create New Assistant</span>
             </a>
@@ -61,8 +61,8 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-4">
                         <img src={assistant.avatar} alt={assistant.name} className="w-16 h-16 rounded-full object-cover"/>
                         <div>
-                            <h2 className="text-2xl font-bold text-text-primary">{assistant.name}</h2>
-                            <p className="text-text-secondary line-clamp-2">{assistant.personality.join(', ')}</p>
+                            <h2 className="text-2xl font-bold text-text-primary dark:text-dark-text-primary">{assistant.name}</h2>
+                            <p className="text-text-secondary dark:text-dark-text-secondary line-clamp-2">{assistant.personality.join(', ')}</p>
                         </div>
                     </div>
                 </a>

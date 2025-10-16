@@ -11,35 +11,33 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  // FIX: Reverted to a standard constructor for state initialization.
-  // The class property syntax was causing a TypeScript error where `this.props`
-  // was not recognized. The constructor ensures the component is instantiated
-  // correctly and `this.props` is available.
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      hasError: false,
-    };
-  }
+  // FIX: Use a class property initializer for state to resolve TypeScript
+  // errors about the 'state' property not existing. This is a more modern
+  // and concise approach than using a constructor for state initialization.
+  state: State = {
+    hasError: false,
+  };
 
   static getDerivedStateFromError(error: Error): State {
+    // Update state so the next render will show the fallback UI.
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // You can also log the error to an error reporting service
     console.error("Uncaught error:", error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center h-screen text-center p-4">
+        <div className="flex flex-col items-center justify-center h-screen text-center p-4 bg-base-light dark:bg-dark-base-light">
             <Icon name="error" className="w-16 h-16 text-danger mb-4" />
-            <h1 className="text-2xl font-bold text-text-primary">Something went wrong.</h1>
-            <p className="text-text-secondary mt-2">We've logged the issue and are looking into it. Please refresh the page to try again.</p>
+            <h1 className="text-2xl font-bold text-text-primary dark:text-dark-text-primary">Something went wrong.</h1>
+            <p className="text-text-secondary dark:text-dark-text-secondary mt-2">We've logged the issue and are looking into it. Please refresh the page to try again.</p>
             {this.state.error && (
-                <details className="mt-4 text-left bg-base-medium p-3 rounded-lg max-w-lg w-full">
-                    <summary className="cursor-pointer font-semibold">Error Details</summary>
+                <details className="mt-4 text-left bg-base-medium dark:bg-dark-base-medium p-3 rounded-lg max-w-lg w-full">
+                    <summary className="cursor-pointer font-semibold text-text-primary dark:text-dark-text-primary">Error Details</summary>
                     <pre className="mt-2 text-xs text-danger whitespace-pre-wrap overflow-x-auto">
                         {this.state.error.stack}
                     </pre>

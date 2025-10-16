@@ -47,7 +47,7 @@ const Stepper: React.FC<StepperProps> = ({
           <div
             key={index}
             className={`w-3 h-3 rounded-full transition-colors ${
-              currentStep >= index ? 'bg-brand-secondary-glow' : 'bg-base-medium'
+              currentStep >= index ? 'bg-brand-secondary-glow' : 'bg-base-medium dark:bg-dark-base-light'
             }`}
           />
         ))}
@@ -58,7 +58,7 @@ const Stepper: React.FC<StepperProps> = ({
         <button
           onClick={goToPrevious}
           disabled={currentStep === 0}
-          className="bg-base-light hover:bg-base-medium text-text-primary font-bold py-3 px-8 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-base-light hover:bg-base-medium text-text-primary font-bold py-3 px-8 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-dark-base-medium dark:hover:bg-dark-border-color dark:text-dark-text-primary"
         >
           {backButtonText}
         </button>

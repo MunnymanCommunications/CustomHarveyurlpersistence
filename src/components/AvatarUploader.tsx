@@ -52,7 +52,7 @@ export const AvatarUploader: React.FC<AvatarUploaderProps> = ({ avatarUrl, onAva
         type="button"
         onClick={handleUploadClick}
         disabled={disabled}
-        className="bg-base-light hover:bg-base-medium text-text-primary font-bold py-2 px-4 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+        className="bg-base-light hover:bg-base-medium text-text-primary font-bold py-2 px-4 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm dark:bg-dark-base-medium dark:hover:bg-dark-border-color dark:text-dark-text-primary"
       >
         Upload New Avatar
       </button>

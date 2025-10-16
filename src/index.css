@@ -5,9 +5,15 @@
 @layer base {
   body {
     @apply bg-base-light text-text-primary antialiased;
+    @apply dark:bg-dark-base-light dark:text-dark-text-primary;
     background-image: radial-gradient(circle at top right, theme('colors.brand-tertiary-glow / 0.1'), transparent 40%),
                       radial-gradient(circle at bottom left, theme('colors.brand-secondary-glow / 0.1'), transparent 50%);
     background-attachment: fixed;
+  }
+  
+  .dark body {
+    background-image: radial-gradient(circle at top right, theme('colors.brand-tertiary-glow / 0.15'), transparent 40%),
+                      radial-gradient(circle at bottom left, theme('colors.brand-secondary-glow / 0.15'), transparent 50%);
   }
 
   /* Custom scrollbar for better aesthetics */
@@ -16,21 +22,22 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: theme('colors.base-medium');
+    @apply bg-base-medium dark:bg-dark-base-medium;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: theme('colors.brand-tertiary');
+    @apply bg-brand-tertiary dark:bg-dark-text-tertiary;
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: theme('colors.brand-secondary');
+    @apply bg-brand-secondary dark:bg-dark-text-secondary;
   }
 }
 
 @layer components {
   .glassmorphic {
     @apply bg-white/60 backdrop-blur-xl border border-white/20 shadow-xl;
+    @apply dark:bg-dark-base-medium/60 dark:border-white/10;
   }
 }

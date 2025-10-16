@@ -118,16 +118,16 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
     return (
         <div className="flex flex-col items-center justify-center h-screen">
             <Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow"/>
-            <p className="mt-4 text-text-secondary">Creating your assistant...</p>
+            <p className="mt-4 text-text-secondary dark:text-dark-text-secondary">Creating your assistant...</p>
         </div>
     );
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 bg-base-light">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 bg-base-light dark:bg-dark-base-light">
       <div className="text-center mb-8">
-        <h1 className="text-5xl font-bold text-text-primary">Create Your Assistant</h1>
-        <p className="text-xl text-text-secondary mt-2">Let's define its personality and purpose.</p>
+        <h1 className="text-5xl font-bold text-text-primary dark:text-dark-text-primary">Create Your Assistant</h1>
+        <p className="text-xl text-text-secondary dark:text-dark-text-secondary mt-2">Let's define its personality and purpose.</p>
       </div>
       
       {error && <p className="text-red-500 bg-red-100 p-3 rounded-md mb-4">{error}</p>}
@@ -144,8 +144,8 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
         </Step>
         <Step>
             <div className="text-center">
-                <h2 className="text-3xl font-bold text-text-primary">Ready to Go!</h2>
-                <p className="text-lg text-text-secondary mt-4">
+                <h2 className="text-3xl font-bold text-text-primary dark:text-dark-text-primary">Ready to Go!</h2>
+                <p className="text-lg text-text-secondary dark:text-dark-text-secondary mt-4">
                     You've configured {settings.name || 'your new assistant'}.
                     Click "Finish Setup" to create it and start your first conversation.
                 </p>

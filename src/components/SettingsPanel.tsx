@@ -36,8 +36,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       {/* Basic Info */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
         <div className="md:col-span-1">
-          <h3 className="text-lg font-semibold text-text-primary">Avatar & Name</h3>
-          <p className="text-sm text-text-secondary mt-1">
+          <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">Avatar & Name</h3>
+          <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-1">
             Give your assistant a visual identity and a name.
           </p>
         </div>
@@ -48,13 +48,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             disabled={disabled || !onAvatarFileChange}
           />
           <div className="w-full">
-             <label htmlFor="assistant-name" className="block text-sm font-medium text-text-primary mb-1">Assistant Name</label>
+             <label htmlFor="assistant-name" className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-1">Assistant Name</label>
              <input
               id="assistant-name"
               type="text"
               value={settings.name || ''}
               onChange={e => onSettingsChange({ name: e.target.value })}
-              className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition"
+              className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary"
               placeholder="e.g., Harvey"
               disabled={disabled}
               required
@@ -65,8 +65,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* Personality */}
       <div>
-        <h3 className="text-lg font-semibold text-text-primary">Personality Traits</h3>
-        <p className="text-sm text-text-secondary mt-1">
+        <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">Personality Traits</h3>
+        <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-1">
           Select multiple traits that define how your assistant behaves.
         </p>
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 mt-4">
@@ -86,8 +86,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* Attitude */}
       <div>
-        <h3 className="text-lg font-semibold text-text-primary">Attitude</h3>
-        <p className="text-sm text-text-secondary mt-1">
+        <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">Attitude</h3>
+        <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-1">
           Choose one primary attitude for your assistant's communication style.
         </p>
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mt-4">
@@ -107,8 +107,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* Voice */}
        <div>
-        <h3 className="text-lg font-semibold text-text-primary">Voice</h3>
-        <p className="text-sm text-text-secondary mt-1">
+        <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">Voice</h3>
+        <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-1">
           Select the voice your assistant will use to speak.
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-4">
@@ -130,14 +130,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       <div className={`grid grid-cols-1 ${showKnowledgeBase ? 'md:grid-cols-2' : ''} gap-6`}>
         {showKnowledgeBase && (
           <div>
-            <h3 className="text-lg font-semibold text-text-primary">Knowledge Base</h3>
-            <p className="text-sm text-text-secondary mt-1">
+            <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">Knowledge Base</h3>
+            <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-1">
               Provide initial facts for the assistant to draw upon (optional). Each line will become a separate memory.
             </p>
             <textarea
               value={settings.knowledge_base || ''}
               onChange={e => onSettingsChange({ knowledge_base: e.target.value })}
-              className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition mt-2"
+              className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition mt-2 dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary"
               rows={5}
               placeholder="e.g., The user's name is Alex.&#10;Alex is a software engineer..."
               disabled={disabled}
@@ -145,14 +145,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           </div>
         )}
         <div>
-          <h3 className="text-lg font-semibold text-text-primary">System Prompt</h3>
-          <p className="text-sm text-text-secondary mt-1">
+          <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">System Prompt</h3>
+          <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-1">
             The core instruction that guides all assistant responses.
           </p>
           <textarea
             value={settings.prompt || ''}
             onChange={e => onSettingsChange({ prompt: e.target.value })}
-            className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition mt-2"
+            className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition mt-2 dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary"
             rows={5}
             placeholder="You are a helpful assistant."
             disabled={disabled}

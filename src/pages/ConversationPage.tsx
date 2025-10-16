@@ -9,6 +9,7 @@ import { Icon } from '../components/Icon.tsx';
 interface ConversationPageProps {
   assistant: Assistant;
   memory: string[];
+  history: HistoryEntry[];
   onSaveToMemory: (info: string) => Promise<void>;
   onTurnComplete: (entry: HistoryEntry) => void;
   onNavigateToMemory: () => void;
@@ -17,6 +18,7 @@ interface ConversationPageProps {
 export default function ConversationPage({ 
   assistant, 
   memory, 
+  history,
   onSaveToMemory,
   onTurnComplete,
   onNavigateToMemory 
@@ -32,6 +34,13 @@ export default function ConversationPage({
     }
   };
 
+  // Take the last 3 turns of history, and reverse them to be in chronological order.
+  const recentHistory = history.slice(0, 3).reverse();
+
+  const historyContext = recentHistory.length > 0 
+    ? recentHistory.map(entry => `User: "${entry.user}"\nAssistant: "${entry.assistant}"`).join('\n\n')
+    : "No recent conversation history.";
+
   // Construct a comprehensive system instruction for the AI
   const systemInstruction = `You are an AI assistant named ${assistant.name}.
 Your personality traits are: ${assistant.personality.join(', ')}.
@@ -42,6 +51,9 @@ Based on this persona, engage in a conversation with the user.
 
 Key information about the user to remember and draw upon (long-term memory):
 ${memory.join('\n')}
+
+Recent conversation history (for context):
+${historyContext}
 `;
 
   const {
