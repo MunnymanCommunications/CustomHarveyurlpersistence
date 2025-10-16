@@ -5,11 +5,12 @@ import { Icon } from '../components/Icon.tsx';
 
 interface SettingsDashboardPageProps {
   settings: Assistant;
-  onSettingsChange: (newSettings: Partial<Assistant>) => void | Promise<void>;
+  onSettingsChange: (newSettings: Partial<Assistant>, avatarFile: File | null) => void | Promise<void>;
 }
 
 export default function SettingsDashboardPage({ settings, onSettingsChange }: SettingsDashboardPageProps) {
   const [localSettings, setLocalSettings] = useState<Assistant>(settings);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -17,6 +18,7 @@ export default function SettingsDashboardPage({ settings, onSettingsChange }: Se
     // When the upstream settings change (e.g., after a save), reset the local form state.
     setLocalSettings(settings);
     setHasChanges(false);
+    setAvatarFile(null);
   }, [settings]);
 
   const handleLocalSettingsChange = (newSettings: Partial<Assistant>) => {
@@ -26,16 +28,25 @@ export default function SettingsDashboardPage({ settings, onSettingsChange }: Se
     }
   };
 
+  const handleAvatarFileChange = (file: File) => {
+    setAvatarFile(file);
+    if (!hasChanges) {
+        setHasChanges(true);
+    }
+  };
+
   const handleSaveChanges = async () => {
     setIsSaving(true);
-    await onSettingsChange(localSettings);
+    await onSettingsChange(localSettings, avatarFile);
     setIsSaving(false);
     setHasChanges(false);
+    setAvatarFile(null);
   };
   
   const handleResetChanges = () => {
     setLocalSettings(settings);
     setHasChanges(false);
+    setAvatarFile(null);
   };
 
   return (
@@ -49,7 +60,13 @@ export default function SettingsDashboardPage({ settings, onSettingsChange }: Se
       </header>
       
       <div className="flex-grow overflow-y-auto pr-2">
-        <SettingsPanel settings={localSettings} onSettingsChange={handleLocalSettingsChange} disabled={isSaving} />
+        <SettingsPanel 
+            settings={localSettings} 
+            onSettingsChange={handleLocalSettingsChange}
+            onAvatarFileChange={handleAvatarFileChange}
+            disabled={isSaving} 
+            showKnowledgeBase={true}
+        />
       </div>
 
       {hasChanges && (
@@ -64,7 +81,7 @@ export default function SettingsDashboardPage({ settings, onSettingsChange }: Se
             <button
               onClick={handleSaveChanges}
               disabled={isSaving}
-              className="bg-gradient-to-r from-brand-secondary-glow to-brand-tertiary-glow text-on-brand font-bold py-2 px-6 rounded-full flex items-center transition-all duration-300 shadow-lg disabled:opacity-50"
+              className="bg-gradient-to-r from-brand-secondary-glow to-brand-tertiy-glow text-on-brand font-bold py-2 px-6 rounded-full flex items-center transition-all duration-300 shadow-lg disabled:opacity-50"
             >
               {isSaving ? (
                   <>

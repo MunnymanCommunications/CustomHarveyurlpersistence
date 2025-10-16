@@ -6,12 +6,14 @@ import AuthPage from './pages/AuthPage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
 import SettingsPage from './pages/SettingsPage.tsx';
 import AssistantLayout from './layouts/AssistantLayout.tsx';
+import CommunityPage from './pages/CommunityPage.tsx';
 import { Icon } from './components/Icon.tsx';
 
 const parseHash = () => {
     const hash = window.location.hash;
     if (!hash || hash === '#/') return { path: 'dashboard' };
     if (hash === '#/auth') return { path: 'auth' };
+    if (hash === '#/community') return { path: 'community' };
     if (hash === '#/assistant/new') return { path: 'new_assistant' };
     
     const assistantMatch = hash.match(/^#\/assistant\/(.+)$/);
@@ -76,6 +78,8 @@ export default function App() {
             return <SettingsPage onComplete={handleAssistantCreated} />;
         case 'assistant':
             return <AssistantLayout assistantId={route.id!} />;
+        case 'community':
+            return <CommunityPage />;
         case 'dashboard':
         default:
             return <DashboardPage />;

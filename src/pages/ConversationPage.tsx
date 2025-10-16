@@ -41,11 +41,16 @@ export default function ConversationPage({
     ? recentHistory.map(entry => `User: "${entry.user}"\nAssistant: "${entry.assistant}"`).join('\n\n')
     : "No recent conversation history.";
 
+  const knowledgeBaseContext = assistant.knowledge_base
+    ? `\n\nCore Knowledge Base:\n${assistant.knowledge_base}`
+    : '';
+
   // Construct a comprehensive system instruction for the AI
   const systemInstruction = `You are an AI assistant named ${assistant.name}.
 Your personality traits are: ${assistant.personality.join(', ')}.
 Your attitude is: ${assistant.attitude}.
 Your core instruction is: ${assistant.prompt}
+${knowledgeBaseContext}
 
 Based on this persona, engage in a conversation with the user.
 
@@ -70,6 +75,14 @@ ${historyContext}
     onSaveToMemory: onSaveToMemory,
     onTurnComplete: handleTurnComplete,
   });
+  
+  const handleAvatarClick = () => {
+    if (sessionStatus === 'IDLE' || sessionStatus === 'ERROR') {
+      startSession();
+    } else if (sessionStatus === 'ACTIVE' || sessionStatus === 'CONNECTING') {
+      stopSession();
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-between h-full p-4 text-center w-full">
@@ -80,7 +93,13 @@ ${historyContext}
         
         {/* Main Content */}
         <div className="flex-grow flex flex-col justify-center items-center w-full">
-            <AssistantAvatar avatarUrl={assistant.avatar} isSpeaking={isSpeaking} status={sessionStatus} />
+            <AssistantAvatar 
+              avatarUrl={assistant.avatar} 
+              isSpeaking={isSpeaking} 
+              status={sessionStatus}
+              onClick={handleAvatarClick}
+              orbHue={assistant.orb_hue ?? 0}
+            />
 
             <div className="w-full max-w-2xl mt-8">
                 <TranscriptionDisplay userTranscript={userTranscript} assistantTranscript={assistantTranscript} />

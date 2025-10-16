@@ -76,6 +76,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 
         <ul className="space-y-2 flex-grow">
             <NavItem icon="dashboard" label="Dashboard" isActive={false} onClick={() => window.location.hash = '#/'} isCollapsed={isCollapsed} />
+            <NavItem icon="users" label="Community" isActive={false} onClick={() => window.location.hash = '#/community'} isCollapsed={isCollapsed} />
             <NavItem icon="chat" label="Conversation" isActive={currentPage === 'conversation'} onClick={() => onNavigate('conversation')} isCollapsed={isCollapsed} />
             <NavItem icon="brain" label="Memory" isActive={currentPage === 'memory'} onClick={() => onNavigate('memory')} isCollapsed={isCollapsed} />
             <NavItem icon="history" label="History" isActive={currentPage === 'history'} onClick={() => onNavigate('history')} isCollapsed={isCollapsed} />

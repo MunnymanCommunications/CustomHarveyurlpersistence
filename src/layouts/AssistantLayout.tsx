@@ -17,6 +17,24 @@ interface AssistantLayoutProps {
   assistantId: string;
 }
 
+const uploadAvatar = async (userId: string, assistantId: string, file: File) => {
+    const supabase = getSupabase();
+    // Use a timestamp to bust caches and ensure a unique filename
+    const filePath = `${userId}/${assistantId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) throw uploadError;
+    
+    const { data } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+};
+
 export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
     const [assistant, setAssistant] = useState<Assistant | null>(null);
     const [memories, setMemories] = useState<MemoryItem[]>([]);
@@ -139,23 +157,38 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
         }
     };
     
-    const handleSettingsChange = async (newSettings: Partial<Assistant>) => {
+    const handleSettingsChange = async (newSettings: Partial<Assistant>, avatarFile: File | null) => {
         if (!assistant) return;
-        
-        const settingsToUpdate = { ...newSettings };
-        
+
         const supabase = getSupabase();
-        const { data, error } = await supabase
-            .from('assistants')
-            .update(settingsToUpdate)
-            .eq('id', assistant.id)
-            .select()
-            .single();
-        
-        if (error) {
-            console.error("Error updating settings:", error);
-        } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            console.error("User not authenticated for settings change.");
+            return;
+        }
+
+        const settingsToUpdate = { ...newSettings };
+
+        try {
+            if (avatarFile) {
+                const newAvatarUrl = await uploadAvatar(user.id, assistant.id, avatarFile);
+                settingsToUpdate.avatar = newAvatarUrl;
+            }
+
+            const { data, error: updateError } = await supabase
+                .from('assistants')
+                .update(settingsToUpdate)
+                .eq('id', assistant.id)
+                .select()
+                .single();
+            
+            if (updateError) throw updateError;
+            
             setAssistant(data as Assistant);
+
+        } catch (error) {
+            console.error("Error updating settings:", error);
+            // Optionally, show an error to the user here.
         }
     };
 

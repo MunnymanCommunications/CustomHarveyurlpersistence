@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import type { Assistant } from '../types.ts';
 import { Icon } from '../components/Icon.tsx';
+import { AssistantCard } from '../components/AssistantCard.tsx';
 
 export default function DashboardPage() {
   const [assistants, setAssistants] = useState<Assistant[]>([]);
@@ -57,15 +58,7 @@ export default function DashboardPage() {
             </a>
 
             {assistants.map(assistant => (
-                <a key={assistant.id} href={`#/assistant/${assistant.id}`} className="block p-6 glassmorphic rounded-2xl hover:ring-2 hover:ring-brand-tertiary-glow transition-all duration-300">
-                    <div className="flex items-center gap-4">
-                        <img src={assistant.avatar} alt={assistant.name} className="w-16 h-16 rounded-full object-cover"/>
-                        <div>
-                            <h2 className="text-2xl font-bold text-text-primary dark:text-dark-text-primary">{assistant.name}</h2>
-                            <p className="text-text-secondary dark:text-dark-text-secondary line-clamp-2">{assistant.personality.join(', ')}</p>
-                        </div>
-                    </div>
-                </a>
+                <AssistantCard key={assistant.id} assistant={assistant} />
             ))}
         </div>
     </div>
