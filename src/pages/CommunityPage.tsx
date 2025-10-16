@@ -27,11 +27,6 @@ export default function CommunityPage() {
 
     fetchAssistants();
   }, []);
-  
-  const handleLogout = async () => {
-    const supabase = getSupabase();
-    await supabase.auth.signOut();
-  };
 
   if (loading) {
     return (
