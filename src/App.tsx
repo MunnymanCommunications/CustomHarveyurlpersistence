@@ -80,7 +80,7 @@ export default function App() {
         case 'new_assistant':
             return <SettingsPage onComplete={handleAssistantCreated} />;
         case 'assistant':
-            return <AssistantLayout assistantId={route.id!} previewMode={route.preview} />;
+            return <AssistantLayout assistantId={route.id!} previewMode={!!route.preview} />;
         case 'dashboard':
         default:
             return <DashboardPage />;
