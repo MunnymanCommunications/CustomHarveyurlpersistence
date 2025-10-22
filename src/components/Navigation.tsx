@@ -1,6 +1,7 @@
 import React from 'react';
 import { Icon } from './Icon.tsx';
 import { ThemeToggle } from './ThemeToggle.tsx';
+import type { ConversationStatus } from '../types.ts';
 
 type Page = 'conversation' | 'memory' | 'history' | 'settings';
 
@@ -13,6 +14,9 @@ interface NavigationProps {
   onMobileClose: () => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  sessionStatus: ConversationStatus;
+  onStopSession: () => void;
+  previewMode: boolean;
 }
 
 const NavItem: React.FC<{
@@ -21,15 +25,17 @@ const NavItem: React.FC<{
   isActive: boolean;
   onClick: () => void;
   isCollapsed: boolean;
-}> = ({ icon, label, isActive, onClick, isCollapsed }) => (
+  disabled?: boolean;
+}> = ({ icon, label, isActive, onClick, isCollapsed, disabled = false }) => (
   <li>
     <button
       onClick={onClick}
+      disabled={disabled}
       className={`flex items-center w-full text-left p-3 rounded-lg transition-all duration-300 group ${
         isActive
           ? 'bg-white/80 shadow-sm dark:bg-dark-base-medium'
           : 'text-text-secondary hover:bg-white/70 hover:text-text-primary dark:text-dark-text-secondary dark:hover:bg-dark-base-medium/70 dark:hover:text-dark-text-primary'
-      } ${isCollapsed ? 'justify-center' : ''}`}
+      } ${isCollapsed ? 'justify-center' : ''} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       aria-current={isActive ? 'page' : undefined}
     >
       <div className={`p-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-gradient-to-br from-brand-secondary-glow to-brand-tertiary-glow text-on-brand shadow-md' : 'bg-base-light text-text-secondary group-hover:bg-white dark:bg-dark-base-light dark:text-dark-text-secondary dark:group-hover:bg-dark-base-medium'}`}>
@@ -48,8 +54,13 @@ export const Navigation: React.FC<NavigationProps> = ({
     isMobileOpen, 
     onMobileClose,
     isCollapsed,
-    onToggleCollapse
+    onToggleCollapse,
+    sessionStatus,
+    onStopSession,
+    previewMode,
 }) => {
+  const isSessionActive = sessionStatus === 'ACTIVE' || sessionStatus === 'CONNECTING';
+
   return (
     <>
       {/* Backdrop for mobile */}
@@ -67,7 +78,19 @@ export const Navigation: React.FC<NavigationProps> = ({
           <img src={assistantAvatar} alt="Assistant Avatar" className={`flex-shrink-0 w-12 h-12 rounded-full object-cover shadow-md transition-transform duration-300 ${isCollapsed ? 'scale-90' : 'scale-100'}`}/>
           <div className={`flex flex-col overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-full opacity-100'}`}>
             <h1 className="text-xl font-bold text-text-primary dark:text-dark-text-primary whitespace-nowrap">{assistantName}</h1>
-            <p className="text-sm text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">Personal Assistant</p>
+            <p className="text-sm text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">{previewMode ? 'Community Assistant' : 'Personal Assistant'}</p>
+            {isSessionActive && (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                </span>
+                <span className="text-xs font-semibold text-red-500">LIVE</span>
+                <button onClick={onStopSession} className="ml-auto text-danger hover:bg-danger/10 p-1 rounded-full" aria-label="Stop session">
+                  <Icon name="micOff" className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
           <button onClick={onMobileClose} className="md:hidden absolute top-0 right-0 p-2 text-text-secondary hover:text-text-primary dark:text-dark-text-secondary dark:hover:text-dark-text-primary">
             <Icon name="close" className="w-6 h-6"/>
@@ -76,10 +99,9 @@ export const Navigation: React.FC<NavigationProps> = ({
 
         <ul className="space-y-2 flex-grow">
             <NavItem icon="dashboard" label="Dashboard" isActive={false} onClick={() => window.location.hash = '#/'} isCollapsed={isCollapsed} />
-            <NavItem icon="users" label="Community" isActive={false} onClick={() => window.location.hash = '#/community'} isCollapsed={isCollapsed} />
             <NavItem icon="chat" label="Conversation" isActive={currentPage === 'conversation'} onClick={() => onNavigate('conversation')} isCollapsed={isCollapsed} />
-            <NavItem icon="brain" label="Memory" isActive={currentPage === 'memory'} onClick={() => onNavigate('memory')} isCollapsed={isCollapsed} />
-            <NavItem icon="history" label="History" isActive={currentPage === 'history'} onClick={() => onNavigate('history')} isCollapsed={isCollapsed} />
+            <NavItem icon="brain" label="Memory" isActive={currentPage === 'memory'} onClick={() => onNavigate('memory')} isCollapsed={isCollapsed} disabled={previewMode} />
+            <NavItem icon="history" label="History" isActive={currentPage === 'history'} onClick={() => onNavigate('history')} isCollapsed={isCollapsed} disabled={previewMode} />
             <NavItem icon="settings" label="Settings" isActive={currentPage === 'settings'} onClick={() => onNavigate('settings')} isCollapsed={isCollapsed} />
         </ul>
 

@@ -41,17 +41,3 @@
     @apply dark:bg-dark-base-medium/60 dark:border-white/10;
   }
 }
-
-@layer utilities {
-  .hue-slider {
-    background: linear-gradient(to right, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%));
-  }
-  
-  .hue-slider::-webkit-slider-thumb {
-    @apply w-5 h-5 bg-white rounded-full border-2 border-brand-secondary-glow cursor-pointer -mt-1.5 appearance-none;
-  }
-
-  .hue-slider::-moz-range-thumb {
-    @apply w-5 h-5 bg-white rounded-full border-2 border-brand-secondary-glow cursor-pointer;
-  }
-}

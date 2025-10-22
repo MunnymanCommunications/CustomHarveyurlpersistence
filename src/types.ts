@@ -20,11 +20,8 @@ export interface Assistant {
   voice: VoiceOption;
   prompt: string;
   created_at: string;
-  knowledge_base?: string;
   is_public?: boolean;
-  description?: string;
-  author_name?: string;
-  orb_hue?: number;
+  original_assistant_id?: string;
 }
 
 export interface MemoryItem {

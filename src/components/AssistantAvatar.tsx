@@ -6,19 +6,17 @@ interface AssistantAvatarProps {
   avatarUrl: string;
   isSpeaking: boolean;
   status: ConversationStatus;
-  onClick: () => void;
-  orbHue: number;
 }
 
-export const AssistantAvatar: React.FC<AssistantAvatarProps> = ({ avatarUrl, isSpeaking, status, onClick, orbHue }) => {
+export const AssistantAvatar: React.FC<AssistantAvatarProps> = ({ avatarUrl, isSpeaking, status }) => {
   const isBreathing = status === 'ACTIVE' && !isSpeaking;
   const showOrb = status === 'ACTIVE' || status === 'CONNECTING';
 
   return (
-    <div className="relative w-48 h-48 md:w-64 md:h-64 mx-auto cursor-pointer" onClick={onClick}>
+    <div className="relative w-48 h-48 md:w-64 md:h-64 mx-auto">
       {showOrb && (
         <div className={`absolute inset-0 transition-opacity duration-500 ${isSpeaking ? 'animate-pulse-strong' : ''} ${isBreathing ? 'animate-breathing' : ''}`}>
-          <Orb forceHoverState={isSpeaking || isBreathing} rotateOnHover={false} hue={orbHue} />
+          <Orb forceHoverState={isSpeaking || isBreathing} rotateOnHover={false} />
         </div>
       )}
       <img

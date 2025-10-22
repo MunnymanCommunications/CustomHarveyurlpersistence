@@ -1,66 +1,25 @@
 import { useGeminiLive } from '../hooks/useGeminiLive.ts';
-import type { Assistant, HistoryEntry } from '../types.ts';
+import type { Assistant } from '../types.ts';
 import { AssistantAvatar } from '../components/AssistantAvatar.tsx';
 import { ConversationControls } from '../components/ConversationControls.tsx';
 import { TranscriptionDisplay } from '../components/TranscriptionDisplay.tsx';
 import { MemoryBank } from '../components/MemoryBank.tsx';
 import { Icon } from '../components/Icon.tsx';
+import { WebResults } from '../components/WebResults.tsx';
 
 interface ConversationPageProps {
   assistant: Assistant;
   memory: string[];
-  history: HistoryEntry[];
-  onSaveToMemory: (info: string) => Promise<void>;
-  onTurnComplete: (entry: HistoryEntry) => void;
   onNavigateToMemory: () => void;
+  groundingChunks: any[];
 }
 
 export default function ConversationPage({ 
   assistant, 
   memory, 
-  history,
-  onSaveToMemory,
-  onTurnComplete,
-  onNavigateToMemory 
+  onNavigateToMemory,
+  groundingChunks
 }: ConversationPageProps) {
-
-  const handleTurnComplete = (userTranscript: string, assistantTranscript: string) => {
-    if(userTranscript.trim() || assistantTranscript.trim()) {
-        onTurnComplete({
-            user: userTranscript,
-            assistant: assistantTranscript,
-            timestamp: new Date().toISOString()
-        });
-    }
-  };
-
-  // Take the last 3 turns of history, and reverse them to be in chronological order.
-  const recentHistory = history.slice(0, 3).reverse();
-
-  const historyContext = recentHistory.length > 0 
-    ? recentHistory.map(entry => `User: "${entry.user}"\nAssistant: "${entry.assistant}"`).join('\n\n')
-    : "No recent conversation history.";
-
-  const knowledgeBaseContext = assistant.knowledge_base
-    ? `\n\nCore Knowledge Base:\n${assistant.knowledge_base}`
-    : '';
-
-  // Construct a comprehensive system instruction for the AI
-  const systemInstruction = `You are an AI assistant named ${assistant.name}.
-Your personality traits are: ${assistant.personality.join(', ')}.
-Your attitude is: ${assistant.attitude}.
-Your core instruction is: ${assistant.prompt}
-${knowledgeBaseContext}
-
-Based on this persona, engage in a conversation with the user.
-
-Key information about the user to remember and draw upon (long-term memory):
-${memory.join('\n')}
-
-Recent conversation history (for context):
-${historyContext}
-`;
-
   const {
     sessionStatus,
     startSession,
@@ -69,20 +28,7 @@ ${historyContext}
     userTranscript,
     assistantTranscript,
     error
-  } = useGeminiLive({
-    voice: assistant.voice,
-    systemInstruction: systemInstruction,
-    onSaveToMemory: onSaveToMemory,
-    onTurnComplete: handleTurnComplete,
-  });
-  
-  const handleAvatarClick = () => {
-    if (sessionStatus === 'IDLE' || sessionStatus === 'ERROR') {
-      startSession();
-    } else if (sessionStatus === 'ACTIVE' || sessionStatus === 'CONNECTING') {
-      stopSession();
-    }
-  };
+  } = useGeminiLive();
 
   return (
     <div className="flex flex-col items-center justify-between h-full p-4 text-center w-full">
@@ -93,16 +39,11 @@ ${historyContext}
         
         {/* Main Content */}
         <div className="flex-grow flex flex-col justify-center items-center w-full">
-            <AssistantAvatar 
-              avatarUrl={assistant.avatar} 
-              isSpeaking={isSpeaking} 
-              status={sessionStatus}
-              onClick={handleAvatarClick}
-              orbHue={assistant.orb_hue ?? 0}
-            />
+            <AssistantAvatar avatarUrl={assistant.avatar} isSpeaking={isSpeaking} status={sessionStatus} />
 
             <div className="w-full max-w-2xl mt-8">
                 <TranscriptionDisplay userTranscript={userTranscript} assistantTranscript={assistantTranscript} />
+                <WebResults results={groundingChunks} />
             </div>
         </div>
 

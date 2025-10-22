@@ -16,22 +16,6 @@ interface SettingsPanelProps {
   showKnowledgeBase?: boolean;
 }
 
-const ToggleSwitch: React.FC<{
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  disabled?: boolean;
-}> = ({ label, checked, onChange, disabled }) => (
-  <label className="flex items-center cursor-pointer">
-    <div className="relative">
-      <input type="checkbox" className="sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} disabled={disabled} />
-      <div className={`block w-14 h-8 rounded-full transition ${checked ? 'bg-brand-secondary-glow' : 'bg-base-medium dark:bg-dark-base-light'}`}></div>
-      <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition transform ${checked ? 'translate-x-6' : ''}`}></div>
-    </div>
-    <div className="ml-3 text-text-primary dark:text-dark-text-primary font-medium">{label}</div>
-  </label>
-);
-
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   settings,
   onSettingsChange,
@@ -75,32 +59,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               disabled={disabled}
               required
             />
-          </div>
-        </div>
-      </div>
-      
-      {/* Appearance */}
-      <div>
-        <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">Appearance</h3>
-        <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-1">
-          Customize the look of your assistant's avatar.
-        </p>
-        <div className="mt-4">
-          <label htmlFor="orb-hue" className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-2">
-            Orb Color
-          </label>
-          <div className="flex items-center gap-4">
-            <input
-              id="orb-hue"
-              type="range"
-              min="0"
-              max="360"
-              value={settings.orb_hue || 0}
-              onChange={e => onSettingsChange({ orb_hue: parseFloat(e.target.value) })}
-              className="w-full h-2 rounded-lg appearance-none cursor-pointer hue-slider"
-              disabled={disabled}
-            />
-            <div className="w-10 h-10 rounded-full border border-border-color dark:border-dark-border-color" style={{ backgroundColor: `hsl(${settings.orb_hue || 0}, 80%, 60%)` }}></div>
           </div>
         </div>
       </div>
@@ -201,51 +159,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           />
         </div>
       </div>
-      
-      {/* Community Sharing */}
-      <div className="pt-8 mt-8 border-t border-border-color/50 dark:border-dark-border-color/50">
-          <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">Community Sharing</h3>
-          <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-1">
-            Publish this assistant to the community to allow other users to discover and chat with it.
-          </p>
-          <div className="mt-4 space-y-4">
-            <ToggleSwitch
-                label="Publish to Community"
-                checked={!!settings.is_public}
-                onChange={(checked) => onSettingsChange({ is_public: checked })}
-                disabled={disabled}
-            />
-            {settings.is_public && (
-                <div className="space-y-4 pl-4 border-l-2 border-brand-secondary-glow/30">
-                     <div>
-                        <label htmlFor="author-name" className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-1">Author Name (optional)</label>
-                        <input
-                            id="author-name"
-                            type="text"
-                            value={settings.author_name || ''}
-                            onChange={e => onSettingsChange({ author_name: e.target.value })}
-                            className="w-full max-w-sm p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary"
-                            placeholder="Your name or alias"
-                            disabled={disabled}
-                        />
-                     </div>
-                     <div>
-                        <label htmlFor="description" className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-1">Description (optional)</label>
-                         <textarea
-                            id="description"
-                            value={settings.description || ''}
-                            onChange={e => onSettingsChange({ description: e.target.value })}
-                            className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition mt-1 dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary"
-                            rows={3}
-                            placeholder="What makes this assistant special?"
-                            disabled={disabled}
-                         />
-                     </div>
-                </div>
-            )}
-          </div>
-      </div>
-
     </div>
   );
 };

@@ -17,8 +17,7 @@ const INITIAL_SETTINGS: Partial<Assistant & { knowledge_base: string }> = {
   attitude: 'Practical',
   voice: VOICE_SETTINGS[0].value,
   knowledge_base: '',
-  prompt: 'You are a friendly and helpful AI assistant. Respond concisely and be pleasant.',
-  orb_hue: 0,
+  prompt: 'You are a friendly and helpful AI assistant. Respond concisely and be pleasant.'
 };
 
 export default function SettingsPage({ onComplete }: SettingsPageProps) {
@@ -58,7 +57,7 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("User not authenticated");
 
-        // 1. Insert assistant data to get an ID
+        // 1. Insert assistant data (without knowledge_base) to get an ID
         const { data: newAssistant, error: insertError } = await supabase
             .from('assistants')
             .insert({
@@ -69,8 +68,6 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
                 voice: settings.voice,
                 prompt: settings.prompt,
                 avatar: DEFAULT_AVATAR_URL, // Start with default
-                knowledge_base: settings.knowledge_base,
-                orb_hue: settings.orb_hue,
             })
             .select()
             .single();

@@ -1,51 +1,155 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import type { Assistant, HistoryEntry, MemoryItem } from '../types.ts';
 import { useLocalStorage } from '../hooks/useLocalStorage.ts';
+import { GoogleGenAI } from '@google/genai';
 
 import { Navigation } from '../components/Navigation.tsx';
 import { Icon } from '../components/Icon.tsx';
+import { CommunityAssistantHeader } from '../components/CommunityAssistantHeader.tsx';
 
 import ConversationPage from '../pages/ConversationPage.tsx';
 import MemoryPage from '../pages/MemoryPage.tsx';
 import HistoryPage from '../pages/HistoryPage.tsx';
 import SettingsDashboardPage from '../pages/SettingsDashboardPage.tsx';
+import { GeminiLiveProvider } from '../contexts/GeminiLiveContext.tsx';
+import { useGeminiLive } from '../hooks/useGeminiLive.ts';
 
 type Page = 'conversation' | 'memory' | 'history' | 'settings';
 
 interface AssistantLayoutProps {
   assistantId: string;
+  previewMode: boolean;
 }
 
-const uploadAvatar = async (userId: string, assistantId: string, file: File) => {
-    const supabase = getSupabase();
-    // Use a timestamp to bust caches and ensure a unique filename
-    const filePath = `${userId}/${assistantId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
-    
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, file, { upsert: true });
+interface AssistantLayoutContentProps {
+  assistant: Assistant;
+  memories: MemoryItem[];
+  history: HistoryEntry[];
+  currentPage: Page;
+  isMobileNavOpen: boolean;
+  isNavCollapsed: boolean;
+  previewMode: boolean;
+  isCloning: boolean;
+  setCurrentPage: (page: Page) => void;
+  setIsMobileNavOpen: (isOpen: boolean) => void;
+  setIsNavCollapsed: (isCollapsed: (prev: boolean) => boolean) => void;
+  handleAddMemory: (content: string) => Promise<void>;
+  handleUpdateMemory: (id: number, content: string) => Promise<void>;
+  handleDeleteMemory: (id: number) => Promise<void>;
+  handleClearHistory: () => void;
+  handleSettingsChange: (newSettings: Partial<Assistant>) => Promise<void>;
+  handleCloneAssistant: () => Promise<void>;
+  groundingChunks: any[];
+}
 
-    if (uploadError) throw uploadError;
-    
-    const { data } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath);
+const AssistantLayoutContent = ({ 
+  assistant, 
+  memories, 
+  history, 
+  currentPage, 
+  isMobileNavOpen, 
+  isNavCollapsed,
+  previewMode,
+  isCloning,
+  setCurrentPage,
+  setIsMobileNavOpen,
+  setIsNavCollapsed,
+  handleAddMemory,
+  handleUpdateMemory,
+  handleDeleteMemory,
+  handleClearHistory,
+  handleSettingsChange,
+  handleCloneAssistant,
+  groundingChunks
+}: AssistantLayoutContentProps) => {
+  const { sessionStatus, stopSession } = useGeminiLive();
 
-    return data.publicUrl;
+  const renderPage = () => {
+    if (!assistant) return null;
+    switch (currentPage) {
+        case 'conversation':
+            return <ConversationPage 
+                assistant={assistant} 
+                memory={previewMode ? [] : memories.map(m => m.content)} 
+                onNavigateToMemory={() => !previewMode && setCurrentPage('memory')}
+                groundingChunks={groundingChunks}
+            />;
+        case 'memory':
+            return previewMode ? null : <MemoryPage 
+                memories={memories}
+                onAdd={handleAddMemory}
+                onUpdate={handleUpdateMemory}
+                onDelete={handleDeleteMemory}
+            />;
+        case 'history':
+            return previewMode ? null : <HistoryPage history={history} onClear={handleClearHistory} />;
+        case 'settings':
+            return <SettingsDashboardPage settings={assistant} onSettingsChange={handleSettingsChange} previewMode={previewMode} />;
+        default:
+            return null;
+    }
+  };
+
+  return (
+    <div className="flex h-screen bg-base-light dark:bg-dark-base-light overflow-hidden">
+        <Navigation 
+            currentPage={currentPage}
+            onNavigate={setCurrentPage}
+            assistantName={assistant.name}
+            assistantAvatar={assistant.avatar}
+            isMobileOpen={isMobileNavOpen}
+            onMobileClose={() => setIsMobileNavOpen(false)}
+            isCollapsed={isNavCollapsed}
+            onToggleCollapse={() => setIsNavCollapsed(prev => !prev)}
+            sessionStatus={sessionStatus}
+            onStopSession={stopSession}
+            previewMode={previewMode}
+        />
+        
+        <main className="flex-1 flex flex-col p-4 md:p-6 transition-all duration-300 relative">
+            {previewMode && <CommunityAssistantHeader assistantName={assistant.name} onClone={handleCloneAssistant} isCloning={isCloning} />}
+            <button 
+                className="md:hidden absolute top-4 left-4 z-50 p-2 bg-white/70 rounded-full shadow-md dark:bg-dark-base-medium/70"
+                onClick={() => setIsMobileNavOpen(true)}
+            >
+                <Icon name="settings" className="w-6 h-6 text-text-primary dark:text-dark-text-primary"/>
+            </button>
+            {renderPage()}
+        </main>
+    </div>
+  );
 };
 
-export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
+
+export default function AssistantLayout({ assistantId, previewMode }: AssistantLayoutProps) {
     const [assistant, setAssistant] = useState<Assistant | null>(null);
     const [memories, setMemories] = useState<MemoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState<Page>('conversation');
+    const [isCloning, setIsCloning] = useState(false);
     
     const [history, setHistory] = useLocalStorage<HistoryEntry[]>(`assistant_history_${assistantId}`, []);
 
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
     const [isNavCollapsed, setIsNavCollapsed] = useLocalStorage('is_nav_collapsed', false);
+
+    const [groundingChunks, setGroundingChunks] = useState<any[]>([]);
+    const aiForSearchRef = useRef<GoogleGenAI | null>(null);
+
+    useEffect(() => {
+        if (previewMode) {
+            setCurrentPage('conversation');
+        }
+    }, [previewMode]);
+
+    useEffect(() => {
+        const apiKey = process.env.API_KEY;
+        if (apiKey && apiKey !== 'undefined') {
+            aiForSearchRef.current = new GoogleGenAI({ apiKey });
+        }
+    }, []);
 
     const fetchAssistantData = useCallback(async () => {
         const supabase = getSupabase();
@@ -62,20 +166,24 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
         
         setAssistant(assistantData as Assistant);
 
-        const { data: memoryData, error: memoryError } = await supabase
-            .from('memory_items')
-            .select('*')
-            .eq('assistant_id', assistantId)
-            .order('created_at', { ascending: true });
-        
-        if (memoryError) {
-            console.error("Error fetching memories:", memoryError);
-            throw new Error("Could not load assistant memories.");
+        // Only fetch memories if not in preview mode
+        if (!previewMode) {
+            const { data: memoryData, error: memoryError } = await supabase
+                .from('memory_items')
+                .select('*')
+                .eq('assistant_id', assistantId)
+                .order('created_at', { ascending: true });
+            
+            if (memoryError) {
+                console.error("Error fetching memories:", memoryError);
+                throw new Error("Could not load assistant memories.");
+            }
+            setMemories(memoryData as MemoryItem[]);
+        } else {
+            setMemories([]); // Ensure memories are empty in preview
         }
 
-        setMemories(memoryData as MemoryItem[]);
-
-    }, [assistantId]);
+    }, [assistantId, previewMode]);
 
 
     useEffect(() => {
@@ -87,8 +195,8 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
 
 
     const handleSaveToMemory = async (info: string) => {
-        if (!assistant) return;
-        if (memories.some(mem => mem.content === info)) return; // Avoid duplicates
+        if (previewMode || !assistant) return;
+        if (memories.some(mem => mem.content === info)) return;
 
         const supabase = getSupabase();
         const { data: { user } } = await supabase.auth.getUser();
@@ -111,21 +219,59 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
         }
     };
 
-    const handleTurnComplete = (entry: HistoryEntry) => {
-        setHistory(prev => [entry, ...prev]);
-    };
+    const fetchGrounding = useCallback(async (text: string) => {
+        if (!aiForSearchRef.current || !text.trim()) {
+            setGroundingChunks([]);
+            return;
+        }
+        setGroundingChunks([]);
+
+        try {
+            const response = await aiForSearchRef.current.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: text,
+                config: {
+                    tools: [{ googleSearch: {} }],
+                },
+            });
+            const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.filter(c => c.web);
+            if (chunks && chunks.length > 0) {
+                setGroundingChunks(chunks);
+            }
+        } catch (e) {
+            console.error("Error fetching grounding:", e);
+            setGroundingChunks([]);
+        }
+    }, []);
+
+    const handleTurnComplete = useCallback((userTranscript: string, assistantTranscript: string) => {
+        if(!previewMode && (userTranscript.trim() || assistantTranscript.trim())) {
+            setHistory(prev => [{
+                user: userTranscript,
+                assistant: assistantTranscript,
+                timestamp: new Date().toISOString()
+            }, ...prev]);
+        }
+        if (userTranscript.trim()) {
+            fetchGrounding(userTranscript);
+        } else {
+            setGroundingChunks([]);
+        }
+    }, [setHistory, fetchGrounding, previewMode]);
     
     const handleClearHistory = () => {
+        if (previewMode) return;
         setHistory([]);
     }
 
     const handleAddMemory = async (content: string) => {
+        if (previewMode) return;
         await handleSaveToMemory(content);
     };
 
     const handleUpdateMemory = async (id: number, content: string) => {
+        if (previewMode) return;
         const originalMemories = [...memories];
-        // Optimistic update
         setMemories(prev => prev.map(m => m.id === id ? { ...m, content } : m));
         
         const supabase = getSupabase();
@@ -136,13 +282,13 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
         
         if (error) {
             console.error("Error updating memory:", error);
-            setMemories(originalMemories); // Revert on error
+            setMemories(originalMemories);
         }
     };
 
     const handleDeleteMemory = async (id: number) => {
+        if (previewMode) return;
         const originalMemories = [...memories];
-        // Optimistic update
         setMemories(prev => prev.filter(m => m.id !== id));
 
         const supabase = getSupabase();
@@ -153,70 +299,64 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
         
         if (error) {
             console.error("Error deleting memory:", error);
-            setMemories(originalMemories); // Revert on error
+            setMemories(originalMemories);
         }
     };
     
-    const handleSettingsChange = async (newSettings: Partial<Assistant>, avatarFile: File | null) => {
-        if (!assistant) return;
-
-        const supabase = getSupabase();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            console.error("User not authenticated for settings change.");
-            return;
-        }
-
+    const handleSettingsChange = async (newSettings: Partial<Assistant>) => {
+        if (previewMode || !assistant) return;
+        
         const settingsToUpdate = { ...newSettings };
-
-        try {
-            if (avatarFile) {
-                const newAvatarUrl = await uploadAvatar(user.id, assistant.id, avatarFile);
-                settingsToUpdate.avatar = newAvatarUrl;
-            }
-
-            const { data, error: updateError } = await supabase
-                .from('assistants')
-                .update(settingsToUpdate)
-                .eq('id', assistant.id)
-                .select()
-                .single();
-            
-            if (updateError) throw updateError;
-            
-            setAssistant(data as Assistant);
-
-        } catch (error) {
+        
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+            .from('assistants')
+            .update(settingsToUpdate)
+            .eq('id', assistant.id)
+            .select()
+            .single();
+        
+        if (error) {
             console.error("Error updating settings:", error);
-            // Optionally, show an error to the user here.
+        } else {
+            setAssistant(data as Assistant);
         }
     };
 
-    const renderPage = () => {
-        if (!assistant) return null;
-        switch (currentPage) {
-            case 'conversation':
-                return <ConversationPage 
-                    assistant={assistant} 
-                    memory={memories.map(m => m.content)} 
-                    history={history}
-                    onSaveToMemory={handleSaveToMemory}
-                    onTurnComplete={handleTurnComplete}
-                    onNavigateToMemory={() => setCurrentPage('memory')}
-                />;
-            case 'memory':
-                return <MemoryPage 
-                    memories={memories}
-                    onAdd={handleAddMemory}
-                    onUpdate={handleUpdateMemory}
-                    onDelete={handleDeleteMemory}
-                />;
-            case 'history':
-                return <HistoryPage history={history} onClear={handleClearHistory} />;
-            case 'settings':
-                return <SettingsDashboardPage settings={assistant} onSettingsChange={handleSettingsChange} />;
-            default:
-                return null;
+    const handleCloneAssistant = async () => {
+        if (!assistant) return;
+        const supabase = getSupabase();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            window.location.hash = '#/auth';
+            return;
+        }
+
+        setIsCloning(true);
+        const { name, avatar, personality, attitude, voice, prompt } = assistant;
+        const { data: newAssistant, error: cloneError } = await supabase
+            .from('assistants')
+            .insert({
+                user_id: user.id,
+                name: name,
+                avatar,
+                personality,
+                attitude,
+                voice,
+                prompt,
+                is_public: false,
+                original_assistant_id: assistant.id,
+            })
+            .select()
+            .single();
+
+        setIsCloning(false);
+
+        if (cloneError) {
+            setError('Could not add assistant to your dashboard. Please try again.');
+            console.error('Error cloning assistant:', cloneError);
+        } else {
+            window.location.hash = `#/assistant/${newAssistant.id}`;
         }
     };
 
@@ -238,28 +378,56 @@ export default function AssistantLayout({ assistantId }: AssistantLayoutProps) {
         );
     }
 
+    const recentHistory = history.slice(0, 3).reverse();
+    const historyContext = !previewMode && recentHistory.length > 0 
+      ? recentHistory.map(entry => `User: "${entry.user}"\nAssistant: "${entry.assistant}"`).join('\n\n')
+      : "No recent conversation history.";
+  
+    const memoryContext = !previewMode && memories.length > 0
+      ? memories.map(m => m.content).join('\n')
+      : "No information is stored in long-term memory.";
+      
+    const systemInstruction = `You are an AI assistant named ${assistant.name}.
+  Your personality traits are: ${assistant.personality.join(', ')}.
+  Your attitude is: ${assistant.attitude}.
+  Your core instruction is: ${assistant.prompt}
+  
+  Based on this persona, engage in a conversation with the user.
+  
+  Key information about the user to remember and draw upon (long-term memory):
+  ${memoryContext}
+  
+  Recent conversation history (for context):
+  ${historyContext}
+  `;
+
     return (
-        <div className="flex h-screen bg-base-light dark:bg-dark-base-light overflow-hidden">
-            <Navigation 
+        <GeminiLiveProvider
+            voice={assistant.voice}
+            systemInstruction={systemInstruction}
+            onSaveToMemory={handleSaveToMemory}
+            onTurnComplete={handleTurnComplete}
+        >
+            <AssistantLayoutContent
+                assistant={assistant}
+                memories={memories}
+                history={history}
                 currentPage={currentPage}
-                onNavigate={setCurrentPage}
-                assistantName={assistant.name}
-                assistantAvatar={assistant.avatar}
-                isMobileOpen={isMobileNavOpen}
-                onMobileClose={() => setIsMobileNavOpen(false)}
-                isCollapsed={isNavCollapsed}
-                onToggleCollapse={() => setIsNavCollapsed(prev => !prev)}
+                isMobileNavOpen={isMobileNavOpen}
+                isNavCollapsed={isNavCollapsed}
+                previewMode={previewMode}
+                isCloning={isCloning}
+                setCurrentPage={setCurrentPage}
+                setIsMobileNavOpen={setIsMobileNavOpen}
+                setIsNavCollapsed={setIsNavCollapsed}
+                handleAddMemory={handleAddMemory}
+                handleUpdateMemory={handleUpdateMemory}
+                handleDeleteMemory={handleDeleteMemory}
+                handleClearHistory={handleClearHistory}
+                handleSettingsChange={handleSettingsChange}
+                handleCloneAssistant={handleCloneAssistant}
+                groundingChunks={groundingChunks}
             />
-            
-            <main className="flex-1 flex flex-col p-4 md:p-6 transition-all duration-300 relative">
-                <button 
-                    className="md:hidden absolute top-4 left-4 z-50 p-2 bg-white/70 rounded-full shadow-md dark:bg-dark-base-medium/70"
-                    onClick={() => setIsMobileNavOpen(true)}
-                >
-                    <Icon name="settings" className="w-6 h-6 text-text-primary dark:text-dark-text-primary"/>
-                </button>
-                {renderPage()}
-            </main>
-        </div>
+        </GeminiLiveProvider>
     );
 }
