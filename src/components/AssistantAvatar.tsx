@@ -6,14 +6,20 @@ interface AssistantAvatarProps {
   avatarUrl: string;
   isSpeaking: boolean;
   status: ConversationStatus;
+  onClick?: () => void;
 }
 
-export const AssistantAvatar: React.FC<AssistantAvatarProps> = ({ avatarUrl, isSpeaking, status }) => {
+export const AssistantAvatar: React.FC<AssistantAvatarProps> = ({ avatarUrl, isSpeaking, status, onClick }) => {
   const isBreathing = status === 'ACTIVE' && !isSpeaking;
   const showOrb = status === 'ACTIVE' || status === 'CONNECTING';
 
   return (
-    <div className="relative w-48 h-48 md:w-64 md:h-64 mx-auto">
+    <button
+      onClick={onClick}
+      disabled={!onClick}
+      aria-label={status === 'ACTIVE' || status === 'CONNECTING' ? 'Stop conversation' : 'Start conversation'}
+      className="relative w-48 h-48 md:w-64 md:h-64 mx-auto focus:outline-none focus:ring-4 focus:ring-brand-secondary-glow/50 rounded-full transition-shadow duration-300 hover:shadow-2xl hover:shadow-brand-secondary-glow/20"
+    >
       {showOrb && (
         <div className={`absolute inset-0 transition-opacity duration-500 ${isSpeaking ? 'animate-pulse-strong' : ''} ${isBreathing ? 'animate-breathing' : ''}`}>
           <Orb forceHoverState={isSpeaking || isBreathing} rotateOnHover={false} />
@@ -24,6 +30,6 @@ export const AssistantAvatar: React.FC<AssistantAvatarProps> = ({ avatarUrl, isS
         alt="Assistant Avatar"
         className={`w-full h-full rounded-full object-cover shadow-2xl transition-transform duration-500 transform ${showOrb ? 'scale-75' : 'scale-100'}`}
       />
-    </div>
+    </button>
   );
 };

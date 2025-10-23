@@ -391,6 +391,8 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
   Your personality traits are: ${assistant.personality.join(', ')}.
   Your attitude is: ${assistant.attitude}.
   Your core instruction is: ${assistant.prompt}
+
+  You have access to a Google Search tool to find real-time, up-to-date information. Use it for questions about recent events, current information, or topics you don't have information about. The web search results you find will be displayed to the user.
   
   Based on this persona, engage in a conversation with the user.
   
