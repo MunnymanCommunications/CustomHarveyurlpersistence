@@ -38,7 +38,7 @@ interface AssistantLayoutContentProps {
   handleUpdateMemory: (id: number, content: string) => Promise<void>;
   handleDeleteMemory: (id: number) => Promise<void>;
   handleClearHistory: () => void;
-  handleSettingsChange: (newSettings: Partial<Assistant>) => Promise<void>;
+  handleSettingsChange: (newSettings: Assistant) => Promise<void>;
   handleCloneAssistant: () => Promise<void>;
   groundingChunks: any[];
 }
@@ -303,10 +303,35 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         }
     };
     
-    const handleSettingsChange = async (newSettings: Partial<Assistant>) => {
+    const handleSettingsChange = async (newSettings: Assistant) => {
         if (previewMode || !assistant) return;
         
-        const settingsToUpdate = { ...newSettings };
+        const {
+            name,
+            avatar,
+            personality,
+            attitude,
+            voice,
+            prompt,
+            is_public,
+            description,
+            author_name,
+            orb_hue,
+        } = newSettings;
+
+        const settingsToUpdate = {
+            name,
+            avatar,
+            personality,
+            attitude,
+            voice,
+            prompt,
+            is_public,
+            description,
+            author_name,
+            orb_hue,
+            updated_at: new Date().toISOString(),
+        };
         
         const supabase = getSupabase();
         const { data, error } = await supabase
@@ -318,6 +343,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         
         if (error) {
             console.error("Error updating settings:", error);
+            throw error;
         } else {
             setAssistant(data as Assistant);
         }
@@ -387,12 +413,15 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
       ? memories.map(m => m.content).join('\n')
       : "No information is stored in long-term memory.";
       
+    // FIX: Update system instruction for clearer guidance on using the web search tool.
+    // This provides more explicit instructions to the AI on when to use the tool,
+    // preventing accidental searches and ensuring it's used only when necessary.
     const systemInstruction = `You are an AI assistant named ${assistant.name}.
   Your personality traits are: ${assistant.personality.join(', ')}.
   Your attitude is: ${assistant.attitude}.
   Your core instruction is: ${assistant.prompt}
 
-  You have access to a Google Search tool to find real-time, up-to-date information. Use it for questions about recent events, current information, or topics you don't have information about. The web search results you find will be displayed to the user.
+  You have a Google Search tool available. You should ONLY use this tool when you need to find information about recent events, current topics, or if the user's query is something you don't have knowledge about. Do not use the search tool for general conversation or creative tasks. When you use the tool, the web search results will be displayed to the user.
   
   Based on this persona, engage in a conversation with the user.
   
@@ -405,6 +434,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
 
     return (
         <GeminiLiveProvider
+            assistantId={assistant.id}
             voice={assistant.voice}
             systemInstruction={systemInstruction}
             onSaveToMemory={handleSaveToMemory}

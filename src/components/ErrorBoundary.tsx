@@ -1,5 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { Icon } from './Icon.tsx';
+import { logEvent } from '../lib/logger.ts';
 
 interface Props {
   children: ReactNode;
@@ -11,14 +12,16 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  // FIX: Reverted to using a constructor for state initialization.
-  // The class property syntax was causing a TypeScript issue where `this.props`
-  // was not recognized. Using a constructor ensures `props` are correctly
-  // passed and typed.
+  // FIX: Replaced class property state initialization with a standard constructor.
+  // This resolves a TypeScript error where `this.props` was not recognized on the
+  // component type. Using a constructor with `super(props)` is the most robust
+  // way to ensure both `props` and `state` are initialized correctly in a React
+  // class component.
   constructor(props: Props) {
     super(props);
     this.state = {
       hasError: false,
+      error: undefined,
     };
   }
 
@@ -30,6 +33,13 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // You can also log the error to an error reporting service
     console.error("Uncaught error:", error, errorInfo);
+    logEvent('FATAL_ERROR', {
+      metadata: {
+        message: error.message,
+        stack: error.stack,
+        componentStack: errorInfo.componentStack,
+      },
+    });
   }
 
   render() {

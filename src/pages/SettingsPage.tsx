@@ -5,19 +5,23 @@ import type { Assistant } from '../types.ts';
 import { DEFAULT_AVATAR_URL, VOICE_SETTINGS } from '../constants.ts';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import { Icon } from '../components/Icon.tsx';
+import { logEvent } from '../lib/logger.ts';
 
 interface SettingsPageProps {
   onComplete: (assistantId: string) => void;
 }
 
-const INITIAL_SETTINGS: Partial<Assistant & { knowledge_base: string }> = {
+const INITIAL_SETTINGS: Partial<Assistant> = {
   name: '',
   avatar: DEFAULT_AVATAR_URL,
   personality: [],
   attitude: 'Practical',
   voice: VOICE_SETTINGS[0].value,
   knowledge_base: '',
-  prompt: 'You are a friendly and helpful AI assistant. Respond concisely and be pleasant.'
+  prompt: 'You are a friendly and helpful AI assistant. Respond concisely and be pleasant.',
+  description: '',
+  author_name: '',
+  orb_hue: 240, // Default hue (blue/purple)
 };
 
 export default function SettingsPage({ onComplete }: SettingsPageProps) {
@@ -26,7 +30,7 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSettingsChange = (newSettings: Partial<Assistant & { knowledge_base: string }>) => {
+  const handleSettingsChange = (newSettings: Partial<Assistant>) => {
     setSettings(prev => ({ ...prev, ...newSettings }));
   };
 
@@ -57,7 +61,7 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("User not authenticated");
 
-        // 1. Insert assistant data (without knowledge_base) to get an ID
+        // 1. Insert assistant data to get an ID
         const { data: newAssistant, error: insertError } = await supabase
             .from('assistants')
             .insert({
@@ -68,6 +72,10 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
                 voice: settings.voice,
                 prompt: settings.prompt,
                 avatar: DEFAULT_AVATAR_URL, // Start with default
+                description: settings.description,
+                author_name: settings.author_name,
+                orb_hue: settings.orb_hue,
+                knowledge_base: settings.knowledge_base,
             })
             .select()
             .single();
@@ -104,6 +112,11 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
 
             if (updateError) throw updateError;
         }
+        
+        logEvent('ASSISTANT_CREATE', {
+          assistantId: newAssistant.id,
+          metadata: { name: newAssistant.name }
+        });
 
         onComplete(newAssistant.id);
 

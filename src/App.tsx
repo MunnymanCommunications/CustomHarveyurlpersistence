@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
 import { getSupabase } from './lib/supabaseClient.ts';
 import type { Session } from '@supabase/supabase-js';
+import type { Profile } from './types.ts';
+import { logEvent } from './lib/logger.ts';
 
 import AuthPage from './pages/AuthPage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
 import SettingsPage from './pages/SettingsPage.tsx';
 import AssistantLayout from './layouts/AssistantLayout.tsx';
+import AdminPage from './pages/AdminPage.tsx';
 import { Icon } from './components/Icon.tsx';
 
 const parseHash = () => {
     const hash = window.location.hash;
     if (!hash || hash === '#/') return { path: 'dashboard' };
     if (hash === '#/auth') return { path: 'auth' };
+    if (hash === '#/admin') return { path: 'admin' };
     if (hash === '#/assistant/new') return { path: 'new_assistant' };
 
     const previewMatch = hash.match(/^#\/assistant\/preview\/(.+)$/);
@@ -32,6 +36,7 @@ const parseHash = () => {
 
 export default function App() {
     const [session, setSession] = useState<Session | null>(null);
+    const [profile, setProfile] = useState<Profile | null>(null);
     const [route, setRoute] = useState(parseHash());
     const [loading, setLoading] = useState(true);
 
@@ -47,12 +52,39 @@ export default function App() {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
-            if (_event === 'SIGNED_IN') window.location.hash = '#/';
-            if (_event === 'SIGNED_OUT') window.location.hash = '#/auth';
+            if (_event === 'SIGNED_IN') {
+                window.location.hash = '#/';
+                logEvent('USER_SIGNED_IN');
+            }
+            if (_event === 'SIGNED_OUT') {
+                window.location.hash = '#/auth';
+            }
         });
 
         return () => subscription.unsubscribe();
     }, []);
+
+    useEffect(() => {
+        if (session) {
+            const supabase = getSupabase();
+            const fetchProfile = async () => {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+                
+                if (error) {
+                    console.error('Error fetching profile:', error);
+                } else {
+                    setProfile(data as Profile);
+                }
+            };
+            fetchProfile();
+        } else {
+            setProfile(null);
+        }
+    }, [session]);
 
     useEffect(() => {
         const handleHashChange = () => setRoute(parseHash());
@@ -81,6 +113,8 @@ export default function App() {
             return <SettingsPage onComplete={handleAssistantCreated} />;
         case 'assistant':
             return <AssistantLayout assistantId={route.id!} previewMode={!!route.preview} />;
+        case 'admin':
+            return profile?.role === 'admin' ? <AdminPage /> : <DashboardPage />;
         case 'dashboard':
         default:
             return <DashboardPage />;

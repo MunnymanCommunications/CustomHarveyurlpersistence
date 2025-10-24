@@ -19,8 +19,15 @@ export interface Assistant {
   attitude: AttitudeOption;
   voice: VoiceOption;
   prompt: string;
+  knowledge_base?: string;
   created_at: string;
+  updated_at?: string;
   is_public?: boolean;
+  description?: string;
+  author_name?: string;
+  orb_hue?: number;
+  // FIX: Add missing property `original_assistant_id` to the Assistant type.
+  // This resolves a TypeScript error in `SettingsDashboardPage.tsx` where this property was being accessed.
   original_assistant_id?: string;
 }
 
@@ -36,4 +43,21 @@ export interface HistoryEntry {
   user: string;
   assistant: string;
   timestamp: string;
+}
+
+export interface Profile {
+  id: string;
+  username?: string | null;
+  full_name?: string | null;
+  updated_at?: string;
+  role: 'user' | 'admin';
+}
+
+export interface AppLog {
+  id: number;
+  created_at: string;
+  user_id: string;
+  assistant_id?: string;
+  event_type: string;
+  metadata?: Record<string, any>;
 }

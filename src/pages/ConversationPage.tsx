@@ -52,6 +52,7 @@ export default function ConversationPage({
               isSpeaking={isSpeaking} 
               status={sessionStatus} 
               onClick={handleAvatarClick}
+              orbHue={assistant.orb_hue}
             />
 
             <div className="w-full max-w-2xl mt-8">

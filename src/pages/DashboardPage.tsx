@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
-import type { Assistant } from '../types.ts';
+import type { Assistant, Profile } from '../types.ts';
 import { Icon } from '../components/Icon.tsx';
 
 type Tab = 'my' | 'community';
@@ -8,6 +8,7 @@ type Tab = 'my' | 'community';
 export default function DashboardPage() {
   const [myAssistants, setMyAssistants] = useState<Assistant[]>([]);
   const [communityAssistants, setCommunityAssistants] = useState<Assistant[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('my');
 
@@ -17,6 +18,10 @@ export default function DashboardPage() {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        // Fetch user's profile
+        const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        if (profileData) setProfile(profileData as Profile);
+        
         // Fetch user's own assistants
         const { data: myData, error: myError } = await supabase
           .from('assistants')
@@ -27,12 +32,11 @@ export default function DashboardPage() {
         if (myError) console.error('Error fetching my assistants:', myError);
         else if (myData) setMyAssistants(myData as Assistant[]);
 
-        // Fetch public community assistants (excluding user's own public ones)
+        // Fetch all public community assistants
         const { data: communityData, error: communityError } = await supabase
           .from('assistants')
           .select('*')
           .eq('is_public', true)
-          .not('user_id', 'eq', user.id)
           .order('created_at', { ascending: false });
 
         if (communityError) console.error('Error fetching community assistants:', communityError);
@@ -71,13 +75,23 @@ export default function DashboardPage() {
         </a>
       )}
       {assistants.map(assistant => (
-          <a key={assistant.id} href={`#/assistant/${isCommunity ? 'preview/' : ''}${assistant.id}`} className="block p-6 glassmorphic rounded-2xl hover:ring-2 hover:ring-brand-tertiary-glow transition-all duration-300">
-              <div className="flex items-center gap-4">
-                  <img src={assistant.avatar} alt={assistant.name} className="w-16 h-16 rounded-full object-cover"/>
-                  <div>
-                      <h2 className="text-2xl font-bold text-text-primary dark:text-dark-text-primary">{assistant.name}</h2>
-                      <p className="text-text-secondary dark:text-dark-text-secondary line-clamp-2">{assistant.personality.join(', ')}</p>
-                  </div>
+          <a key={assistant.id} href={`#/assistant/${isCommunity ? 'preview/' : ''}${assistant.id}`} className="flex flex-col p-6 glassmorphic rounded-2xl hover:ring-2 hover:ring-brand-tertiary-glow transition-all duration-300">
+              <div className="flex-grow">
+                <div className="flex items-center gap-4 mb-4">
+                    <img src={assistant.avatar} alt={assistant.name} className="w-16 h-16 rounded-full object-cover flex-shrink-0"/>
+                    <div className="overflow-hidden">
+                        <h2 className="text-2xl font-bold text-text-primary dark:text-dark-text-primary truncate">{assistant.name}</h2>
+                        {assistant.author_name && isCommunity && <p className="text-sm text-text-secondary dark:text-dark-text-secondary truncate">by {assistant.author_name}</p>}
+                    </div>
+                </div>
+                <p className="text-sm text-text-secondary dark:text-dark-text-secondary line-clamp-2 min-h-[2.5rem]">
+                  {assistant.description || 'No description provided.'}
+                </p>
+              </div>
+              <div className="flex-shrink-0 mt-4 pt-2 border-t border-border-color/50 dark:border-dark-border-color/50">
+                  <p className="text-xs text-text-tertiary dark:text-dark-text-tertiary line-clamp-1 truncate">
+                    {assistant.personality.join(' · ')}
+                  </p>
               </div>
           </a>
       ))}
@@ -88,7 +102,15 @@ export default function DashboardPage() {
     <div className="p-4 md:p-8 max-w-6xl mx-auto w-full min-h-screen">
       <header className="flex justify-between items-center mb-8">
            <h1 className="text-4xl font-bold text-text-primary dark:text-dark-text-primary">Dashboard</h1>
-           <button onClick={handleLogout} className="bg-base-light hover:bg-base-medium text-text-primary font-bold py-2 px-4 rounded-full dark:bg-dark-base-medium dark:hover:bg-dark-border-color dark:text-dark-text-primary">Logout</button>
+           <div className="flex items-center gap-4">
+                {profile?.role === 'admin' && (
+                    <a href="#/admin" className="bg-brand-secondary-glow/80 hover:bg-brand-secondary-glow text-on-brand font-bold py-2 px-4 rounded-full flex items-center gap-2 transition-all">
+                        <Icon name="shield" className="w-5 h-5" />
+                        Admin Panel
+                    </a>
+                )}
+                <button onClick={handleLogout} className="bg-base-light hover:bg-base-medium text-text-primary font-bold py-2 px-4 rounded-full dark:bg-dark-base-medium dark:hover:bg-dark-border-color dark:text-dark-text-primary">Logout</button>
+           </div>
       </header>
       
       <div className="border-b border-border-color dark:border-dark-border-color mb-6">

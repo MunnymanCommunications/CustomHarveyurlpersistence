@@ -8,6 +8,7 @@ import {
 } from '@google/genai';
 import { createBlob, decode, decodeAudioData } from '../utils/audio.ts';
 import type { ConversationStatus, VoiceOption } from '../types.ts';
+import { logEvent } from '../lib/logger.ts';
 
 type LiveSession = Awaited<ReturnType<InstanceType<typeof GoogleGenAI>['live']['connect']>>;
 
@@ -42,6 +43,7 @@ interface GeminiLiveProviderProps {
   children: ReactNode;
   voice: VoiceOption;
   systemInstruction: string;
+  assistantId: string;
   onSaveToMemory: (info: string) => Promise<void>;
   onTurnComplete: (userTranscript: string, assistantTranscript: string) => void;
 }
@@ -50,6 +52,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
   children,
   voice,
   systemInstruction,
+  assistantId,
   onSaveToMemory,
   onTurnComplete,
 }) => {
@@ -61,6 +64,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
 
   const sessionRef = useRef<LiveSession | null>(null);
   const aiRef = useRef<GoogleGenAI | null>(null);
+  const assistantIdRef = useRef(assistantId);
 
   const inputAudioContextRef = useRef<AudioContext | null>(null);
   const outputAudioContextRef = useRef<AudioContext | null>(null);
@@ -76,6 +80,10 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
   const currentOutputTranscriptionRef = useRef('');
   
   useEffect(() => {
+    assistantIdRef.current = assistantId;
+  }, [assistantId]);
+
+  useEffect(() => {
     const apiKey = process.env.API_KEY;
     if (!apiKey || apiKey === 'undefined') {
       setError('API key is not configured. Please set VITE_API_KEY in your environment.');
@@ -87,6 +95,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
 
   const stopSession = useCallback(async () => {
     if (sessionRef.current) {
+      logEvent('SESSION_STOP', { assistantId: assistantIdRef.current });
       sessionRef.current.close();
       sessionRef.current = null;
     }
@@ -149,6 +158,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
     }
     
     try {
+        logEvent('SESSION_START', { assistantId });
         inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
         outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
         nextStartTimeRef.current = 0;
@@ -277,6 +287,10 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                     console.error('Session error:', e);
                     setError('A connection error occurred.');
                     setSessionStatus('ERROR');
+                    logEvent('SESSION_ERROR', {
+                      assistantId,
+                      metadata: { error: e.message }
+                    });
                     stopSession();
                 },
                 onclose: () => {
@@ -301,8 +315,12 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
       console.error('Failed to start session:', err);
       setError(err.message || 'Failed to start the microphone.');
       setSessionStatus('ERROR');
+      logEvent('SESSION_ERROR', {
+          assistantId,
+          metadata: { error: err.message || 'Failed to start microphone' }
+      });
     }
-  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, stopSession, sessionStatus]);
+  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, stopSession, sessionStatus, assistantId]);
 
   useEffect(() => {
     return () => {

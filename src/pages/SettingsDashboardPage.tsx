@@ -7,7 +7,7 @@ import { Icon } from '../components/Icon.tsx';
 
 interface SettingsDashboardPageProps {
   settings: Assistant;
-  onSettingsChange: (newSettings: Partial<Assistant>) => void | Promise<void>;
+  onSettingsChange: (newSettings: Assistant) => Promise<void>;
   previewMode: boolean;
 }
 
@@ -16,6 +16,7 @@ export default function SettingsDashboardPage({ settings, onSettingsChange, prev
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -38,9 +39,15 @@ export default function SettingsDashboardPage({ settings, onSettingsChange, prev
 
   const handleSaveChanges = async () => {
     setIsSaving(true);
-    await onSettingsChange(localSettings);
-    setIsSaving(false);
-    setHasChanges(false);
+    setSaveError(null);
+    try {
+      await onSettingsChange(localSettings);
+      setHasChanges(false);
+    } catch (error: any) {
+      setSaveError(error.message || 'Failed to save changes. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
   
   const handleResetChanges = () => {
@@ -92,6 +99,7 @@ export default function SettingsDashboardPage({ settings, onSettingsChange, prev
 
       {hasChanges && (
         <footer className="flex-shrink-0 pt-6 mt-6 border-t border-border-color/50 dark:border-dark-border-color/50 flex justify-end items-center gap-4">
+            {saveError && <p className="text-sm text-danger mr-auto">{saveError}</p>}
             <button
               onClick={handleResetChanges}
               disabled={isSaving}
