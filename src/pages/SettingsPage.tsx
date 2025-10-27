@@ -22,6 +22,8 @@ const INITIAL_SETTINGS: Partial<Assistant> = {
   description: '',
   author_name: '',
   orb_hue: 240, // Default hue (blue/purple)
+  is_public: false,
+  is_embeddable: false,
 };
 
 export default function SettingsPage({ onComplete }: SettingsPageProps) {
@@ -75,6 +77,8 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
                 description: settings.description,
                 author_name: settings.author_name,
                 orb_hue: settings.orb_hue,
+                is_public: settings.is_public,
+                is_embeddable: settings.is_embeddable,
                 knowledge_base: settings.knowledge_base,
             })
             .select()

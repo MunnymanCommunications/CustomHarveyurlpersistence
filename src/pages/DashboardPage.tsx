@@ -69,26 +69,28 @@ export default function DashboardPage() {
   const AssistantGrid: React.FC<{assistants: Assistant[], isCommunity: boolean}> = ({ assistants, isCommunity }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {!isCommunity && (
-         <a href="#/assistant/new" className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-base-medium rounded-2xl text-text-secondary hover:bg-base-light hover:border-brand-secondary-glow transition-all duration-300 min-h-[200px] dark:border-dark-border-color dark:text-dark-text-secondary dark:hover:bg-dark-base-medium">
+         <a href="#/assistant/new" className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-base-medium rounded-2xl text-text-secondary hover:bg-base-light hover:border-brand-secondary-glow transition-all duration-300 min-h-[230px] dark:border-dark-border-color dark:text-dark-text-secondary dark:hover:bg-dark-base-medium">
             <Icon name="plus" className="w-10 h-10 mb-2"/>
             <span className="font-semibold">Create New Assistant</span>
         </a>
       )}
       {assistants.map(assistant => (
-          <a key={assistant.id} href={`#/assistant/${isCommunity ? 'preview/' : ''}${assistant.id}`} className="flex flex-col p-6 glassmorphic rounded-2xl hover:ring-2 hover:ring-brand-tertiary-glow transition-all duration-300">
-              <div className="flex-grow">
-                <div className="flex items-center gap-4 mb-4">
-                    <img src={assistant.avatar} alt={assistant.name} className="w-16 h-16 rounded-full object-cover flex-shrink-0"/>
+          <a key={assistant.id} href={`#/assistant/${isCommunity ? 'preview/' : ''}${assistant.id}`} className="flex flex-col p-6 glassmorphic rounded-2xl hover:ring-2 hover:ring-brand-tertiary-glow transition-all duration-300 min-h-[230px]">
+              <div className="flex-grow flex flex-col">
+                <div className="flex items-start gap-4 mb-4">
+                    <img src={assistant.avatar} alt={assistant.name} className="w-16 h-16 rounded-full object-cover flex-shrink-0 shadow-md"/>
                     <div className="overflow-hidden">
                         <h2 className="text-2xl font-bold text-text-primary dark:text-dark-text-primary truncate">{assistant.name}</h2>
                         {assistant.author_name && isCommunity && <p className="text-sm text-text-secondary dark:text-dark-text-secondary truncate">by {assistant.author_name}</p>}
                     </div>
                 </div>
-                <p className="text-sm text-text-secondary dark:text-dark-text-secondary line-clamp-2 min-h-[2.5rem]">
-                  {assistant.description || 'No description provided.'}
-                </p>
+                <div className="flex-grow">
+                    <p className="text-sm text-text-secondary dark:text-dark-text-secondary line-clamp-3">
+                    {assistant.description || 'No description provided.'}
+                    </p>
+                </div>
               </div>
-              <div className="flex-shrink-0 mt-4 pt-2 border-t border-border-color/50 dark:border-dark-border-color/50">
+              <div className="flex-shrink-0 mt-4 pt-4 border-t border-border-color/50 dark:border-dark-border-color/50">
                   <p className="text-xs text-text-tertiary dark:text-dark-text-tertiary line-clamp-1 truncate">
                     {assistant.personality.join(' · ')}
                   </p>

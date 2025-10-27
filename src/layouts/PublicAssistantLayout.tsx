@@ -8,7 +8,15 @@ import ConversationPage from '../pages/ConversationPage.tsx';
 import { GeminiLiveProvider } from '../contexts/GeminiLiveContext.tsx';
 
 // A stripped-down version of the Assistant type for public view
-type PublicAssistant = Omit<Assistant, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'knowledge_base' | 'is_public' | 'original_assistant_id'>;
+type PublicAssistant = Omit<Assistant, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'knowledge_base' | 'original_assistant_id'>;
+
+const inIframe = () => {
+  try {
+    return window.self !== window.top;
+  } catch (e) {
+    return true; // Assume it's in an iframe if we can't access top
+  }
+};
 
 export default function PublicAssistantLayout({ assistantId }: { assistantId: string }) {
     const [assistant, setAssistant] = useState<PublicAssistant | null>(null);
@@ -41,7 +49,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
             const supabase = getSupabase();
             const { data, error } = await supabase
                 .from('assistants')
-                .select('name, avatar, personality, attitude, voice, prompt, orb_hue, description, author_name')
+                .select('name, avatar, personality, attitude, voice, prompt, orb_hue, description, author_name, is_public, is_embeddable')
                 .eq('id', assistantId)
                 .eq('is_public', true)
                 .single();
@@ -125,13 +133,22 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         );
     }
     
+    if (inIframe() && !assistant.is_embeddable) {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen text-center p-4">
+                <Icon name="error" className="w-16 h-16 text-danger mb-4" />
+                <h1 className="text-2xl font-bold text-text-primary dark:text-dark-text-primary">Embedding Disabled</h1>
+                <p className="text-text-secondary dark:text-dark-text-secondary mt-1">The creator of this assistant has not enabled it for embedding on other websites.</p>
+            </div>
+        );
+    }
+    
     // We need to add required properties for the ConversationPage component
     const fullAssistant: Assistant = {
         ...assistant,
         id: assistantId,
         user_id: '',
         created_at: new Date().toISOString(),
-        is_public: true,
     }
 
     return (

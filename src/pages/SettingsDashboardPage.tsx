@@ -35,8 +35,19 @@ export default function SettingsDashboardPage({ settings, onSettingsChange, prev
   };
   
   const handleTogglePublic = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleLocalSettingsChange({ is_public: e.target.checked });
+    const isPublic = e.target.checked;
+    const newSettings: Partial<Assistant> = { is_public: isPublic };
+    // If making private, also disable embedding
+    if (!isPublic) {
+        newSettings.is_embeddable = false;
+    }
+    handleLocalSettingsChange(newSettings);
   };
+  
+  const handleToggleEmbeddable = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleLocalSettingsChange({ is_embeddable: e.target.checked });
+  };
+
 
   const handleSaveChanges = async () => {
     setIsSaving(true);
@@ -90,21 +101,41 @@ export default function SettingsDashboardPage({ settings, onSettingsChange, prev
         
         {isOriginalCreator && (
             <div className="mt-8 pt-6 border-t border-border-color/50 dark:border-dark-border-color/50">
-                <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">Publish to Community</h3>
+                <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">Sharing & Privacy</h3>
                 <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-1">
-                    Make this assistant publicly available for other users to preview and talk to via a direct link. Your memories will remain private.
+                    Control how your assistant can be accessed by others. Your memories always remain private.
                 </p>
-                <label className="mt-4 inline-flex items-center cursor-pointer">
-                    <input type="checkbox" checked={!!localSettings.is_public} onChange={handleTogglePublic} className="sr-only peer" />
-                    <div className="relative w-11 h-6 bg-base-medium peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-brand-secondary-glow/50 rounded-full peer dark:bg-dark-border-color peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-brand-secondary-glow"></div>
-                    <span className="ms-3 text-sm font-medium text-text-primary dark:text-dark-text-primary">
-                        {localSettings.is_public ? 'Published' : 'Make Public'}
-                    </span>
-                </label>
+
+                {/* Public Toggle */}
+                <div className="mt-4">
+                  <label className="inline-flex items-center cursor-pointer">
+                      <input type="checkbox" checked={!!localSettings.is_public} onChange={handleTogglePublic} className="sr-only peer" />
+                      <div className="relative w-11 h-6 bg-base-medium peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-brand-secondary-glow/50 rounded-full peer dark:bg-dark-border-color peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-brand-secondary-glow"></div>
+                      <span className="ms-3 text-sm font-medium text-text-primary dark:text-dark-text-primary">
+                          Make Public
+                      </span>
+                  </label>
+                  <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-1 ml-14">Allows anyone with the URL to talk to this assistant.</p>
+                </div>
+                
+                {/* Embeddable Toggle */}
+                {localSettings.is_public && (
+                   <div className="mt-4 ml-8 animate-fade-in">
+                      <label className="inline-flex items-center cursor-pointer">
+                          <input type="checkbox" checked={!!localSettings.is_embeddable} onChange={handleToggleEmbeddable} className="sr-only peer" />
+                          <div className="relative w-11 h-6 bg-base-medium peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-brand-secondary-glow/50 rounded-full peer dark:bg-dark-border-color peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-brand-secondary-glow"></div>
+                          <span className="ms-3 text-sm font-medium text-text-primary dark:text-dark-text-primary">
+                              Allow Embedding
+                          </span>
+                      </label>
+                       <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-1 ml-14">Allows this assistant to be embedded on other websites.</p>
+                  </div>
+                )}
+                
                 {localSettings.is_public && (
                     <div className="mt-4 p-3 bg-base-medium rounded-md dark:bg-dark-base-light animate-fade-in">
                         <label className="block text-sm font-medium text-text-primary dark:text-dark-text-primary">Public URL</label>
-                        <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-1">Share this URL to let anyone talk to your assistant. It can also be embedded in an iframe.</p>
+                        <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-1">Share this URL to let anyone talk to your assistant.</p>
                         <div className="flex items-center gap-2 mt-2">
                             <input type="text" readOnly value={publicUrl} className="w-full p-2 border border-border-color rounded-md bg-white/70 text-sm focus:outline-none dark:bg-dark-base-medium dark:border-dark-border-color dark:text-dark-text-primary" />
                             <button onClick={handleCopy} className="bg-brand-secondary-glow text-on-brand font-bold text-sm py-2 px-4 rounded-md transition-all duration-300 w-24">

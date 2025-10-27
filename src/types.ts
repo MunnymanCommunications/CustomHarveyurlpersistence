@@ -23,6 +23,7 @@ export interface Assistant {
   created_at: string;
   updated_at?: string;
   is_public?: boolean;
+  is_embeddable?: boolean;
   description?: string;
   author_name?: string;
   orb_hue?: number;

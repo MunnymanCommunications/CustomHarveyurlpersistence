@@ -20,7 +20,8 @@ const parseHash = () => {
     if (hash === '#/admin') return { path: 'admin' };
     if (hash === '#/assistant/new') return { path: 'new_assistant' };
 
-    const publicMatch = hash.match(/^#\/public\/(.+)$/);
+    // Use a more specific regex for UUIDs to ensure correct matching
+    const publicMatch = hash.match(/^#\/public\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/);
     if (publicMatch && publicMatch[1]) {
         return { path: 'public_assistant', id: publicMatch[1] };
     }

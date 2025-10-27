@@ -17,11 +17,6 @@ import { useGeminiLive } from '../hooks/useGeminiLive.ts';
 
 type Page = 'conversation' | 'memory' | 'history' | 'settings';
 
-interface AssistantLayoutProps {
-  assistantId: string;
-  previewMode: boolean;
-}
-
 interface AssistantLayoutContentProps {
   assistant: Assistant;
   memories: MemoryItem[];
@@ -121,6 +116,11 @@ const AssistantLayoutContent = ({
   );
 };
 
+// FIX: Define the AssistantLayoutProps interface to resolve the TypeScript error.
+interface AssistantLayoutProps {
+  assistantId: string;
+  previewMode: boolean;
+}
 
 export default function AssistantLayout({ assistantId, previewMode }: AssistantLayoutProps) {
     const [assistant, setAssistant] = useState<Assistant | null>(null);
@@ -328,6 +328,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             voice,
             prompt,
             is_public,
+            is_embeddable,
             description,
             author_name,
             orb_hue,
@@ -341,6 +342,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             voice,
             prompt,
             is_public,
+            is_embeddable,
             description,
             author_name,
             orb_hue,
