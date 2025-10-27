@@ -153,6 +153,9 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
 
     const fetchAssistantData = useCallback(async () => {
         const supabase = getSupabase();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not authenticated.");
+
         const { data: assistantData, error: assistantError } = await supabase
             .from('assistants')
             .select('*')
@@ -168,11 +171,19 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
 
         // Only fetch memories if not in preview mode
         if (!previewMode) {
-            const { data: memoryData, error: memoryError } = await supabase
+            let memoryQuery = supabase
                 .from('memory_items')
                 .select('*')
-                .eq('assistant_id', assistantId)
                 .order('created_at', { ascending: true });
+            
+            // SPECIAL CASE: Memory Vault gets all user memories
+            if (assistantData.name === 'Memory Vault') {
+                memoryQuery = memoryQuery.eq('user_id', user.id);
+            } else {
+                memoryQuery = memoryQuery.eq('assistant_id', assistantId);
+            }
+
+            const { data: memoryData, error: memoryError } = await memoryQuery;
             
             if (memoryError) {
                 console.error("Error fetching memories:", memoryError);
@@ -201,11 +212,14 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         const supabase = getSupabase();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+        
+        // If it's the Memory Vault, the memory is not tied to an assistant
+        const assistant_id = assistant.name === 'Memory Vault' ? assistant.id : assistant.id;
 
         const { data: newMemory, error: insertError } = await supabase
             .from('memory_items')
             .insert({
-                assistant_id: assistant.id,
+                assistant_id: assistant_id,
                 user_id: user.id,
                 content: info
             })
@@ -413,15 +427,12 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
       ? memories.map(m => m.content).join('\n')
       : "No information is stored in long-term memory.";
       
-    // FIX: Update system instruction for clearer guidance on using the web search tool.
-    // This provides more explicit instructions to the AI on when to use the tool,
-    // preventing accidental searches and ensuring it's used only when necessary.
     const systemInstruction = `You are an AI assistant named ${assistant.name}.
   Your personality traits are: ${assistant.personality.join(', ')}.
   Your attitude is: ${assistant.attitude}.
   Your core instruction is: ${assistant.prompt}
 
-  You have a Google Search tool available. You should ONLY use this tool when you need to find information about recent events, current topics, or if the user's query is something you don't have knowledge about. Do not use the search tool for general conversation or creative tasks. When you use the tool, the web search results will be displayed to the user.
+  You have a Google Search tool available. Use it sparingly, and ONLY when the user asks for current, real-time information (e.g., news, weather, stock prices) or if you cannot answer from your existing knowledge. Do not use the search tool for creative tasks, general conversation, or persona-based responses.
   
   Based on this persona, engage in a conversation with the user.
   

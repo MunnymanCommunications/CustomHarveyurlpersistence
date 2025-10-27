@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { getSupabase } from '../lib/supabaseClient';
 import type { AppLog } from '../types';
 import { Icon } from '../components/Icon';

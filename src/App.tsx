@@ -3,11 +3,13 @@ import { getSupabase } from './lib/supabaseClient.ts';
 import type { Session } from '@supabase/supabase-js';
 import type { Profile } from './types.ts';
 import { logEvent } from './lib/logger.ts';
+import { MEMORY_VAULT_DEFAULTS } from './constants.ts';
 
 import AuthPage from './pages/AuthPage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
 import SettingsPage from './pages/SettingsPage.tsx';
 import AssistantLayout from './layouts/AssistantLayout.tsx';
+import PublicAssistantLayout from './layouts/PublicAssistantLayout.tsx';
 import AdminPage from './pages/AdminPage.tsx';
 import { Icon } from './components/Icon.tsx';
 
@@ -17,6 +19,11 @@ const parseHash = () => {
     if (hash === '#/auth') return { path: 'auth' };
     if (hash === '#/admin') return { path: 'admin' };
     if (hash === '#/assistant/new') return { path: 'new_assistant' };
+
+    const publicMatch = hash.match(/^#\/public\/(.+)$/);
+    if (publicMatch && publicMatch[1]) {
+        return { path: 'public_assistant', id: publicMatch[1] };
+    }
 
     const previewMatch = hash.match(/^#\/assistant\/preview\/(.+)$/);
     if (previewMatch && previewMatch[1]) {
@@ -78,6 +85,31 @@ export default function App() {
                     console.error('Error fetching profile:', error);
                 } else {
                     setProfile(data as Profile);
+                    
+                    // Check for and create Memory Vault if it doesn't exist
+                    const { data: vault, error: vaultError } = await supabase
+                        .from('assistants')
+                        .select('id')
+                        .eq('user_id', session.user.id)
+                        .eq('name', MEMORY_VAULT_DEFAULTS.name)
+                        .limit(1);
+
+                    if (vaultError) {
+                        console.error("Error checking for Memory Vault:", vaultError);
+                    } else if (vault.length === 0) {
+                        const { error: createError } = await supabase
+                            .from('assistants')
+                            .insert({
+                                ...MEMORY_VAULT_DEFAULTS,
+                                user_id: session.user.id,
+                                author_name: data.username || 'System',
+                            });
+                        if (createError) {
+                            console.error("Failed to create Memory Vault:", createError);
+                        } else {
+                            logEvent('MEMORY_VAULT_CREATED');
+                        }
+                    }
                 }
             };
             fetchProfile();
@@ -104,6 +136,10 @@ export default function App() {
         );
     }
     
+    if (route.path === 'public_assistant') {
+        return <PublicAssistantLayout assistantId={route.id!} />;
+    }
+
     if (!session) {
         return <AuthPage />;
     }

@@ -16,6 +16,12 @@
                       radial-gradient(circle at bottom left, theme('colors.brand-secondary-glow / 0.15'), transparent 50%);
   }
 
+  /* Style for public/embeddable view */
+  body.public-view {
+    @apply bg-transparent;
+    background-image: none;
+  }
+
   /* Custom scrollbar for better aesthetics */
   ::-webkit-scrollbar {
     width: 8px;
