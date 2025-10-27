@@ -77,14 +77,14 @@ export default function DashboardPage() {
       {assistants.map(assistant => (
           <a key={assistant.id} href={`#/assistant/${isCommunity ? 'preview/' : ''}${assistant.id}`} className="flex flex-col p-6 glassmorphic rounded-2xl hover:ring-2 hover:ring-brand-tertiary-glow transition-all duration-300 min-h-[230px]">
               <div className="flex-grow flex flex-col">
-                <div className="flex items-start gap-4 mb-4">
+                <div className="flex items-start gap-4">
                     <img src={assistant.avatar} alt={assistant.name} className="w-16 h-16 rounded-full object-cover flex-shrink-0 shadow-md"/>
                     <div className="overflow-hidden">
                         <h2 className="text-2xl font-bold text-text-primary dark:text-dark-text-primary truncate">{assistant.name}</h2>
-                        {assistant.author_name && isCommunity && <p className="text-sm text-text-secondary dark:text-dark-text-secondary truncate">by {assistant.author_name}</p>}
+                        {assistant.author_name && isCommunity && <p className="text-sm text-text-secondary dark:text-dark-text-secondary truncate mt-1">by {assistant.author_name}</p>}
                     </div>
                 </div>
-                <div className="flex-grow">
+                <div className="flex-grow mt-4">
                     <p className="text-sm text-text-secondary dark:text-dark-text-secondary line-clamp-3">
                     {assistant.description || 'No description provided.'}
                     </p>
