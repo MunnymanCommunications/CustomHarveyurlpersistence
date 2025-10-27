@@ -47,6 +47,7 @@ export default function App() {
     const [profile, setProfile] = useState<Profile | null>(null);
     const [route, setRoute] = useState(parseHash());
     const [loading, setLoading] = useState(true);
+    const [vaultCheckComplete, setVaultCheckComplete] = useState(false);
 
     useEffect(() => {
         const supabase = getSupabase();
@@ -60,7 +61,9 @@ export default function App() {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
-            if (_event === 'SIGNED_IN') {
+            // Check the route to prevent redirecting away from public pages
+            const currentRoute = parseHash();
+            if (_event === 'SIGNED_IN' && currentRoute.path !== 'public_assistant') {
                 window.location.hash = '#/';
                 logEvent('USER_SIGNED_IN');
             }
@@ -73,9 +76,9 @@ export default function App() {
     }, []);
 
     useEffect(() => {
-        if (session) {
+        if (session && !vaultCheckComplete) {
             const supabase = getSupabase();
-            const fetchProfile = async () => {
+            const fetchProfileAndCreateVault = async () => {
                 const { data, error } = await supabase
                     .from('profiles')
                     .select('*')
@@ -112,12 +115,16 @@ export default function App() {
                         }
                     }
                 }
+                // Mark the check as complete to prevent re-runs
+                setVaultCheckComplete(true);
             };
-            fetchProfile();
-        } else {
+            fetchProfileAndCreateVault();
+        } else if (!session) {
+            // Reset profile and vault check on logout
             setProfile(null);
+            setVaultCheckComplete(false);
         }
-    }, [session]);
+    }, [session, vaultCheckComplete]);
 
     useEffect(() => {
         const handleHashChange = () => setRoute(parseHash());
