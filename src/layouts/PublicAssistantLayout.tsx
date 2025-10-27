@@ -100,11 +100,15 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         Your core instruction is: ${assistant.prompt}
         You are speaking to a member of the public. You have no memory of past conversations.
         
-        You have a Google Search tool available. Use it sparingly, and ONLY when the user asks for current, real-time information (e.g., news, weather, stock prices) or if you cannot answer from your existing knowledge. Do not use the search tool for creative tasks, general conversation, or persona-based responses.
+        A Google Search tool is available to you. You MUST NOT use this tool unless the user explicitly asks you to search for something or requests current, real-time information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, you must rely solely on your internal knowledge and NOT use the search tool.
     ` : '';
 
     const handleTurnComplete = useCallback((userTranscript: string) => {
-        if (userTranscript.trim()) {
+        const searchKeywords = ['search for', 'look up', 'find out', 'what is the latest', 'what are the current', 'google', 'search', 'how is the weather', "what's the weather", "what's the news"];
+        const lowerCaseTranscript = userTranscript.toLowerCase();
+        const shouldSearch = searchKeywords.some(keyword => lowerCaseTranscript.includes(keyword));
+
+        if (userTranscript.trim() && shouldSearch) {
             fetchGrounding(userTranscript);
         } else {
             setGroundingChunks([]);
