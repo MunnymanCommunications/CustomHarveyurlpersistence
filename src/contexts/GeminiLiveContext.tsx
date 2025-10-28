@@ -293,8 +293,16 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                     });
                     stopSession();
                 },
-                onclose: () => {
-                   // Intentionally left blank. Session cleanup is handled by stopSession.
+                onclose: (e: CloseEvent) => {
+                   // This handler is crucial for preventing the UI from hanging.
+                   // The server may close the connection due to timeouts (e.g., after a long period of silence or a complex query).
+                   // Without this, the app state would remain 'ACTIVE' while the connection is dead.
+                   console.debug('Session closed, cleaning up.', e);
+                   logEvent('SESSION_CLOSE', {
+                       assistantId,
+                       metadata: { code: e.code, reason: e.reason, wasClean: e.wasClean }
+                   });
+                   stopSession();
                 },
             },
             config: {
