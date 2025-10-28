@@ -423,17 +423,23 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     if (loading) { return <div className="flex items-center justify-center h-screen"><Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow"/></div>; }
     if (error || !assistant) { return <div className="flex flex-col items-center justify-center h-screen text-center"><Icon name="error" className="w-16 h-16 text-danger mb-4" /><h1 className="text-2xl font-bold">{error || "Assistant not found."}</h1><a href="#/" className="mt-4 text-brand-secondary-glow hover:underline">Go to Dashboard</a></div>; }
 
+    // FIX: Add a guard to ensure assistant voice is configured, satisfying TypeScript's strict checks.
+    // This state should be unreachable due to database constraints but resolves the build error.
+    if (!assistant.voice) {
+        return <div className="flex flex-col items-center justify-center h-screen text-center"><Icon name="error" className="w-16 h-16 text-danger mb-4" /><h1 className="text-2xl font-bold">Assistant configuration is invalid (missing voice).</h1><a href="#/" className="mt-4 text-brand-secondary-glow hover:underline">Go to Dashboard</a></div>;
+    }
+
     const recentHistory = history.slice(0, 3).reverse();
     const historyContext = !previewMode && recentHistory.length ? recentHistory.map(e => `User: "${e.user}"\nAssistant: "${e.assistant}"`).join('\n\n') : "No recent conversation history.";
     const memoryContext = !previewMode && memories.length ? memories.map(m => m.content).join('\n') : "No information is stored in long-term memory.";
     
     // FIX: Added defensive fallbacks to prevent type errors if assistant properties are null/undefined from the database.
-    const systemInstruction = `You are an AI assistant named ${assistant.name || 'Assistant'}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Neutral'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nA Google Search tool is available to you. You MUST NOT use this tool unless the user explicitly asks you to search for something or requests current, real-time information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, you must rely solely on your internal knowledge and NOT use the search tool.\n\nBased on this persona, engage in a conversation with the user.\nKey information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
+    const systemInstruction = `You are an AI assistant named ${assistant.name || 'Assistant'}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nA Google Search tool is available to you. You MUST NOT use this tool unless the user explicitly asks you to search for something or requests current, real-time information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, you must rely solely on your internal knowledge and NOT use the search tool.\n\nBased on this persona, engage in a conversation with the user.\nKey information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
 
     return (
         <GeminiLiveProvider 
             assistantId={assistant.id} 
-            voice={assistant.voice || 'Zephyr'} 
+            voice={assistant.voice} 
             systemInstruction={systemInstruction} 
             onSaveToMemory={handleSaveToMemory} 
             onTurnComplete={handleTurnComplete}

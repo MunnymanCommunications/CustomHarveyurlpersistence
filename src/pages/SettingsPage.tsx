@@ -167,7 +167,7 @@ export default function SettingsPage({ onComplete }: SettingsPageProps) {
                     Click "Finish Setup" to create it and start your first conversation.
                 </p>
                 <div className="mt-8 flex justify-center">
-                    <img src={avatarFile ? URL.createObjectURL(avatarFile) : settings.avatar} alt="Avatar Preview" className="w-40 h-40 rounded-full object-cover shadow-2xl"/>
+                    <img src={avatarFile ? URL.createObjectURL(avatarFile) : settings.avatar || DEFAULT_AVATAR_URL} alt="Avatar Preview" className="w-40 h-40 rounded-full object-cover shadow-2xl"/>
                 </div>
             </div>
         </Step>
