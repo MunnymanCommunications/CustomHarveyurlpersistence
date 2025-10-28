@@ -423,12 +423,6 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     if (loading) { return <div className="flex items-center justify-center h-screen"><Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow"/></div>; }
     if (error || !assistant) { return <div className="flex flex-col items-center justify-center h-screen text-center"><Icon name="error" className="w-16 h-16 text-danger mb-4" /><h1 className="text-2xl font-bold">{error || "Assistant not found."}</h1><a href="#/" className="mt-4 text-brand-secondary-glow hover:underline">Go to Dashboard</a></div>; }
 
-    // FIX: Add a guard to ensure assistant voice is configured, satisfying TypeScript's strict checks.
-    // This state should be unreachable due to database constraints but resolves the build error.
-    if (!assistant.voice) {
-        return <div className="flex flex-col items-center justify-center h-screen text-center"><Icon name="error" className="w-16 h-16 text-danger mb-4" /><h1 className="text-2xl font-bold">Assistant configuration is invalid (missing voice).</h1><a href="#/" className="mt-4 text-brand-secondary-glow hover:underline">Go to Dashboard</a></div>;
-    }
-
     const recentHistory = history.slice(0, 3).reverse();
     const historyContext = !previewMode && recentHistory.length ? recentHistory.map(e => `User: "${e.user}"\nAssistant: "${e.assistant}"`).join('\n\n') : "No recent conversation history.";
     const memoryContext = !previewMode && memories.length ? memories.map(m => m.content).join('\n') : "No information is stored in long-term memory.";
@@ -439,7 +433,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     return (
         <GeminiLiveProvider 
             assistantId={assistant.id} 
-            voice={assistant.voice} 
+            voice={assistant.voice || 'Zephyr'} 
             systemInstruction={systemInstruction} 
             onSaveToMemory={handleSaveToMemory} 
             onTurnComplete={handleTurnComplete}
