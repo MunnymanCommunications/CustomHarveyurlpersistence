@@ -159,7 +159,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         <div className="h-screen w-screen flex items-center justify-center">
              <GeminiLiveProvider
                 assistantId={assistantId}
-                voice={assistant.voice}
+                voice={assistant.voice || 'Zephyr'}
                 systemInstruction={systemInstruction}
                 onSaveToMemory={handleSaveToMemory} // Dummy function
                 onTurnComplete={handleTurnComplete} // Dummy function

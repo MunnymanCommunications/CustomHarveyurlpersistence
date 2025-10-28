@@ -2,6 +2,7 @@ import React from 'react';
 import { Icon } from './Icon.tsx';
 import { ThemeToggle } from './ThemeToggle.tsx';
 import type { ConversationStatus } from '../types.ts';
+import { DEFAULT_AVATAR_URL } from '../constants.ts';
 
 type Page = 'conversation' | 'memory' | 'history' | 'settings';
 
@@ -9,7 +10,7 @@ interface NavigationProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
   assistantName: string;
-  assistantAvatar: string;
+  assistantAvatar: string | null;
   isMobileOpen: boolean;
   onMobileClose: () => void;
   isCollapsed: boolean;
@@ -75,7 +76,7 @@ export const Navigation: React.FC<NavigationProps> = ({
         ${isCollapsed ? 'md:w-24' : 'md:w-72'}`}>
         
         <header className="flex items-center gap-3 p-2 mb-8 relative">
-          <img src={assistantAvatar} alt="Assistant Avatar" className={`flex-shrink-0 w-12 h-12 rounded-full object-cover shadow-md transition-transform duration-300 ${isCollapsed ? 'scale-90' : 'scale-100'}`}/>
+          <img src={assistantAvatar || DEFAULT_AVATAR_URL} alt="Assistant Avatar" className={`flex-shrink-0 w-12 h-12 rounded-full object-cover shadow-md transition-transform duration-300 ${isCollapsed ? 'scale-90' : 'scale-100'}`}/>
           <div className={`flex flex-col overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-full opacity-100'}`}>
             <h1 className="text-xl font-bold text-text-primary dark:text-dark-text-primary whitespace-nowrap">{assistantName}</h1>
             <p className="text-sm text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">{previewMode ? 'Community Assistant' : 'Personal Assistant'}</p>

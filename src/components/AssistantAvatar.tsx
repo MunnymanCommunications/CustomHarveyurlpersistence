@@ -1,13 +1,14 @@
 import React from 'react';
 import Orb from './orb/Orb.tsx';
 import type { ConversationStatus } from '../types.ts';
+import { DEFAULT_AVATAR_URL } from '../constants.ts';
 
 interface AssistantAvatarProps {
-  avatarUrl: string;
+  avatarUrl: string | null;
   isSpeaking: boolean;
   status: ConversationStatus;
   onClick?: () => void;
-  orbHue?: number;
+  orbHue?: number | null;
 }
 
 export const AssistantAvatar: React.FC<AssistantAvatarProps> = ({ avatarUrl, isSpeaking, status, onClick, orbHue = 240 }) => {
@@ -23,11 +24,11 @@ export const AssistantAvatar: React.FC<AssistantAvatarProps> = ({ avatarUrl, isS
     >
       {showOrb && (
         <div className={`absolute inset-0 transition-opacity duration-500 ${isSpeaking ? 'animate-pulse-strong' : ''} ${isBreathing ? 'animate-breathing' : ''}`}>
-          <Orb hue={orbHue} forceHoverState={isSpeaking || isBreathing} rotateOnHover={false} />
+          <Orb hue={orbHue || 240} forceHoverState={isSpeaking || isBreathing} rotateOnHover={false} />
         </div>
       )}
       <img
-        src={avatarUrl}
+        src={avatarUrl || DEFAULT_AVATAR_URL}
         alt="Assistant Avatar"
         className={`w-full h-full rounded-full object-cover shadow-2xl transition-transform duration-500 transform ${showOrb ? 'scale-75' : 'scale-100'}`}
       />

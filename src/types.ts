@@ -14,22 +14,20 @@ export interface Assistant {
   id: string;
   user_id: string;
   name: string;
-  avatar: string;
+  avatar: string | null;
   personality: PersonalityTrait[];
   attitude: AttitudeOption;
   voice: VoiceOption;
-  prompt: string;
+  prompt: string | null;
   knowledge_base?: string;
   created_at: string;
-  updated_at?: string;
-  is_public?: boolean;
-  is_embeddable?: boolean;
-  description?: string;
-  author_name?: string;
-  orb_hue?: number;
-  // FIX: Add missing property `original_assistant_id` to the Assistant type.
-  // This resolves a TypeScript error in `SettingsDashboardPage.tsx` where this property was being accessed.
-  original_assistant_id?: string;
+  updated_at?: string | null;
+  is_public?: boolean | null;
+  is_embeddable?: boolean | null;
+  description?: string | null;
+  author_name?: string | null;
+  orb_hue?: number | null;
+  original_assistant_id?: string | null;
 }
 
 export interface MemoryItem {

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Assistant } from '../types.ts';
 import { Icon } from '../components/Icon.tsx';
+import { DEFAULT_AVATAR_URL } from '../constants.ts';
 
 // Define a simple message type for the chat
 interface ChatMessage {
@@ -41,7 +42,7 @@ export default function TextChatPage({ assistant, messages, onSendMessage, isSen
         {messages.map((msg, index) => (
           <div key={index} className={`flex items-end gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role === 'model' && (
-              <img src={assistant.avatar} alt="assistant" className="w-8 h-8 rounded-full self-start flex-shrink-0" />
+              <img src={assistant.avatar || DEFAULT_AVATAR_URL} alt="assistant" className="w-8 h-8 rounded-full self-start flex-shrink-0" />
             )}
             <div className={`chat-bubble ${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}`}>
               <p className="text-text-primary dark:text-dark-text-primary">{msg.text}</p>
@@ -50,7 +51,7 @@ export default function TextChatPage({ assistant, messages, onSendMessage, isSen
         ))}
         {isSending && messages.length > 0 && messages[messages.length - 1]?.role === 'user' && (
           <div className="flex items-end gap-3 justify-start">
-             <img src={assistant.avatar} alt="assistant" className="w-8 h-8 rounded-full self-start flex-shrink-0" />
+             <img src={assistant.avatar || DEFAULT_AVATAR_URL} alt="assistant" className="w-8 h-8 rounded-full self-start flex-shrink-0" />
              <div className="chat-bubble chat-bubble-assistant">
                 <div className="typing-indicator">
                     <span></span>
