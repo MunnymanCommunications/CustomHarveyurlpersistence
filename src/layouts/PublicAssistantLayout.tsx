@@ -169,6 +169,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                     memory={[]}
                     onNavigateToMemory={() => {}}
                     groundingChunks={groundingChunks}
+                    onSwipe={() => {}}
                 />
             </GeminiLiveProvider>
         </div>

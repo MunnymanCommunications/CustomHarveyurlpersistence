@@ -36,9 +36,6 @@ const parseHash = () => {
         return { path: 'assistant', id: assistantMatch[1], preview: false };
     }
     
-    if (hash !== '#/') {
-      window.location.hash = '#/';
-    }
     return { path: 'dashboard' };
 };
 
@@ -61,9 +58,9 @@ export default function App() {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
-            // Check the route to prevent redirecting away from public pages
+            // Only redirect to dashboard if user just signed in from the auth page
             const currentRoute = parseHash();
-            if (_event === 'SIGNED_IN' && currentRoute.path !== 'public_assistant') {
+            if (_event === 'SIGNED_IN' && currentRoute.path === 'auth') {
                 window.location.hash = '#/';
                 logEvent('USER_SIGNED_IN');
             }
