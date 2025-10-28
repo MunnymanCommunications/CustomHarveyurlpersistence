@@ -350,8 +350,16 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         }
     }, [setHistory, fetchGrounding, previewMode]);
     
-    const handleClearHistory = () => !previewMode && setHistory([]);
-    const handleAddMemory = async (content: string) => !previewMode && handleSaveToMemory(content);
+    const handleClearHistory = () => {
+        if (!previewMode) {
+            setHistory([]);
+        }
+    };
+    const handleAddMemory = async (content: string) => {
+        if (!previewMode) {
+            await handleSaveToMemory(content);
+        }
+    };
 
     const handleUpdateMemory = async (id: number, content: string) => {
         if (previewMode) return;
@@ -392,7 +400,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             .select().single();
         setIsCloning(false);
         if (cloneError) { setError('Could not add assistant.'); console.error(cloneError); } 
-        else window.location.hash = `#/assistant/${data.id}`;
+        else if (data) { window.location.hash = `#/assistant/${data.id}`; }
     };
     
     const handleSendMessage = async (message: string) => {
