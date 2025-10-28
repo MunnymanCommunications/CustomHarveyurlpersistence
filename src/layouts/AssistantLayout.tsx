@@ -426,7 +426,9 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     const recentHistory = history.slice(0, 3).reverse();
     const historyContext = !previewMode && recentHistory.length ? recentHistory.map(e => `User: "${e.user}"\nAssistant: "${e.assistant}"`).join('\n\n') : "No recent conversation history.";
     const memoryContext = !previewMode && memories.length ? memories.map(m => m.content).join('\n') : "No information is stored in long-term memory.";
-    const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${assistant.personality.join(', ')}.\nYour attitude is: ${assistant.attitude}.\nYour core instruction is: ${assistant.prompt}\n\nA Google Search tool is available to you. You MUST NOT use this tool unless the user explicitly asks you to search for something or requests current, real-time information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, you must rely solely on your internal knowledge and NOT use the search tool.\n\nBased on this persona, engage in a conversation with the user.\nKey information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
+    
+    // FIX: Added defensive fallbacks to prevent type errors if assistant properties are null/undefined from the database.
+    const systemInstruction = `You are an AI assistant named ${assistant.name || 'Assistant'}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Neutral'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nA Google Search tool is available to you. You MUST NOT use this tool unless the user explicitly asks you to search for something or requests current, real-time information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, you must rely solely on your internal knowledge and NOT use the search tool.\n\nBased on this persona, engage in a conversation with the user.\nKey information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
 
     return (
         <GeminiLiveProvider assistantId={assistant.id} voice={assistant.voice} systemInstruction={systemInstruction} onSaveToMemory={handleSaveToMemory} onTurnComplete={handleTurnComplete}>
@@ -437,7 +439,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
                 setIsNavCollapsed={setIsNavCollapsed} handleAddMemory={handleAddMemory} handleUpdateMemory={handleUpdateMemory}
                 handleDeleteMemory={handleDeleteMemory} handleClearHistory={handleClearHistory} handleSettingsChange={handleSettingsChange}
                 handleCloneAssistant={handleCloneAssistant} groundingChunks={groundingChunks}
-                handleSwipeToChat={() => setCurrentPage('conversation') && setConversationMode('chat')}
+                handleSwipeToChat={() => { setCurrentPage('conversation'); setConversationMode('chat'); }}
                 handleSwipeToVoice={() => setConversationMode('voice')}
                 handleSendMessage={handleSendMessage}
             />
