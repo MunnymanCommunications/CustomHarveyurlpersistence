@@ -136,7 +136,7 @@ export default function App() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-screen">
-                <Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow"/>
+                <img src="favicon.svg" alt="Loading..." className="w-24 h-24 animate-pulse" />
             </div>
         );
     }
