@@ -20,11 +20,9 @@ export class ErrorBoundary extends Component<Props, State> {
     error: undefined,
   };
 
-  // FIX: Explicitly define the constructor to ensure `this.props` is correctly typed,
-  // which can resolve issues where inherited properties are not recognized.
-  constructor(props: Props) {
-    super(props);
-  }
+  // FIX: The explicit constructor was removed. Since state is initialized as a class
+  // property, the constructor was redundant. Removing it can help resolve
+  // complex type inference issues that may cause `this.props` to be unrecognized.
 
   static getDerivedStateFromError(error: Error): State {
     // Update state so the next render will show the fallback UI.

@@ -11,3 +11,8 @@ declare global {
     }
   };
 }
+
+// FIX: Add `export {}` to ensure this file is treated as a module, which is
+// required for global augmentations. This resolves the error about augmentations
+// needing to be in a module.
+export {};
