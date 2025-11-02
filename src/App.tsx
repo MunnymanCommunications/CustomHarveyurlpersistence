@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { getSupabase } from './lib/supabaseClient.ts';
 import type { Session } from '@supabase/supabase-js';
 import type { Profile } from './types.ts';
-import { logEvent } from './lib/logger.ts';
 import { MEMORY_VAULT_DEFAULTS } from './constants.ts';
 
 import AuthPage from './pages/AuthPage.tsx';
@@ -63,7 +62,6 @@ export default function App() {
             const currentRoute = parseHash();
             if (_event === 'SIGNED_IN' && currentRoute.path === 'auth') {
                 window.location.hash = '#/';
-                logEvent('USER_SIGNED_IN');
             }
             if (_event === 'SIGNED_OUT') {
                 window.location.hash = '#/auth';
@@ -108,8 +106,6 @@ export default function App() {
                             });
                         if (createError) {
                             console.error("Failed to create Memory Vault:", createError);
-                        } else {
-                            logEvent('MEMORY_VAULT_CREATED');
                         }
                     }
                 }
