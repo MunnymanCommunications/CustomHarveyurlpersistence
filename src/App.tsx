@@ -11,6 +11,7 @@ import SettingsPage from './pages/SettingsPage.tsx';
 import AssistantLayout from './layouts/AssistantLayout.tsx';
 import PublicAssistantLayout from './layouts/PublicAssistantLayout.tsx';
 import AdminPage from './pages/AdminPage.tsx';
+import UpgradePage from './pages/UpgradePage.tsx';
 import { Icon } from './components/Icon.tsx';
 
 const parseHash = () => {
@@ -19,6 +20,7 @@ const parseHash = () => {
     if (hash === '#/auth') return { path: 'auth' };
     if (hash === '#/admin') return { path: 'admin' };
     if (hash === '#/assistant/new') return { path: 'new_assistant' };
+    if (hash === '#/upgrade') return { path: 'upgrade' };
 
     // Use a more specific regex for UUIDs to ensure correct matching
     const publicMatch = hash.match(/^#\/public\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/);
@@ -143,6 +145,10 @@ export default function App() {
     
     if (route.path === 'public_assistant') {
         return <PublicAssistantLayout assistantId={route.id!} />;
+    }
+
+    if (route.path === 'upgrade') {
+        return <UpgradePage />;
     }
 
     if (!session) {

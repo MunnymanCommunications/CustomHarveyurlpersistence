@@ -18,6 +18,14 @@ const inIframe = () => {
   }
 };
 
+const getMimeTypeFromUrl = (url: string): string => {
+    if (url.endsWith('.png')) return 'image/png';
+    if (url.endsWith('.jpg') || url.endsWith('.jpeg')) return 'image/jpeg';
+    if (url.endsWith('.gif')) return 'image/gif';
+    if (url.endsWith('.svg')) return 'image/svg+xml';
+    return 'image/png'; // Default
+};
+
 export default function PublicAssistantLayout({ assistantId }: { assistantId: string }) {
     const [assistant, setAssistant] = useState<PublicAssistant | null>(null);
     const [loading, setLoading] = useState(true);
@@ -59,6 +67,39 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 console.error("Error fetching public assistant:", error);
             } else {
                 setAssistant(data);
+
+                // Dynamically update manifest for PWA
+                const avatarUrl = data.avatar || 'favicon.svg';
+                const mimeType = getMimeTypeFromUrl(avatarUrl);
+
+                const manifest = {
+                    name: data.name,
+                    short_name: data.name,
+                    start_url: '.',
+                    display: 'standalone',
+                    background_color: '#111827',
+                    theme_color: '#111827',
+                    icons: [
+                        { src: avatarUrl, sizes: '192x192', type: mimeType, purpose: 'any' },
+                        { src: avatarUrl, sizes: '512x512', type: mimeType, purpose: 'any' },
+                    ],
+                };
+                
+                const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+                const manifestUrl = URL.createObjectURL(manifestBlob);
+                
+                // Remove old and add new manifest link
+                document.querySelector('link[rel="manifest"]')?.remove();
+                const newManifestLink = document.createElement('link');
+                newManifestLink.rel = 'manifest';
+                newManifestLink.href = manifestUrl;
+                document.head.appendChild(newManifestLink);
+
+                // Update apple-touch-icon as well
+                const appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]');
+                if (appleTouchIcon) {
+                    appleTouchIcon.setAttribute('href', avatarUrl);
+                }
             }
             setLoading(false);
         };
@@ -156,7 +197,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
     }
 
     return (
-        <div className="h-screen w-screen flex items-center justify-center">
+        <div className="h-screen w-screen flex items-center justify-center relative">
              <GeminiLiveProvider
                 assistantId={assistantId}
                 voice={assistant.voice || 'Zephyr'}
@@ -172,6 +213,9 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                     onSwipe={() => {}}
                 />
             </GeminiLiveProvider>
+            <a href="#/upgrade" className="absolute bottom-4 text-xs text-text-tertiary dark:text-dark-text-tertiary hover:underline z-10">
+                Upgrade to create your own AI
+            </a>
         </div>
     );
 }

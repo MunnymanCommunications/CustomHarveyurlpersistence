@@ -1,0 +1,23 @@
+{
+  "name": "Ai Architect",
+  "short_name": "Ai Architect",
+  "description": "A fully customizable AI voice assistant with a visual avatar, personality traits, knowledge base, and a memory system.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
