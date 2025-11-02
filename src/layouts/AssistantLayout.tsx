@@ -243,7 +243,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             const ai = new GoogleGenAI({ apiKey });
             aiRef.current = ai;
             if (assistant) {
-                const textChatSystemInstruction = `You are an AI assistant named ${assistant.name}. Your personality traits are: ${assistant.personality.join(', ')}. Your attitude is: ${assistant.attitude}. Your core instruction is: ${assistant.prompt} Based on this persona, engage in a text-based conversation with the user. Keep responses concise and conversational.`;
+                const textChatSystemInstruction = `You are an AI assistant named ${assistant.name || 'Assistant'}. Your personality traits are: ${(assistant.personality || []).join(', ')}. Your attitude is: ${assistant.attitude || 'Practical'}. Your core instruction is: ${assistant.prompt || 'Be a helpful assistant.'} Based on this persona, engage in a text-based conversation with the user. Keep responses concise and conversational.`;
                 const chatInstance = ai.chats.create({
                     model: 'gemini-flash-latest',
                     config: { systemInstruction: textChatSystemInstruction }

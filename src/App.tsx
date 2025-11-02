@@ -12,7 +12,6 @@ import AssistantLayout from './layouts/AssistantLayout.tsx';
 import PublicAssistantLayout from './layouts/PublicAssistantLayout.tsx';
 import AdminPage from './pages/AdminPage.tsx';
 import UpgradePage from './pages/UpgradePage.tsx';
-import { Icon } from './components/Icon.tsx';
 
 const parseHash = () => {
     const hash = window.location.hash;

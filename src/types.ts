@@ -15,9 +15,9 @@ export interface Assistant {
   user_id: string;
   name: string;
   avatar: string | null;
-  personality: PersonalityTrait[];
-  attitude: AttitudeOption;
-  voice: VoiceOption;
+  personality: PersonalityTrait[] | null;
+  attitude: AttitudeOption | null;
+  voice: VoiceOption | null;
   prompt: string | null;
   knowledge_base?: string;
   created_at: string;
