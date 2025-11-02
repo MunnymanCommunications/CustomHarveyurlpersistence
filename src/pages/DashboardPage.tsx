@@ -93,7 +93,7 @@ export default function DashboardPage() {
               </div>
               <div className="flex-shrink-0 mt-4 pt-4 border-t border-border-color/50 dark:border-dark-border-color/50">
                   <p className="text-xs text-text-tertiary dark:text-dark-text-tertiary line-clamp-1 truncate">
-                    {assistant.personality.join(' · ')}
+                    {(assistant.personality || []).join(' · ')}
                   </p>
               </div>
           </a>
