@@ -90,9 +90,10 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 document.head.appendChild(newManifestLink);
 
                 // Update apple-touch-icon for iOS
-                let appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]');
+                // document.querySelector returns Element | null; cast to HTMLLinkElement for TypeScript
+                let appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement | null;
                 if (!appleTouchIcon) {
-                    appleTouchIcon = document.createElement('link');
+                    appleTouchIcon = document.createElement('link') as HTMLLinkElement;
                     appleTouchIcon.rel = 'apple-touch-icon';
                     document.head.appendChild(appleTouchIcon);
                 }
