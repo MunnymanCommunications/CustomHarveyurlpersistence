@@ -59,6 +59,47 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 console.error("Error fetching public assistant:", error);
             } else {
                 setAssistant(data);
+                
+                // Update manifest for PWA
+                const avatarUrl = data.avatar || '/favicon.svg';
+                const mimeType = avatarUrl.toLowerCase().endsWith('.svg') ? 'image/svg+xml' : 
+                                avatarUrl.toLowerCase().endsWith('.png') ? 'image/png' : 
+                                'image/jpeg';
+
+                const manifest = {
+                    name: data.name,
+                    short_name: data.name,
+                    start_url: '.',
+                    display: 'standalone',
+                    background_color: '#111827',
+                    theme_color: '#111827',
+                    icons: [
+                        { src: avatarUrl, sizes: '192x192', type: mimeType, purpose: 'any maskable' },
+                        { src: avatarUrl, sizes: '512x512', type: mimeType, purpose: 'any maskable' }
+                    ]
+                };
+                
+                const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+                const manifestUrl = URL.createObjectURL(manifestBlob);
+                
+                // Remove old and add new manifest link
+                document.querySelector('link[rel="manifest"]')?.remove();
+                const newManifestLink = document.createElement('link');
+                newManifestLink.rel = 'manifest';
+                newManifestLink.href = manifestUrl;
+                document.head.appendChild(newManifestLink);
+
+                // Update apple-touch-icon for iOS
+                let appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]');
+                if (!appleTouchIcon) {
+                    appleTouchIcon = document.createElement('link');
+                    appleTouchIcon.rel = 'apple-touch-icon';
+                    document.head.appendChild(appleTouchIcon);
+                }
+                appleTouchIcon.setAttribute('href', avatarUrl);
+                
+                // Update page title
+                document.title = data.name;
             }
             setLoading(false);
         };
