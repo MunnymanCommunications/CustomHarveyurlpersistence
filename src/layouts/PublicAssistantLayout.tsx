@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import type { Assistant, GroundingChunk } from '../types.ts';
 import { GoogleGenAI } from '@google/genai';
+import { updateManifest } from '../utils/manifest.ts';
 
 import { Icon } from '../components/Icon.tsx';
 import ConversationPage from '../pages/ConversationPage.tsx';
@@ -24,8 +25,6 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
     const [error, setError] = useState<string | null>(null);
     const [ai, setAi] = useState<GoogleGenAI | null>(null);
     const [groundingChunks, setGroundingChunks] = useState<any[]>([]);
-    const manifestBlobUrlRef = useRef<string | null>(null);
-
 
     useEffect(() => {
         // Apply class to body for transparent background
@@ -83,7 +82,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 
                 // Update manifest for PWA
                 const avatarUrl = data.avatar || '/favicon.svg';
-                // Resolve avatar to an absolute URL so that icons in a blob manifest are valid
+                // Resolve avatar to an absolute URL
                 const absoluteAvatarUrl = (() => {
                     try {
                         return new URL(avatarUrl, window.location.href).href;
@@ -92,57 +91,25 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                     }
                 })();
 
-                const mimeType = absoluteAvatarUrl.toLowerCase().endsWith('.svg') ? 'image/svg+xml' : 
+                const iconType = absoluteAvatarUrl.toLowerCase().endsWith('.svg') ? 'image/svg+xml' : 
                                 absoluteAvatarUrl.toLowerCase().endsWith('.png') ? 'image/png' : 
                                 'image/jpeg';
 
-                // Build app name and start URL so the saved PWA opens this public assistant
-                const appName = `${data.name} - EliteCardPro`;
-                const startUrl = window.location.href;
-                const scope = window.location.origin + '/';
-
-                const manifest = {
-                    name: appName,
-                    short_name: appName,
-                    start_url: startUrl,
-                    scope,
-                    display: 'standalone',
-                    background_color: '#111827',
-                    theme_color: '#111827',
-                    icons: [
-                        { src: absoluteAvatarUrl, sizes: '192x192', type: mimeType, purpose: 'any maskable' },
-                        { src: absoluteAvatarUrl, sizes: '512x512', type: mimeType, purpose: 'any maskable' }
-                    ]
+                // Update the manifest with current assistant details
+                const manifestData = {
+                    name: `${data.name} - EliteCardPro`,
+                    shortName: data.name,
+                    startUrl: window.location.href,
+                    iconUrl: absoluteAvatarUrl,
+                    iconType
                 };
 
-                const manifestBlob = new Blob([JSON.stringify(manifest, null, 0)], { type: 'application/manifest+json' });
-                const manifestUrl = URL.createObjectURL(manifestBlob);
-                manifestBlobUrlRef.current = manifestUrl;
-
-                // If an existing manifest link exists and points to a blob URL, revoke it to avoid leaks
-                const oldManifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
-                if (oldManifestLink) {
-                    const oldHref = oldManifestLink.href;
-                    oldManifestLink.remove();
-                    try {
-                        if (oldHref && oldHref.startsWith('blob:')) {
-                            URL.revokeObjectURL(oldHref);
-                        }
-                    } catch (e) {
-                        // ignore
-                    }
-                }
-
-                const newManifestLink = document.createElement('link');
-                newManifestLink.rel = 'manifest';
-                newManifestLink.type = 'application/manifest+json';
-                newManifestLink.href = manifestUrl;
-                document.head.appendChild(newManifestLink);
+                // Update the manifest in the document
+                updateManifest(manifestData);
 
                 // Update iOS meta tags and icons
                 // Remove existing tags first to avoid duplicates
                 document.querySelectorAll('meta[name^="apple-mobile-web-app-"], link[rel^="apple-touch-"]').forEach(el => el.remove());
-                
                 // Add iOS specific meta tags
                 const iosMeta = [
                     { name: 'apple-mobile-web-app-capable', content: 'yes' },
@@ -175,15 +142,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         }
 
         return () => {
-            // Revoke any blob URL we created for the manifest when the component unmounts or deps change
-            try {
-                if (manifestBlobUrlRef.current && manifestBlobUrlRef.current.startsWith('blob:')) {
-                    URL.revokeObjectURL(manifestBlobUrlRef.current);
-                }
-            } catch (e) {
-                // ignore
-            }
-            manifestBlobUrlRef.current = null;
+            // Nothing to clean up with new manifest handling
         };
     }, [assistantId, ai]);
 
