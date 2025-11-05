@@ -115,7 +115,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                     ]
                 };
 
-                const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+                const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
                 const manifestUrl = URL.createObjectURL(manifestBlob);
                 manifestBlobUrlRef.current = manifestUrl;
 
