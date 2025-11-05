@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import type { Assistant, GroundingChunk } from '../types.ts';
 import { GoogleGenAI } from '@google/genai';
-import { updateManifest } from '../utils/manifest.ts';
 
 import { Icon } from '../components/Icon.tsx';
 import ConversationPage from '../pages/ConversationPage.tsx';
@@ -80,41 +79,19 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
             } else {
                 setAssistant(data);
                 
-                // Update manifest for PWA
+                // Handle PWA meta tags for iOS
                 const avatarUrl = data.avatar || '/favicon.svg';
-                // Resolve avatar to an absolute URL
-                const absoluteAvatarUrl = (() => {
-                    try {
-                        return new URL(avatarUrl, window.location.href).href;
-                    } catch (e) {
-                        return window.location.origin + avatarUrl;
-                    }
-                })();
-
-                const iconType = absoluteAvatarUrl.toLowerCase().endsWith('.svg') ? 'image/svg+xml' : 
-                                absoluteAvatarUrl.toLowerCase().endsWith('.png') ? 'image/png' : 
-                                'image/jpeg';
-
-                // Update the manifest with current assistant details
-                const manifestData = {
-                    name: `${data.name} - EliteCardPro`,
-                    shortName: data.name,
-                    startUrl: window.location.href,
-                    iconUrl: absoluteAvatarUrl,
-                    iconType
-                };
-
-                // Update the manifest in the document
-                updateManifest(manifestData);
+                const appName = `${data.name} - EliteCardPro`;
 
                 // Update iOS meta tags and icons
                 // Remove existing tags first to avoid duplicates
                 document.querySelectorAll('meta[name^="apple-mobile-web-app-"], link[rel^="apple-touch-"]').forEach(el => el.remove());
+
                 // Add iOS specific meta tags
                 const iosMeta = [
                     { name: 'apple-mobile-web-app-capable', content: 'yes' },
                     { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
-                    { name: 'apple-mobile-web-app-title', content: data.name }, // Just assistant name for iOS (cleaner)
+                    { name: 'apple-mobile-web-app-title', content: appName }
                 ];
                 
                 iosMeta.forEach(({ name, content }) => {
@@ -127,7 +104,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 // Add apple-touch-icon (iOS home screen icon)
                 const appleTouchIcon = document.createElement('link');
                 appleTouchIcon.rel = 'apple-touch-icon';
-                appleTouchIcon.href = absoluteAvatarUrl;
+                appleTouchIcon.href = avatarUrl;
                 appleTouchIcon.setAttribute('sizes', '180x180'); // Preferred iOS size
                 document.head.appendChild(appleTouchIcon);
                 
