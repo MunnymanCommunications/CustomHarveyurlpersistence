@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import type { Assistant } from '../types.ts';
 import { GoogleGenAI } from '@google/genai';
@@ -24,6 +24,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
     const [error, setError] = useState<string | null>(null);
     const [ai, setAi] = useState<GoogleGenAI | null>(null);
     const [groundingChunks, setGroundingChunks] = useState<any[]>([]);
+    const manifestBlobUrlRef = useRef<string | null>(null);
 
 
     useEffect(() => {
@@ -62,8 +63,17 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 
                 // Update manifest for PWA
                 const avatarUrl = data.avatar || '/favicon.svg';
-                const mimeType = avatarUrl.toLowerCase().endsWith('.svg') ? 'image/svg+xml' : 
-                                avatarUrl.toLowerCase().endsWith('.png') ? 'image/png' : 
+                // Resolve avatar to an absolute URL so that icons in a blob manifest are valid
+                const absoluteAvatarUrl = (() => {
+                    try {
+                        return new URL(avatarUrl, window.location.href).href;
+                    } catch (e) {
+                        return window.location.origin + avatarUrl;
+                    }
+                })();
+
+                const mimeType = absoluteAvatarUrl.toLowerCase().endsWith('.svg') ? 'image/svg+xml' : 
+                                absoluteAvatarUrl.toLowerCase().endsWith('.png') ? 'image/png' : 
                                 'image/jpeg';
 
                 // Build app name and start URL so the saved PWA opens this public assistant
@@ -80,13 +90,14 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                     background_color: '#111827',
                     theme_color: '#111827',
                     icons: [
-                        { src: avatarUrl, sizes: '192x192', type: mimeType, purpose: 'any maskable' },
-                        { src: avatarUrl, sizes: '512x512', type: mimeType, purpose: 'any maskable' }
+                        { src: absoluteAvatarUrl, sizes: '192x192', type: mimeType, purpose: 'any maskable' },
+                        { src: absoluteAvatarUrl, sizes: '512x512', type: mimeType, purpose: 'any maskable' }
                     ]
                 };
 
                 const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
                 const manifestUrl = URL.createObjectURL(manifestBlob);
+                manifestBlobUrlRef.current = manifestUrl;
 
                 // If an existing manifest link exists and points to a blob URL, revoke it to avoid leaks
                 const oldManifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
@@ -115,7 +126,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                     appleTouchIcon.rel = 'apple-touch-icon';
                     document.head.appendChild(appleTouchIcon);
                 }
-                appleTouchIcon.setAttribute('href', avatarUrl);
+                appleTouchIcon.setAttribute('href', absoluteAvatarUrl);
                 
                 // Update page title
                 document.title = data.name;
@@ -126,6 +137,18 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         if (ai) {
             fetchPublicAssistant();
         }
+
+        return () => {
+            // Revoke any blob URL we created for the manifest when the component unmounts or deps change
+            try {
+                if (manifestBlobUrlRef.current && manifestBlobUrlRef.current.startsWith('blob:')) {
+                    URL.revokeObjectURL(manifestBlobUrlRef.current);
+                }
+            } catch (e) {
+                // ignore
+            }
+            manifestBlobUrlRef.current = null;
+        };
     }, [assistantId, ai]);
 
     const fetchGrounding = useCallback(async (text: string) => {
