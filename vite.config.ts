@@ -31,6 +31,25 @@ export default defineConfig({
       }
     }),
   ],
+  base: '/',
+  build: {
+    sourcemap: true,
+    chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+        }
+      }
+    }
+  },
+  server: {
+    port: 3000,
+    host: true,
+    fs: {
+      strict: false
+    }
+  },
   // FIX: Define environment variables to be replaced at build time.
   // This makes them available on `process.env` in client-side code,
   // resolving TypeScript errors with `import.meta.env` and aligning
