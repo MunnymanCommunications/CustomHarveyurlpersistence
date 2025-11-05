@@ -66,10 +66,16 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                                 avatarUrl.toLowerCase().endsWith('.png') ? 'image/png' : 
                                 'image/jpeg';
 
+                // Build app name and start URL so the saved PWA opens this public assistant
+                const appName = `${data.name} - EliteCardPro`;
+                const startUrl = window.location.href;
+                const scope = window.location.origin + '/';
+
                 const manifest = {
-                    name: data.name,
-                    short_name: data.name,
-                    start_url: '.',
+                    name: appName,
+                    short_name: appName,
+                    start_url: startUrl,
+                    scope,
                     display: 'standalone',
                     background_color: '#111827',
                     theme_color: '#111827',
@@ -78,12 +84,24 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                         { src: avatarUrl, sizes: '512x512', type: mimeType, purpose: 'any maskable' }
                     ]
                 };
-                
+
                 const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
                 const manifestUrl = URL.createObjectURL(manifestBlob);
-                
-                // Remove old and add new manifest link
-                document.querySelector('link[rel="manifest"]')?.remove();
+
+                // If an existing manifest link exists and points to a blob URL, revoke it to avoid leaks
+                const oldManifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
+                if (oldManifestLink) {
+                    const oldHref = oldManifestLink.href;
+                    oldManifestLink.remove();
+                    try {
+                        if (oldHref && oldHref.startsWith('blob:')) {
+                            URL.revokeObjectURL(oldHref);
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
+                }
+
                 const newManifestLink = document.createElement('link');
                 newManifestLink.rel = 'manifest';
                 newManifestLink.href = manifestUrl;
