@@ -53,9 +53,14 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
             }
             console.log('AI instance created successfully');
             setAi(aiInstance);
-        } catch (e) {
-            console.error('Error creating AI instance:', e);
-            setError(`Failed to initialize AI service: ${e.message}`);
+        } catch (error) {
+            if (error instanceof Error) {
+                console.error('Error creating AI instance:', error);
+                setError(`Failed to initialize AI service: ${error.message}`);
+            } else {
+                console.error('Unknown error creating AI instance:', error);
+                setError('Failed to initialize AI service: Unknown error');
+            }
             setLoading(false);
         }
     }, []);
@@ -196,7 +201,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                     tools: [{ googleSearch: {} }],
                 },
             });
-            const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.filter(c => c.web);
+            const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.filter((c: { web: any }) => c.web);
             if (chunks && chunks.length > 0) {
                 setGroundingChunks(chunks);
             }
