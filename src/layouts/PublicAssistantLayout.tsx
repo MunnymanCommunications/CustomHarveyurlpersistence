@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
-import type { Assistant } from '../types.ts';
+import type { Assistant, GroundingChunk } from '../types.ts';
 import { GoogleGenAI } from '@google/genai';
 
 import { Icon } from '../components/Icon.tsx';
@@ -201,7 +201,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                     tools: [{ googleSearch: {} }],
                 },
             });
-            const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.filter((c: { web: any }) => c.web);
+            const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.filter((chunk: GroundingChunk) => chunk.web !== undefined);
             if (chunks && chunks.length > 0) {
                 setGroundingChunks(chunks);
             }

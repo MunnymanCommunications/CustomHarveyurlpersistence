@@ -8,6 +8,21 @@ export type VoiceOption = typeof VOICE_SETTINGS_DEFINITIONS[number]['value'];
 export type PersonalityTrait = typeof PERSONALITY_TRAITS_DEFINITIONS[number];
 export type AttitudeOption = typeof ATTITUDE_OPTIONS_DEFINITIONS[number];
 
+export interface GroundingChunk {
+    web?: {
+        title?: string;
+        url?: string;
+        snippet?: string;
+    };
+    [key: string]: any;
+}
+
+export interface Candidate {
+    groundingMetadata?: {
+        groundingChunks?: GroundingChunk[];
+    };
+}
+
 export type ConversationStatus = 'IDLE' | 'CONNECTING' | 'ACTIVE' | 'ERROR';
 
 export interface Assistant {
