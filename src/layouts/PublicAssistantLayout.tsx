@@ -118,17 +118,32 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 newManifestLink.href = manifestUrl;
                 document.head.appendChild(newManifestLink);
 
-                // Update apple-touch-icon for iOS
-                // document.querySelector returns Element | null; cast to HTMLLinkElement for TypeScript
-                let appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement | null;
-                if (!appleTouchIcon) {
-                    appleTouchIcon = document.createElement('link') as HTMLLinkElement;
-                    appleTouchIcon.rel = 'apple-touch-icon';
-                    document.head.appendChild(appleTouchIcon);
-                }
-                appleTouchIcon.setAttribute('href', absoluteAvatarUrl);
+                // Update iOS meta tags and icons
+                // Remove existing tags first to avoid duplicates
+                document.querySelectorAll('meta[name^="apple-mobile-web-app-"], link[rel^="apple-touch-"]').forEach(el => el.remove());
                 
-                // Update page title
+                // Add iOS specific meta tags
+                const iosMeta = [
+                    { name: 'apple-mobile-web-app-capable', content: 'yes' },
+                    { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+                    { name: 'apple-mobile-web-app-title', content: data.name }, // Just assistant name for iOS (cleaner)
+                ];
+                
+                iosMeta.forEach(({ name, content }) => {
+                    const meta = document.createElement('meta');
+                    meta.name = name;
+                    meta.content = content;
+                    document.head.appendChild(meta);
+                });
+
+                // Add apple-touch-icon (iOS home screen icon)
+                const appleTouchIcon = document.createElement('link');
+                appleTouchIcon.rel = 'apple-touch-icon';
+                appleTouchIcon.href = absoluteAvatarUrl;
+                appleTouchIcon.setAttribute('sizes', '180x180'); // Preferred iOS size
+                document.head.appendChild(appleTouchIcon);
+                
+                // Update page title to just the assistant name (iOS uses this for home screen)
                 document.title = data.name;
             }
             setLoading(false);
