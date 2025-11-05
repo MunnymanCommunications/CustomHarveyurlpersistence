@@ -36,11 +36,26 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
     }, []);
 
     useEffect(() => {
-        const apiKey = process.env.API_KEY;
-        if (apiKey && apiKey !== 'undefined') {
-            setAi(new GoogleGenAI({ apiKey }));
-        } else {
-            setError("This service is currently unavailable due to a configuration issue.");
+        const apiKey = import.meta.env.VITE_API_KEY;
+        console.log('API Key status:', apiKey ? 'present' : 'missing', 'Length:', apiKey?.length);
+        
+        if (!apiKey || apiKey === 'undefined' || apiKey === '') {
+            console.error('API Key missing or undefined');
+            setError("This service is currently unavailable due to a configuration issue (API_KEY missing).");
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const aiInstance = new GoogleGenAI({ apiKey });
+            if (!aiInstance) {
+                throw new Error('Failed to create AI instance');
+            }
+            console.log('AI instance created successfully');
+            setAi(aiInstance);
+        } catch (e) {
+            console.error('Error creating AI instance:', e);
+            setError(`Failed to initialize AI service: ${e.message}`);
             setLoading(false);
         }
     }, []);
@@ -217,30 +232,36 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         // Do nothing in public mode
     }, []);
 
+    console.log('Render state:', { loading, error, assistant });
+
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen">
+            <div className="flex items-center justify-center h-screen bg-gray-900">
                 <Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow"/>
+                <span className="ml-3 text-white">Loading assistant...</span>
             </div>
         );
     }
 
     if (error || !assistant) {
         return (
-            <div className="flex flex-col items-center justify-center h-screen text-center p-4">
-                <Icon name="error" className="w-16 h-16 text-danger mb-4" />
-                <h1 className="text-2xl font-bold text-text-primary dark:text-dark-text-primary">{error || "Assistant not found."}</h1>
-                <p className="text-text-secondary dark:text-dark-text-secondary mt-1">Please check the URL or contact the creator of this assistant.</p>
+            <div className="flex flex-col items-center justify-center h-screen text-center p-4 bg-gray-900">
+                <Icon name="error" className="w-16 h-16 text-red-500 mb-4" />
+                <h1 className="text-2xl font-bold text-white">{error || "Assistant not found."}</h1>
+                <p className="text-gray-300 mt-1">Please check the URL or contact the creator of this assistant.</p>
+                <pre className="mt-4 p-2 bg-gray-800 text-gray-300 rounded text-sm max-w-lg overflow-auto">
+                    {JSON.stringify({ error, assistant, loading }, null, 2)}
+                </pre>
             </div>
         );
     }
     
     if (inIframe() && !assistant.is_embeddable) {
         return (
-            <div className="flex flex-col items-center justify-center h-screen text-center p-4">
-                <Icon name="error" className="w-16 h-16 text-danger mb-4" />
-                <h1 className="text-2xl font-bold text-text-primary dark:text-dark-text-primary">Embedding Disabled</h1>
-                <p className="text-text-secondary dark:text-dark-text-secondary mt-1">The creator of this assistant has not enabled it for embedding on other websites.</p>
+            <div className="flex flex-col items-center justify-center h-screen text-center p-4 bg-gray-900">
+                <Icon name="error" className="w-16 h-16 text-red-500 mb-4" />
+                <h1 className="text-2xl font-bold text-white">Embedding Disabled</h1>
+                <p className="text-gray-300 mt-1">The creator of this assistant has not enabled it for embedding on other websites.</p>
             </div>
         );
     }
