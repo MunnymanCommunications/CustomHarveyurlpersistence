@@ -47,7 +47,6 @@ export default function App() {
     const [profile, setProfile] = useState<Profile | null>(null);
     const [route, setRoute] = useState(parseHash());
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [vaultCheckComplete, setVaultCheckComplete] = useState(false);
 
     useEffect(() => {
