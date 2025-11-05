@@ -135,6 +135,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
 
                 const newManifestLink = document.createElement('link');
                 newManifestLink.rel = 'manifest';
+                newManifestLink.type = 'application/manifest+json';
                 newManifestLink.href = manifestUrl;
                 document.head.appendChild(newManifestLink);
 
