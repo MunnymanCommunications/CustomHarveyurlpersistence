@@ -5,7 +5,9 @@ import { GoogleGenAI } from '@google/genai';
 
 import { Icon } from '../components/Icon.tsx';
 import ConversationPage from '../pages/ConversationPage.tsx';
+// FIX: The useGeminiLive hook is exported from hooks/useGeminiLive.ts, not the context file.
 import { GeminiLiveProvider } from '../contexts/GeminiLiveContext.tsx';
+import { useGeminiLive } from '../hooks/useGeminiLive.ts';
 
 // A stripped-down version of the Assistant type for public view
 type PublicAssistant = Omit<Assistant, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'knowledge_base' | 'original_assistant_id'>;
@@ -25,6 +27,31 @@ const getMimeTypeFromUrl = (url: string): string => {
     if (url.endsWith('.svg')) return 'image/svg+xml';
     return 'image/png'; // Default
 };
+
+const PublicAssistantView = ({ assistant, assistantId, groundingChunks, handleTurnComplete, handleSaveToMemory }: { assistant: Assistant, assistantId: string, groundingChunks: any[], handleTurnComplete: (userTranscript: string) => void, handleSaveToMemory: () => Promise<void>}) => {
+    const { startSession } = useGeminiLive();
+    return (
+        <>
+            <ConversationPage
+                assistant={assistant}
+                memory={[]}
+                onNavigateToMemory={() => {}}
+                groundingSources={groundingChunks}
+                onSwipe={() => {}}
+            />
+            <div className="absolute bottom-16 left-1/2 -translate-x-1/2">
+                <button 
+                    onClick={startSession}
+                    className="bg-gradient-to-r from-brand-secondary-glow to-brand-tertiary-glow text-on-brand font-bold py-3 px-6 rounded-full flex items-center transition-all duration-300 shadow-lg transform hover:scale-105"
+                >
+                    <Icon name="micOn" className="w-6 h-6 mr-2" />
+                    Start Conversation
+                </button>
+            </div>
+        </>
+    );
+};
+
 
 export default function PublicAssistantLayout({ assistantId }: { assistantId: string }) {
     const [assistant, setAssistant] = useState<PublicAssistant | null>(null);
@@ -69,7 +96,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 setAssistant(data as unknown as PublicAssistant);
 
                 // Dynamically update manifest for PWA
-                const avatarUrl = data.avatar || 'favicon.svg';
+                const avatarUrl = data.avatar || '/favicon.svg';
                 const mimeType = getMimeTypeFromUrl(avatarUrl);
 
                 const manifest = {
@@ -202,16 +229,17 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 assistantId={assistantId}
                 voice={assistant.voice || 'Zephyr'}
                 systemInstruction={systemInstruction}
-                onSaveToMemory={handleSaveToMemory} // Dummy function
-                onTurnComplete={handleTurnComplete} // Dummy function
+                onSaveToMemory={handleSaveToMemory}
+                onTurnComplete={handleTurnComplete}
              >
-                <ConversationPage
-                    assistant={fullAssistant}
-                    memory={[]}
-                    onNavigateToMemory={() => {}}
-                    groundingSources={groundingChunks}
-                    onSwipe={() => {}}
+                <PublicAssistantView 
+                    assistant={fullAssistant} 
+                    assistantId={assistantId}
+                    groundingChunks={groundingChunks}
+                    handleTurnComplete={handleTurnComplete}
+                    handleSaveToMemory={handleSaveToMemory}
                 />
+            {/* FIX: Corrected typo in the closing tag for GeminiLiveProvider. */}
             </GeminiLiveProvider>
             <a href="#/upgrade" className="absolute bottom-4 text-xs text-text-tertiary dark:text-dark-text-tertiary hover:underline z-10">
                 Upgrade to create your own AI

@@ -133,7 +133,7 @@ export default function App() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-screen">
-                <img src="favicon.svg" alt="Loading..." className="w-24 h-24 animate-pulse" />
+                <img src="/favicon.svg" alt="Loading..." className="w-24 h-24 animate-pulse" />
             </div>
         );
     }
@@ -147,7 +147,17 @@ export default function App() {
     }
 
     if (!session) {
+        // Reroute to auth page if no session, unless it's a public assistant
+        if (route.path !== 'auth') {
+            window.location.hash = '#/auth';
+        }
         return <AuthPage />;
+    }
+
+    // If session exists and user is on auth page, redirect to dashboard
+    if (route.path === 'auth') {
+        window.location.hash = '#/';
+        return <DashboardPage />;
     }
 
     switch (route.path) {

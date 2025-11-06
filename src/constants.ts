@@ -13,7 +13,7 @@ export const DEFAULT_AVATAR_URL = 'https://i.ibb.co/6r4J5yJ/default-avatar.png';
 
 export const MEMORY_VAULT_DEFAULTS = {
     name: 'Memory Vault',
-    avatar: 'favicon.svg',
+    avatar: '/favicon.svg',
     personality: ['Analytical', 'Helpful', 'Precise'],
     attitude: 'Practical',
     voice: 'Zephyr',
