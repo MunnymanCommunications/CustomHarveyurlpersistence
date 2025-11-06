@@ -209,11 +209,10 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                     assistant={fullAssistant}
                     memory={[]}
                     onNavigateToMemory={() => {}}
-                    // FIX: Changed prop name from `groundingChunks` to `groundingSources` to match the component's interface.
                     groundingSources={groundingChunks}
                     onSwipe={() => {}}
                 />
-            </GeminiliveProvider>
+            </GeminiLiveProvider>
             <a href="#/upgrade" className="absolute bottom-4 text-xs text-text-tertiary dark:text-dark-text-tertiary hover:underline z-10">
                 Upgrade to create your own AI
             </a>
