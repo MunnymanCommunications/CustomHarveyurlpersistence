@@ -4,6 +4,11 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      input: 'index.html',
+    },
+  },
   // FIX: Define environment variables to be replaced at build time.
   // This makes them available on `process.env` in client-side code,
   // resolving TypeScript errors with `import.meta.env` and aligning
