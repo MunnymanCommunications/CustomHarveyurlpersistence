@@ -1,18 +1,12 @@
-/// <reference types="vite/client" />
+// FIX: Removed the reference to "vite/client" to prevent type definition conflicts
+// and resolve the "file not found" error. The project uses Vite's `define`
+// feature to handle environment variables via `process.env`.
 
-// FIX: Wrap `process` declaration in `declare global` to avoid redeclaration errors.
-// This ensures that the type declaration merges with the global scope instead of
-// creating a new variable in the file's scope, which resolves conflicts with
-// other global type definitions (e.g., from @types/node).
-declare global {
-  var process: {
-    env: {
-      [key: string]: string | undefined
-    }
-  };
-}
-
-// FIX: Add `export {}` to ensure this file is treated as a module, which is
-// required for global augmentations. This resolves the error about augmentations
-// needing to be in a module.
-export {};
+// FIX: To avoid redeclaration errors, this file is treated as a global script
+// rather than a module. The `declare var` statement makes `process` available
+// globally, aligning with how Vite's `define` config replaces `process.env`.
+declare var process: {
+  env: {
+    [key: string]: string | undefined
+  }
+};

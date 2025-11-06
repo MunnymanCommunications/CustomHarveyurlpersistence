@@ -10,7 +10,7 @@ interface ConversationPageProps {
   assistant: Assistant;
   memory: string[];
   onNavigateToMemory: () => void;
-  groundingChunks: any[];
+  groundingSources: any[];
   onSwipe: () => void;
 }
 
@@ -18,7 +18,7 @@ export default function ConversationPage({
   assistant, 
   memory, 
   onNavigateToMemory,
-  groundingChunks,
+  groundingSources,
   onSwipe
 }: ConversationPageProps) {
   const {
@@ -75,7 +75,7 @@ export default function ConversationPage({
 
             <div className="w-full max-w-2xl mt-8">
                 <TranscriptionDisplay userTranscript={userTranscript} assistantTranscript={assistantTranscript} />
-                <WebResults results={groundingChunks} />
+                <WebResults sources={groundingSources} />
                  {isIdle && (
                     <button onClick={startSession} className="mt-4 text-text-secondary dark:text-dark-text-secondary animate-pulse">
                         Tap {assistant.name} to start the conversation

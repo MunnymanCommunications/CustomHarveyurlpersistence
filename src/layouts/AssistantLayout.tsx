@@ -45,7 +45,6 @@ interface AssistantLayoutContentProps {
   handleClearHistory: () => void;
   handleSettingsChange: (newSettings: Assistant) => Promise<void>;
   handleCloneAssistant: () => Promise<void>;
-  groundingChunks: any[];
   handleSwipeToChat: () => void;
   handleSwipeToVoice: () => void;
   handleSendMessage: (message: string) => Promise<void>;
@@ -72,12 +71,11 @@ const AssistantLayoutContent = ({
   handleClearHistory,
   handleSettingsChange,
   handleCloneAssistant,
-  groundingChunks,
   handleSwipeToChat,
   handleSwipeToVoice,
   handleSendMessage,
 }: AssistantLayoutContentProps) => {
-  const { sessionStatus, stopSession, startSession, isSpeaking } = useGeminiLive();
+  const { sessionStatus, stopSession, startSession, isSpeaking, groundingSources } = useGeminiLive();
 
   const handleAvatarClick = () => {
     if (conversationMode === 'chat') {
@@ -135,7 +133,7 @@ const AssistantLayoutContent = ({
               assistant={assistant} 
               memory={previewMode ? [] : memories.map(m => m.content)} 
               onNavigateToMemory={() => !previewMode && setCurrentPage('memory')}
-              groundingChunks={groundingChunks}
+              groundingSources={groundingSources}
               onSwipe={handleSwipeToChat}
             />
           </div>
@@ -223,7 +221,6 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
     const [isNavCollapsed, setIsNavCollapsed] = useLocalStorage('is_nav_collapsed', false);
 
-    const [groundingChunks, setGroundingChunks] = useState<any[]>([]);
     const aiRef = useRef<GoogleGenAI | null>(null);
 
     const [conversationMode, setConversationMode] = useState<ConversationMode>('voice');
@@ -318,37 +315,11 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         else if (newMemory) setMemories(prev => [...prev, newMemory as MemoryItem]);
     };
 
-    const fetchGrounding = useCallback(async (text: string) => {
-        if (!aiRef.current || !text.trim()) {
-            setGroundingChunks([]);
-            return;
-        }
-        setGroundingChunks([]);
-        try {
-            const response = await aiRef.current.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: text,
-                config: { tools: [{ googleSearch: {} }] },
-            });
-            const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.filter(c => c.web);
-            if (chunks?.length) setGroundingChunks(chunks);
-        } catch (e) {
-            console.error("Error fetching grounding:", e);
-            setGroundingChunks([]);
-        }
-    }, []);
-
     const handleTurnComplete = useCallback((userTranscript: string, assistantTranscript: string) => {
         if(!previewMode && (userTranscript.trim() || assistantTranscript.trim())) {
             setHistory(prev => [{ user: userTranscript, assistant: assistantTranscript, timestamp: new Date().toISOString() }, ...prev]);
         }
-        const searchKeywords = ['search for', 'look up', 'find out', 'what is the latest', 'what are the current', 'google', 'search', 'how is the weather', "what's the weather", "what's the news"];
-        if (userTranscript.trim() && searchKeywords.some(k => userTranscript.toLowerCase().includes(k))) {
-            fetchGrounding(userTranscript);
-        } else {
-            setGroundingChunks([]);
-        }
-    }, [setHistory, fetchGrounding, previewMode]);
+    }, [setHistory, previewMode]);
     
     const handleClearHistory = () => {
         if (!previewMode) {
@@ -427,7 +398,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     const historyContext = !previewMode && recentHistory.length ? recentHistory.map(e => `User: "${e.user}"\nAssistant: "${e.assistant}"`).join('\n\n') : "No recent conversation history.";
     const memoryContext = !previewMode && memories.length ? memories.map(m => m.content).join('\n') : "No information is stored in long-term memory.";
     
-    const systemInstruction = `You are an AI assistant named ${assistant.name || 'Assistant'}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nA Google Search tool is available to you. You MUST NOT use this tool unless the user explicitly asks you to search for something or requests current, real-time information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, you must rely solely on your internal knowledge and NOT use the search tool.\n\nBased on this persona, engage in a conversation with the user.\nKey information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
+    const systemInstruction = `You are an AI assistant named ${assistant.name || 'Assistant'}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, rely on your internal knowledge.\n\nBased on this persona, engage in a conversation with the user.\nKey information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
 
     return (
         <GeminiLiveProvider 
@@ -443,7 +414,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
                 chatMessages={chatMessages} isSendingMessage={isSendingMessage} setCurrentPage={setCurrentPage} setIsMobileNavOpen={setIsMobileNavOpen}
                 setIsNavCollapsed={setIsNavCollapsed} handleAddMemory={handleAddMemory} handleUpdateMemory={handleUpdateMemory}
                 handleDeleteMemory={handleDeleteMemory} handleClearHistory={handleClearHistory} handleSettingsChange={handleSettingsChange}
-                handleCloneAssistant={handleCloneAssistant} groundingChunks={groundingChunks}
+                handleCloneAssistant={handleCloneAssistant}
                 handleSwipeToChat={() => { setCurrentPage('conversation'); setConversationMode('chat'); }}
                 handleSwipeToVoice={() => setConversationMode('voice')}
                 handleSendMessage={handleSendMessage}

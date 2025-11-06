@@ -9,6 +9,7 @@ import {
 import { createBlob, decode, decodeAudioData } from '../utils/audio.ts';
 import type { ConversationStatus, VoiceOption } from '../types.ts';
 import { logEvent } from '../lib/logger.ts';
+import { performSearchAndSummarize } from '../agents/webSearchAgent.ts';
 
 type LiveSession = Awaited<ReturnType<InstanceType<typeof GoogleGenAI>['live']['connect']>>;
 
@@ -27,6 +28,21 @@ const saveToMemoryFunctionDeclaration: FunctionDeclaration = {
   },
 };
 
+const webSearchFunctionDeclaration: FunctionDeclaration = {
+    name: 'webSearch',
+    description: 'Searches the web for current, real-time information, news, or topics that require up-to-date knowledge.',
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            query: {
+                type: Type.STRING,
+                description: 'The search query to look up on the web.',
+            },
+        },
+        required: ['query'],
+    },
+};
+
 export interface GeminiLiveContextType {
   sessionStatus: ConversationStatus;
   startSession: () => Promise<void>;
@@ -35,6 +51,7 @@ export interface GeminiLiveContextType {
   userTranscript: string;
   assistantTranscript: string;
   error: string | null;
+  groundingSources: any[];
 }
 
 export const GeminiLiveContext = createContext<GeminiLiveContextType | undefined>(undefined);
@@ -61,6 +78,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
   const [userTranscript, setUserTranscript] = useState('');
   const [assistantTranscript, setAssistantTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [groundingSources, setGroundingSources] = useState<any[]>([]);
 
   const sessionRef = useRef<LiveSession | null>(null);
   const aiRef = useRef<GoogleGenAI | null>(null);
@@ -135,11 +153,13 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
     setUserTranscript('');
     setAssistantTranscript('');
     setError(null);
+    setGroundingSources([]);
   }, []);
 
   const startSession = useCallback(async () => {
     setError(null);
     setSessionStatus('CONNECTING');
+    setGroundingSources([]);
 
     if (sessionStatus !== 'IDLE' && sessionStatus !== 'ERROR') {
         return;
@@ -203,42 +223,46 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                         onTurnComplete(currentInputTranscriptionRef.current, currentOutputTranscriptionRef.current);
                         currentInputTranscriptionRef.current = '';
                         currentOutputTranscriptionRef.current = '';
+                        // Clear sources after a turn is complete
+                        setTimeout(() => setGroundingSources([]), 3000);
                     }
 
                     if (message.toolCall?.functionCalls) {
                         for (const fc of message.toolCall.functionCalls) {
-                            if (fc.name === 'saveToMemory') {
+                           let result;
+                           let toolUsed = '';
+
+                           if (fc.name === 'saveToMemory') {
+                                toolUsed = 'saveToMemory';
                                 try {
                                     const info = fc.args?.info;
                                     if (typeof info === 'string') {
                                         await onSaveToMemory(info);
-                                        sessionPromise.then(session => session.sendToolResponse({
-                                            functionResponses: {
-                                                id: fc.id,
-                                                name: fc.name,
-                                                response: { result: "Successfully saved to memory." }
-                                            }
-                                        }));
+                                        result = "Successfully saved to memory.";
                                     } else {
-                                        sessionPromise.then(session => session.sendToolResponse({
-                                             functionResponses: {
-                                                id: fc.id,
-                                                name: fc.name,
-                                                response: { result: "Failed to save to memory, info was not provided." }
-                                            }
-                                        }));
+                                        result = "Failed to save to memory, info was not provided.";
                                     }
                                 } catch (e) {
                                     console.error("Failed to save to memory:", e);
-                                    sessionPromise.then(session => session.sendToolResponse({
-                                         functionResponses: {
-                                            id: fc.id,
-                                            name: fc.name,
-                                            response: { result: "Failed to save to memory." }
-                                        }
-                                    }));
+                                    result = "Failed to save to memory.";
+                                }
+                            } else if (fc.name === 'webSearch') {
+                                toolUsed = 'webSearch';
+                                const query = fc.args?.query;
+                                if (typeof query === 'string' && aiRef.current) {
+                                    const searchResult = await performSearchAndSummarize(query, aiRef.current);
+                                    result = searchResult.summary;
+                                    setGroundingSources(searchResult.sources);
+                                } else {
+                                    result = "Could not perform web search due to an invalid query.";
                                 }
                             }
+
+                           if (toolUsed) {
+                                sessionPromise.then(session => session.sendToolResponse({
+                                    functionResponses: { id: fc.id, name: fc.name, response: { result } }
+                                }));
+                           }
                         }
                     }
 
@@ -294,9 +318,6 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                     stopSession();
                 },
                 onclose: (e: CloseEvent) => {
-                   // This handler is crucial for preventing the UI from hanging.
-                   // The server may close the connection due to timeouts (e.g., after a long period of silence or a complex query).
-                   // Without this, the app state would remain 'ACTIVE' while the connection is dead.
                    console.debug('Session closed, cleaning up.', e);
                    logEvent('SESSION_CLOSE', {
                        assistantId,
@@ -313,7 +334,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                 systemInstruction: systemInstruction,
                 inputAudioTranscription: {},
                 outputAudioTranscription: {},
-                tools: [{ functionDeclarations: [saveToMemoryFunctionDeclaration] }],
+                tools: [{ functionDeclarations: [saveToMemoryFunctionDeclaration, webSearchFunctionDeclaration] }],
             },
         });
         
@@ -344,6 +365,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
     userTranscript,
     assistantTranscript,
     error,
+    groundingSources,
   };
 
   return (

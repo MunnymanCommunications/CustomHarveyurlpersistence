@@ -9,11 +9,11 @@ interface WebResult {
 }
 
 interface WebResultsProps {
-  results: WebResult[];
+  sources: WebResult[];
 }
 
-export const WebResults: React.FC<WebResultsProps> = ({ results }) => {
-  if (results.length === 0) {
+export const WebResults: React.FC<WebResultsProps> = ({ sources }) => {
+  if (sources.length === 0) {
     return null;
   }
 
@@ -24,7 +24,7 @@ export const WebResults: React.FC<WebResultsProps> = ({ results }) => {
         Web Sources
       </h3>
       <ul className="space-y-1 text-xs max-h-24 overflow-y-auto">
-        {results.map((item, index) => (
+        {sources.map((item, index) => (
           item.web && (
             <li key={index} className="truncate">
               <a 
