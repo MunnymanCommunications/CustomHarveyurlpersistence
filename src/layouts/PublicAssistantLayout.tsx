@@ -28,7 +28,7 @@ const getMimeTypeFromUrl = (url: string): string => {
     return 'image/png'; // Default
 };
 
-const PublicAssistantView = ({ assistant, assistantId, groundingChunks, handleTurnComplete, handleSaveToMemory }: { assistant: Assistant, assistantId: string, groundingChunks: any[], handleTurnComplete: (userTranscript: string) => void, handleSaveToMemory: () => Promise<void>}) => {
+const PublicAssistantView = ({ assistant, groundingChunks }: { assistant: Assistant, groundingChunks: any[]}) => {
     const { startSession } = useGeminiLive();
     return (
         <>
@@ -233,11 +233,8 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 onTurnComplete={handleTurnComplete}
              >
                 <PublicAssistantView 
-                    assistant={fullAssistant} 
-                    assistantId={assistantId}
+                    assistant={fullAssistant}
                     groundingChunks={groundingChunks}
-                    handleTurnComplete={handleTurnComplete}
-                    handleSaveToMemory={handleSaveToMemory}
                 />
             {/* FIX: Corrected typo in the closing tag for GeminiLiveProvider. */}
             </GeminiLiveProvider>
