@@ -24,7 +24,7 @@ export const performSearchAndSummarize = async (query: string, aiInstance: Googl
             }
         });
 
-        const summary = response.text;
+        const summary = response.text ?? '';
         const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.filter(c => c.web) || [];
         
         return { summary, sources };

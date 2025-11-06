@@ -229,7 +229,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
 
                     if (message.toolCall?.functionCalls) {
                         for (const fc of message.toolCall.functionCalls) {
-                           let result;
+                           let result: string | undefined;
                            let toolUsed = '';
 
                            if (fc.name === 'saveToMemory') {
@@ -260,7 +260,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
 
                            if (toolUsed) {
                                 sessionPromise.then(session => session.sendToolResponse({
-                                    functionResponses: { id: fc.id, name: fc.name, response: { result } }
+                                    functionResponses: { id: fc.id, name: fc.name, response: { result: result ?? "Tool executed successfully." } }
                                 }));
                            }
                         }
