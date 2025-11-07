@@ -12,24 +12,18 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  // FIX: Reverted state initialization to the constructor. While class properties
-  // are modern, they can cause issues with some build toolchains. The error about
-  // `this.props` not existing suggests instance properties are not being set up
-  // correctly, which this change aims to resolve.
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: undefined,
-    };
-  }
+  // FIX: Switched from a constructor to a class property for state initialization. This is a more modern and concise syntax that correctly types `this.state` for the component instance, resolving errors where `state` and `props` were not found.
+  public state: State = {
+    hasError: false,
+    error: undefined,
+  };
 
-  static getDerivedStateFromError(error: Error): State {
+  public static getDerivedStateFromError(error: Error): State {
     // Update state so the next render will show the fallback UI.
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // You can also log the error to an error reporting service
     console.error("Uncaught error:", error, errorInfo);
     logEvent('FATAL_ERROR', {
@@ -41,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
     });
   }
 
-  render() {
+  public render() {
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center h-screen text-center p-4 bg-base-light dark:bg-dark-base-light">
