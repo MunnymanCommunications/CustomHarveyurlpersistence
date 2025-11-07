@@ -18,9 +18,4 @@ export default defineConfig({
     'process.env.SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL),
     'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY),
   },
-  server: {
-    mimeTypes: {
-      'js': 'application/javascript',
-    }
-  }
 })
