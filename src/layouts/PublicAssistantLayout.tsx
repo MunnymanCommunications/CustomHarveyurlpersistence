@@ -130,14 +130,12 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 // Dynamically update manifest for PWA
                 const avatarUrl = data.avatar || '/favicon.svg';
                 const mimeType = getMimeTypeFromUrl(avatarUrl);
-                // Use absolute URL for start_url to ensure PWA opens to this specific assistant
-                const publicUrl = `${window.location.origin}/#/public/${assistantId}`;
 
                 const manifest = {
                     name: `Harvey IO - ${data.name}`,
                     short_name: data.name,
-                    start_url: publicUrl,
-                    scope: window.location.origin,
+                    start_url: `/#/public/${assistantId}`,
+                    scope: '/',
                     display: 'standalone',
                     background_color: '#111827',
                     theme_color: '#111827',
