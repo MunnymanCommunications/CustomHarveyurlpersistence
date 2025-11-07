@@ -25,19 +25,27 @@
     <meta property="twitter:title" content="Ai Architect" />
     <meta property="twitter:description" content="A fully customizable AI voice assistant with a visual avatar, personality traits, knowledge base, and a memory system." />
     <meta property="twitter:image" content="/favicon.svg" />
-<script type="importmap">
+    
+    <!--
+      This import map tells the browser where to find the application's core dependencies.
+      Vite has been configured to NOT bundle these, so they will be loaded from these CDN URLs instead.
+      Versions have been aligned with your package.json to ensure compatibility.
+    -->
+    <script type="importmap">
 {
   "imports": {
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.0",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.80.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0",
+    "react": "https://aistudiocdn.com/react@^18.3.1",
+    "react-dom": "https://aistudiocdn.com/react-dom@^18.3.1",
+    "react-dom/client": "https://aistudiocdn.com/react-dom@^18.3.1/client",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.79.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
     "ogl": "https://aistudiocdn.com/ogl@^1.0.11",
+    "@supabase/auth-ui-react": "https://aistudiocdn.com/@supabase/auth-ui-react@^0.4.7",
     "@supabase/auth-ui-shared": "https://aistudiocdn.com/@supabase/auth-ui-shared@^0.1.8",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "vite": "https://aistudiocdn.com/vite@^7.2.2",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "@supabase/auth-ui-react": "https://aistudiocdn.com/@supabase/auth-ui-react@^0.4.7"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
   }
 }
 </script>
