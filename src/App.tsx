@@ -149,6 +149,16 @@ export default function App() {
         return () => window.removeEventListener('hashchange', handleHashChange);
     }, []);
 
+    // Check for main assistant and redirect if on dashboard
+    useEffect(() => {
+        if (session && route.path === 'dashboard' && !loading) {
+            const mainAssistantId = localStorage.getItem('mainAssistantId');
+            if (mainAssistantId) {
+                window.location.hash = `#/assistant/${mainAssistantId}`;
+            }
+        }
+    }, [session, route.path, loading]);
+
     const handleAssistantCreated = (assistantId: string) => {
         window.location.hash = `#/assistant/${assistantId}`;
     };

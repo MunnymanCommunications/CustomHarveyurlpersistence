@@ -12,6 +12,9 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('my');
+  const [mainAssistantId, setMainAssistantId] = useState<string | null>(
+    localStorage.getItem('mainAssistantId')
+  );
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -54,6 +57,20 @@ export default function DashboardPage() {
     await supabase.auth.signOut();
   };
 
+  const handleSetAsMain = (assistantId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    localStorage.setItem('mainAssistantId', assistantId);
+    setMainAssistantId(assistantId);
+  };
+
+  const handleUnsetMain = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    localStorage.removeItem('mainAssistantId');
+    setMainAssistantId(null);
+  };
+
   const TabButton: React.FC<{tab: Tab, label: string}> = ({ tab, label }) => (
     <button
       onClick={() => setActiveTab(tab)}
@@ -76,7 +93,13 @@ export default function DashboardPage() {
         </a>
       )}
       {assistants.map(assistant => (
-          <a key={assistant.id} href={`#/assistant/${isCommunity ? 'preview/' : ''}${assistant.id}`} className="flex flex-col p-6 glassmorphic rounded-2xl hover:ring-2 hover:ring-brand-tertiary-glow transition-all duration-300 min-h-[230px]">
+          <a key={assistant.id} href={`#/assistant/${isCommunity ? 'preview/' : ''}${assistant.id}`} className="flex flex-col p-6 glassmorphic rounded-2xl hover:ring-2 hover:ring-brand-tertiary-glow transition-all duration-300 min-h-[230px] relative">
+              {!isCommunity && mainAssistantId === assistant.id && (
+                <div className="absolute top-3 right-3 bg-brand-secondary-glow text-on-brand text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                  <Icon name="play" className="w-3 h-3" />
+                  Main
+                </div>
+              )}
               <div className="flex-grow flex flex-col">
                 <div className="flex items-start gap-4">
                     <img src={assistant.avatar || DEFAULT_AVATAR_URL} alt={assistant.name} className="w-16 h-16 rounded-full object-cover flex-shrink-0 shadow-md"/>
@@ -92,9 +115,26 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="flex-shrink-0 mt-4 pt-4 border-t border-border-color/50 dark:border-dark-border-color/50">
-                  <p className="text-xs text-text-tertiary dark:text-dark-text-tertiary line-clamp-1 truncate">
+                  <p className="text-xs text-text-tertiary dark:text-dark-text-tertiary line-clamp-1 truncate mb-2">
                     {(assistant.personality ?? []).join(' · ')}
                   </p>
+                  {!isCommunity && (
+                    mainAssistantId === assistant.id ? (
+                      <button
+                        onClick={handleUnsetMain}
+                        className="w-full text-xs bg-base-medium dark:bg-dark-base-medium text-text-secondary dark:text-dark-text-secondary py-1 px-2 rounded hover:bg-base-dark dark:hover:bg-dark-border-color transition-colors"
+                      >
+                        Unset as Main
+                      </button>
+                    ) : (
+                      <button
+                        onClick={(e) => handleSetAsMain(assistant.id, e)}
+                        className="w-full text-xs bg-brand-secondary-glow/10 text-brand-secondary-glow py-1 px-2 rounded hover:bg-brand-secondary-glow/20 transition-colors"
+                      >
+                        Set as Main
+                      </button>
+                    )
+                  )}
               </div>
           </a>
       ))}

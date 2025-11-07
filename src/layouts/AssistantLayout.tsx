@@ -150,9 +150,9 @@ const AssistantLayoutContent = ({
                 <Icon name="settings" className="w-6 h-6 text-text-primary dark:text-dark-text-primary"/>
             </button>
 
-            {/* Avatar - Only shown in voice mode, centered */}
-            {conversationMode === 'voice' && (
-                <div className="absolute z-30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%-2rem)]">
+            {/* Avatar - Shown in voice mode (centered and elevated) or mini in other pages (top right) */}
+            {conversationMode === 'voice' && currentPage === 'conversation' && (
+                <div className="absolute z-30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%+4rem)]">
                     <AssistantAvatar
                         avatarUrl={assistant.avatar}
                         isSpeaking={isSpeaking}
@@ -160,6 +160,20 @@ const AssistantLayoutContent = ({
                         onClick={handleAvatarClick}
                         orbHue={assistant.orb_hue}
                     />
+                </div>
+            )}
+            {/* Mini Avatar for non-conversation pages */}
+            {currentPage !== 'conversation' && (
+                <div className="absolute z-30 top-4 right-4">
+                    <div className="scale-[0.35] origin-top-right">
+                        <AssistantAvatar
+                            avatarUrl={assistant.avatar}
+                            isSpeaking={isSpeaking}
+                            status={sessionStatus}
+                            onClick={handleAvatarClick}
+                            orbHue={assistant.orb_hue}
+                        />
+                    </div>
                 </div>
             )}
 

@@ -1,6 +1,6 @@
 {
-  "name": "Ai Architect",
-  "short_name": "Ai Architect",
+  "name": "Harvey IO - by Nicholas Munn",
+  "short_name": "Harvey IO",
   "description": "A fully customizable AI voice assistant with a visual avatar, personality traits, knowledge base, and a memory system.",
   "start_url": ".",
   "display": "standalone",

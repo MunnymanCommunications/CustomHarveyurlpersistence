@@ -4,6 +4,7 @@ import type { Assistant } from '../types.ts';
 import { GoogleGenAI } from '@google/genai';
 
 import { Icon } from '../components/Icon.tsx';
+import { AssistantAvatar } from '../components/AssistantAvatar.tsx';
 import ConversationPage from '../pages/ConversationPage.tsx';
 import { GeminiLiveProvider } from '../contexts/GeminiLiveContext.tsx';
 import { useGeminiLive } from '../hooks/useGeminiLive.ts';
@@ -28,9 +29,29 @@ const getMimeTypeFromUrl = (url: string): string => {
 };
 
 const PublicAssistantView = ({ assistant, groundingChunks }: { assistant: Assistant, groundingChunks: any[]}) => {
-    const { startSession } = useGeminiLive();
+    const { sessionStatus, startSession, stopSession, isSpeaking } = useGeminiLive();
+
+    const handleAvatarClick = () => {
+        if (sessionStatus === 'IDLE' || sessionStatus === 'ERROR') {
+            startSession();
+        } else {
+            stopSession();
+        }
+    };
+
     return (
         <>
+            {/* Avatar - Centered and elevated */}
+            <div className="absolute z-30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%+4rem)]">
+                <AssistantAvatar
+                    avatarUrl={assistant.avatar}
+                    isSpeaking={isSpeaking}
+                    status={sessionStatus}
+                    onClick={handleAvatarClick}
+                    orbHue={assistant.orb_hue}
+                />
+            </div>
+
             <ConversationPage
                 assistant={assistant}
                 memory={[]}
@@ -38,15 +59,6 @@ const PublicAssistantView = ({ assistant, groundingChunks }: { assistant: Assist
                 groundingSources={groundingChunks}
                 onToggleChat={() => {}}
             />
-            <div className="absolute bottom-16 left-1/2 -translate-x-1/2">
-                <button 
-                    onClick={startSession}
-                    className="bg-gradient-to-r from-brand-secondary-glow to-brand-tertiary-glow text-on-brand font-bold py-3 px-6 rounded-full flex items-center transition-all duration-300 shadow-lg transform hover:scale-105"
-                >
-                    <Icon name="micOn" className="w-6 h-6 mr-2" />
-                    Start Conversation
-                </button>
-            </div>
         </>
     );
 };
