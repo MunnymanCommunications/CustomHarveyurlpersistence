@@ -128,20 +128,22 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 }
 
                 // Dynamically update manifest for PWA
+                const baseUrl = window.location.origin;
                 const avatarUrl = data.avatar || '/favicon.svg';
+                const absoluteAvatarUrl = avatarUrl.startsWith('http') ? avatarUrl : `${baseUrl}${avatarUrl}`;
                 const mimeType = getMimeTypeFromUrl(avatarUrl);
 
                 const manifest = {
                     name: `Harvey IO - ${data.name}`,
                     short_name: data.name,
-                    start_url: `/#/public/${assistantId}`,
+                    start_url: `${baseUrl}/#/public/${assistantId}`,
                     scope: '/',
                     display: 'standalone',
                     background_color: '#111827',
                     theme_color: '#111827',
                     icons: [
-                        { src: avatarUrl, sizes: '192x192', type: mimeType, purpose: 'any' },
-                        { src: avatarUrl, sizes: '512x512', type: mimeType, purpose: 'any' },
+                        { src: absoluteAvatarUrl, sizes: '192x192', type: mimeType, purpose: 'any' },
+                        { src: absoluteAvatarUrl, sizes: '512x512', type: mimeType, purpose: 'any' },
                     ],
                 };
 
