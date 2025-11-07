@@ -41,8 +41,8 @@ const PublicAssistantView = ({ assistant, groundingChunks }: { assistant: Assist
 
     return (
         <>
-            {/* Avatar - Centered and elevated */}
-            <div className="absolute z-30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%+4rem)]">
+            {/* Avatar - Centered and elevated higher for transcription space */}
+            <div className="absolute z-30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%+8rem)]">
                 <AssistantAvatar
                     avatarUrl={assistant.avatar}
                     isSpeaking={isSpeaking}
@@ -130,12 +130,14 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 // Dynamically update manifest for PWA
                 const avatarUrl = data.avatar || '/favicon.svg';
                 const mimeType = getMimeTypeFromUrl(avatarUrl);
-                const publicUrl = `#/public/${assistantId}`;
+                // Use absolute URL for start_url to ensure PWA opens to this specific assistant
+                const publicUrl = `${window.location.origin}/#/public/${assistantId}`;
 
                 const manifest = {
                     name: `Harvey IO - ${data.name}`,
                     short_name: data.name,
                     start_url: publicUrl,
+                    scope: window.location.origin,
                     display: 'standalone',
                     background_color: '#111827',
                     theme_color: '#111827',
@@ -224,8 +226,8 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen">
-                <Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow"/>
+            <div className="flex items-center justify-center h-screen bg-base-light dark:bg-dark-base-light">
+                <img src="/favicon.svg" alt="Loading..." className="w-32 h-32 animate-blink" />
             </div>
         );
     }

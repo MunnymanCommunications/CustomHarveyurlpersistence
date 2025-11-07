@@ -152,7 +152,7 @@ const AssistantLayoutContent = ({
 
             {/* Avatar - Shown in voice mode (centered and elevated) or mini in other pages (top right) */}
             {conversationMode === 'voice' && currentPage === 'conversation' && (
-                <div className="absolute z-30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%+4rem)]">
+                <div className="absolute z-30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%+8rem)]">
                     <AssistantAvatar
                         avatarUrl={assistant.avatar}
                         isSpeaking={isSpeaking}
@@ -375,7 +375,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         }
     };
 
-    if (loading) { return <div className="flex items-center justify-center h-screen"><Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow"/></div>; }
+    if (loading) { return <div className="flex items-center justify-center h-screen bg-base-light dark:bg-dark-base-light"><img src="/favicon.svg" alt="Loading..." className="w-32 h-32 animate-blink" /></div>; }
     if (error || !assistant) { return <div className="flex flex-col items-center justify-center h-screen text-center"><Icon name="error" className="w-16 h-16 text-danger mb-4" /><h1 className="text-2xl font-bold">{error || "Assistant not found."}</h1><a href="#/" className="mt-4 text-brand-secondary-glow hover:underline">Go to Dashboard</a></div>; }
 
     const recentHistory = history.slice(0, 3).reverse();
