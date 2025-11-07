@@ -142,6 +142,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
             return;
         }
         setGroundingChunks([]);
+        setError(null); // Clear previous errors
 
         try {
             const response = await ai.models.generateContent({
@@ -158,6 +159,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         } catch (e) {
             console.error("Error fetching grounding:", e);
             setGroundingChunks([]);
+            setError("Sorry, I couldn't get results from the web right now.");
         }
     }, [ai]);
 
@@ -171,7 +173,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         A Google Search tool is available to you. You MUST NOT use this tool unless the user explicitly asks you to search for something or requests current, real-time information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, you must rely solely on your internal knowledge and NOT use the search tool.
     ` : '';
 
-    const handleTurnComplete = useCallback((userTranscript: string) => {
+    const handleTurnComplete = useCallback((userTranscript: string, _assistantTranscript: string) => {
         const searchKeywords = ['search for', 'look up', 'find out', 'what is the latest', 'what are the current', 'google', 'search', 'how is the weather', "what's the weather", "what's the news"];
         const lowerCaseTranscript = userTranscript.toLowerCase();
         const shouldSearch = searchKeywords.some(keyword => lowerCaseTranscript.includes(keyword));
@@ -183,7 +185,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         }
     }, [fetchGrounding]);
 
-    const handleSaveToMemory = useCallback(async () => {
+    const handleSaveToMemory = useCallback(async (_info: string) => {
         // Do nothing in public mode
     }, []);
 
