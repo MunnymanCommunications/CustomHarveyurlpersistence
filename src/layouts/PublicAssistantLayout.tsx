@@ -136,7 +136,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 const manifest = {
                     name: `Harvey IO - ${data.name}`,
                     short_name: data.name,
-                    start_url: `${baseUrl}/#/public/${assistantId}`,
+                    start_url: window.location.href,
                     scope: '/',
                     display: 'standalone',
                     background_color: '#111827',
