@@ -203,13 +203,26 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         }
     }, [ai]);
 
+    // Get current date and time
+    const now = new Date();
+    const dateTimeString = now.toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short'
+    });
+
     const systemInstruction = assistant ? `
         You are an AI assistant named ${assistant.name || 'Assistant'}.
         Your personality traits are: ${(assistant.personality || []).join(', ')}.
         Your attitude is: ${assistant.attitude || 'Practical'}.
         Your core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}
+        Current date and time: ${dateTimeString}
         You are speaking to a member of the public. You have no memory of past conversations.
-        
+
         A Google Search tool is available to you. You MUST NOT use this tool unless the user explicitly asks you to search for something or requests current, real-time information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, you must rely solely on your internal knowledge and NOT use the search tool.
     ` : '';
 
