@@ -70,6 +70,24 @@ export default function App() {
         return <ConfigurationErrorScreen message={SUPABASE_CONFIG_ERROR} />;
     }
 
+    // Handle PWA redirect for public assistants (Safari strips hash from start_url)
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const pwaId = urlParams.get('pwa_id');
+
+        if (pwaId) {
+            // Look up the stored URL for this assistant
+            const storedUrl = localStorage.getItem(`pwa_public_assistant_${pwaId}`);
+            if (storedUrl) {
+                // Redirect to the stored assistant URL
+                window.location.href = storedUrl;
+            } else {
+                // Fallback: construct the URL manually
+                window.location.hash = `#/public/${pwaId}`;
+            }
+        }
+    }, []);
+
     useEffect(() => {
         const supabase = getSupabase();
         supabase.auth.getSession().then(({ data: { session } }) => {

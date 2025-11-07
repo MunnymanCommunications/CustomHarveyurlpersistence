@@ -133,10 +133,15 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 const absoluteAvatarUrl = avatarUrl.startsWith('http') ? avatarUrl : `${baseUrl}${avatarUrl}`;
                 const mimeType = getMimeTypeFromUrl(avatarUrl);
 
+                // Store the current URL for PWA redirect (Safari strips hash from start_url)
+                const pwaKey = `pwa_public_assistant_${assistantId}`;
+                localStorage.setItem(pwaKey, window.location.href);
+                localStorage.setItem('pwa_last_public_assistant', window.location.href);
+
                 const manifest = {
                     name: `Harvey IO - ${data.name}`,
                     short_name: data.name,
-                    start_url: window.location.href,
+                    start_url: `/?pwa_id=${assistantId}`,
                     scope: '/',
                     display: 'standalone',
                     background_color: '#111827',
