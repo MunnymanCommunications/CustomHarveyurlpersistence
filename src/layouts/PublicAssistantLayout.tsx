@@ -5,7 +5,6 @@ import { GoogleGenAI } from '@google/genai';
 
 import { Icon } from '../components/Icon.tsx';
 import ConversationPage from '../pages/ConversationPage.tsx';
-// FIX: The useGeminiLive hook is exported from hooks/useGeminiLive.ts, not the context file.
 import { GeminiLiveProvider } from '../contexts/GeminiLiveContext.tsx';
 import { useGeminiLive } from '../hooks/useGeminiLive.ts';
 
@@ -238,7 +237,6 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                     assistant={fullAssistant} 
                     groundingChunks={groundingChunks}
                 />
-            {/* FIX: Corrected typo in the closing tag for GeminiLiveProvider. */}
             </GeminiLiveProvider>
             <a href="#/upgrade" className="absolute bottom-4 text-xs text-text-tertiary dark:text-dark-text-tertiary hover:underline z-10">
                 Upgrade to create your own AI

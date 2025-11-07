@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // The list of dependencies to be loaded from the import map instead of being bundled.
+// This list MUST exactly match the keys in the index.html importmap.
 const externalPackages = [
   'react',
   'react-dom',
