@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { getSupabase } from './lib/supabaseClient.ts';
+import { getSupabase, SUPABASE_CONFIG_ERROR } from './lib/supabaseClient.ts';
 import type { Session } from '@supabase/supabase-js';
 import type { Profile } from './types.ts';
 import { MEMORY_VAULT_DEFAULTS } from './constants.ts';
+import { Icon } from './components/Icon.tsx';
 
 import AuthPage from './pages/AuthPage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
@@ -39,12 +40,34 @@ const parseHash = () => {
     return { path: 'dashboard' };
 };
 
+const ConfigurationErrorScreen = ({ message }: { message: string }) => (
+    <div className="flex flex-col items-center justify-center h-screen text-center p-4 bg-base-light dark:bg-dark-base-light">
+        <Icon name="error" className="w-16 h-16 text-danger mb-4" />
+        <h1 className="text-2xl font-bold text-text-primary dark:text-dark-text-primary">Configuration Error</h1>
+        <p className="text-text-secondary dark:text-dark-text-secondary mt-2 max-w-lg">
+            The application cannot start because it's missing essential environment variables.
+        </p>
+        <div className="mt-4 text-left bg-base-medium dark:bg-dark-base-medium p-4 rounded-lg max-w-lg w-full font-mono text-sm text-danger">
+            <strong>Error:</strong> {message}
+        </div>
+        <p className="text-text-secondary dark:text-dark-text-secondary mt-4 max-w-lg">
+            Please ensure you have set the <strong>VITE_SUPABASE_URL</strong> and <strong>VITE_SUPABASE_ANON_KEY</strong> variables in your deployment environment (e.g., Coolify, Vercel, Netlify).
+        </p>
+    </div>
+);
+
+
 export default function App() {
     const [session, setSession] = useState<Session | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [route, setRoute] = useState(parseHash());
     const [loading, setLoading] = useState(true);
     const [vaultCheckComplete, setVaultCheckComplete] = useState(false);
+
+    // Immediately check for configuration errors. If found, render the error screen and stop.
+    if (SUPABASE_CONFIG_ERROR) {
+        return <ConfigurationErrorScreen message={SUPABASE_CONFIG_ERROR} />;
+    }
 
     useEffect(() => {
         const supabase = getSupabase();
