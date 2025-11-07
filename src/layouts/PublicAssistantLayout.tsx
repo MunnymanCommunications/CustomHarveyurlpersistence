@@ -106,14 +106,36 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
             } else {
                 setAssistant(data as unknown as PublicAssistant);
 
+                // Update document title and meta tags for sharing
+                document.title = `Harvey IO - ${data.name}`;
+
+                // Update Open Graph meta tags
+                let ogTitle = document.querySelector('meta[property="og:title"]');
+                if (ogTitle) ogTitle.setAttribute('content', `Harvey IO - ${data.name}`);
+
+                let ogDescription = document.querySelector('meta[property="og:description"]');
+                if (ogDescription && data.description) {
+                    ogDescription.setAttribute('content', data.description);
+                }
+
+                // Update Twitter meta tags
+                let twitterTitle = document.querySelector('meta[property="twitter:title"]');
+                if (twitterTitle) twitterTitle.setAttribute('content', `Harvey IO - ${data.name}`);
+
+                let twitterDescription = document.querySelector('meta[property="twitter:description"]');
+                if (twitterDescription && data.description) {
+                    twitterDescription.setAttribute('content', data.description);
+                }
+
                 // Dynamically update manifest for PWA
                 const avatarUrl = data.avatar || '/favicon.svg';
                 const mimeType = getMimeTypeFromUrl(avatarUrl);
+                const publicUrl = `#/public/${assistantId}`;
 
                 const manifest = {
-                    name: data.name,
+                    name: `Harvey IO - ${data.name}`,
                     short_name: data.name,
-                    start_url: '.',
+                    start_url: publicUrl,
                     display: 'standalone',
                     background_color: '#111827',
                     theme_color: '#111827',
@@ -122,10 +144,10 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                         { src: avatarUrl, sizes: '512x512', type: mimeType, purpose: 'any' },
                     ],
                 };
-                
+
                 const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
                 const manifestUrl = URL.createObjectURL(manifestBlob);
-                
+
                 // Remove old and add new manifest link
                 document.querySelector('link[rel="manifest"]')?.remove();
                 const newManifestLink = document.createElement('link');
