@@ -36,7 +36,7 @@ const PublicAssistantView = ({ assistant, groundingChunks }: { assistant: Assist
                 memory={[]}
                 onNavigateToMemory={() => {}}
                 groundingSources={groundingChunks}
-                onSwipe={() => {}}
+                onToggleChat={() => {}}
             />
             <div className="absolute bottom-16 left-1/2 -translate-x-1/2">
                 <button 

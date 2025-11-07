@@ -14,9 +14,10 @@ interface TextChatPageProps {
   messages: ChatMessage[];
   onSendMessage: (message: string) => Promise<void>;
   isSending: boolean;
+  onToggleVoice: () => void;
 }
 
-export default function TextChatPage({ assistant, messages, onSendMessage, isSending }: TextChatPageProps) {
+export default function TextChatPage({ assistant, messages, onSendMessage, isSending, onToggleVoice }: TextChatPageProps) {
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +38,16 @@ export default function TextChatPage({ assistant, messages, onSendMessage, isSen
   };
 
   return (
-    <div className="flex flex-col h-full w-full max-w-4xl mx-auto px-4 pt-20">
+    <div className="flex flex-col h-full w-full max-w-4xl mx-auto px-4 pt-20 relative">
+      {/* Voice Mode Button - Top Left */}
+      <button
+        onClick={onToggleVoice}
+        className="absolute top-8 left-8 bg-gradient-to-r from-brand-secondary-glow to-brand-tertiary-glow text-on-brand p-4 rounded-full shadow-lg hover:shadow-2xl hover:scale-110 transition-all duration-300 z-20"
+        aria-label="Switch to voice mode"
+      >
+        <Icon name="micOn" className="w-6 h-6" />
+      </button>
+
       <div className="flex-grow overflow-y-auto pr-4 space-y-4 chat-container">
         {messages.map((msg, index) => (
           <div key={index} className={`flex items-end gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import type { Assistant, HistoryEntry, MemoryItem } from '../types.ts';
 import { useLocalStorage } from '../hooks/useLocalStorage.ts';
@@ -89,25 +89,6 @@ const AssistantLayoutContent = ({
     }
   };
   
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-  const minSwipeDistance = 50; 
-
-  const onTouchStartHandler = (e: React.TouchEvent) => {
-      setTouchEnd(null);
-      setTouchStart(e.targetTouches[0].clientX);
-  };
-  const onTouchMoveHandler = (e: React.TouchEvent) => setTouchEnd(e.targetTouches[0].clientX);
-  const onTouchEndHandler = () => {
-      if (!touchStart || !touchEnd) return;
-      const distance = touchStart - touchEnd;
-      const isRightSwipe = distance < -minSwipeDistance;
-      if (isRightSwipe) {
-          handleSwipeToVoice();
-      }
-      setTouchStart(null);
-      setTouchEnd(null);
-  };
 
   const renderPage = () => {
     if (!assistant) return null;
@@ -124,34 +105,23 @@ const AssistantLayoutContent = ({
       }
     }
     
-    // Conversation View with Swiping
-    return (
-      <div className="w-full h-full relative">
-        <div className={`flex w-[200%] h-full transition-transform duration-500 ease-in-out ${conversationMode === 'chat' ? '-translate-x-1/2' : ''}`}>
-          <div className="w-1/2 h-full">
-            <ConversationPage 
-              assistant={assistant} 
-              memory={previewMode ? [] : memories.map(m => m.content)} 
-              onNavigateToMemory={() => !previewMode && setCurrentPage('memory')}
-              groundingSources={groundingSources}
-              onSwipe={handleSwipeToChat}
-            />
-          </div>
-          <div 
-            className="w-1/2 h-full"
-            onTouchStart={onTouchStartHandler}
-            onTouchMove={onTouchMoveHandler}
-            onTouchEnd={onTouchEndHandler}
-          >
-            <TextChatPage
-              assistant={assistant}
-              messages={chatMessages}
-              onSendMessage={handleSendMessage}
-              isSending={isSendingMessage}
-            />
-          </div>
-        </div>
-      </div>
+    // Conversation View - Toggle between voice and chat
+    return conversationMode === 'voice' ? (
+      <ConversationPage
+        assistant={assistant}
+        memory={previewMode ? [] : memories.map(m => m.content)}
+        onNavigateToMemory={() => !previewMode && setCurrentPage('memory')}
+        groundingSources={groundingSources}
+        onToggleChat={handleSwipeToChat}
+      />
+    ) : (
+      <TextChatPage
+        assistant={assistant}
+        messages={chatMessages}
+        onSendMessage={handleSendMessage}
+        isSending={isSendingMessage}
+        onToggleVoice={handleSwipeToVoice}
+      />
     );
   };
 
@@ -180,22 +150,18 @@ const AssistantLayoutContent = ({
                 <Icon name="settings" className="w-6 h-6 text-text-primary dark:text-dark-text-primary"/>
             </button>
 
-            {/* Animated Avatar - Placed in main layout for smooth transitions */}
-             <div className={`absolute z-30 transition-all duration-500 ease-in-out
-                ${conversationMode === 'voice' 
-                    ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%-2rem)]' 
-                    : 'top-4 left-4'
-                }`}>
-                <div className={`transition-transform duration-500 ease-in-out ${conversationMode === 'chat' ? 'scale-50 origin-top-left' : 'scale-100'}`}>
-                     <AssistantAvatar 
-                        avatarUrl={assistant.avatar} 
-                        isSpeaking={isSpeaking} 
-                        status={sessionStatus} 
+            {/* Avatar - Only shown in voice mode, centered */}
+            {conversationMode === 'voice' && (
+                <div className="absolute z-30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%-2rem)]">
+                    <AssistantAvatar
+                        avatarUrl={assistant.avatar}
+                        isSpeaking={isSpeaking}
+                        status={sessionStatus}
                         onClick={handleAvatarClick}
                         orbHue={assistant.orb_hue}
                     />
                 </div>
-            </div>
+            )}
 
             {renderPage()}
         </main>
