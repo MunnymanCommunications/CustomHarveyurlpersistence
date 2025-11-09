@@ -12,5 +12,16 @@ declare global {
   }
 }
 
+// Vite environment variable types
+interface ImportMetaEnv {
+  readonly VITE_API_KEY: string;
+  readonly VITE_SUPABASE_URL: string;
+  readonly VITE_SUPABASE_ANON_KEY: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 // This export statement makes the file a module, which is required for augmentation.
 export {};
