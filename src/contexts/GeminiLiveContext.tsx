@@ -7,9 +7,10 @@ import {
   Type,
 } from '@google/genai';
 import { createBlob, decode, decodeAudioData } from '../utils/audio.ts';
-import type { ConversationStatus, VoiceOption } from '../types.ts';
+import type { ConversationStatus, VoiceOption, MCPServerSettings } from '../types.ts';
 import { logEvent } from '../lib/logger.ts';
 import { performSearchAndSummarize } from '../agents/webSearchAgent.ts';
+import { executeMCPTool, convertMCPToolsToFunctionDeclarations } from '../agents/mcpToolAgent.ts';
 
 type LiveSession = Awaited<ReturnType<InstanceType<typeof GoogleGenAI>['live']['connect']>>;
 
@@ -63,6 +64,7 @@ interface GeminiLiveProviderProps {
   assistantId: string;
   onSaveToMemory: (info: string) => Promise<void>;
   onTurnComplete: (userTranscript: string, assistantTranscript: string) => void;
+  mcpServerSettings?: MCPServerSettings | null;
 }
 
 export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
@@ -72,6 +74,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
   assistantId,
   onSaveToMemory,
   onTurnComplete,
+  mcpServerSettings,
 }) => {
   const [sessionStatus, setSessionStatus] = useState<ConversationStatus>('IDLE');
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -256,6 +259,32 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                                 } else {
                                     result = "Could not perform web search due to an invalid query.";
                                 }
+                            } else if (mcpServerSettings?.enabled && mcpServerSettings.tools.find(t => t.name === fc.name)) {
+                                // Handle MCP tool execution via Gemini Pro sub-agent
+                                toolUsed = fc.name;
+                                if (aiRef.current) {
+                                    const mcpResult = await executeMCPTool(
+                                        fc.name,
+                                        fc.args || {},
+                                        mcpServerSettings.config,
+                                        mcpServerSettings.tools,
+                                        mcpServerSettings.optimizedToolDescriptions,
+                                        aiRef.current
+                                    );
+                                    result = mcpResult.summary;
+
+                                    // Log MCP tool execution
+                                    logEvent('MCP_TOOL_EXECUTED', {
+                                        assistantId,
+                                        metadata: {
+                                            tool: fc.name,
+                                            success: mcpResult.success,
+                                            error: mcpResult.error,
+                                        }
+                                    });
+                                } else {
+                                    result = "Could not execute MCP tool: AI client not initialized.";
+                                }
                             }
 
                            if (toolUsed) {
@@ -334,7 +363,16 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                 systemInstruction: systemInstruction,
                 inputAudioTranscription: {},
                 outputAudioTranscription: {},
-                tools: [{ functionDeclarations: [saveToMemoryFunctionDeclaration, webSearchFunctionDeclaration] }],
+                tools: [{
+                    functionDeclarations: [
+                        saveToMemoryFunctionDeclaration,
+                        webSearchFunctionDeclaration,
+                        // Add MCP tools if enabled
+                        ...(mcpServerSettings?.enabled && mcpServerSettings.tools.length > 0
+                            ? convertMCPToolsToFunctionDeclarations(mcpServerSettings.tools)
+                            : [])
+                    ]
+                }],
             },
         });
         
@@ -349,7 +387,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
           metadata: { error: err.message || 'Failed to start microphone' }
       });
     }
-  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, stopSession, sessionStatus, assistantId]);
+  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, stopSession, sessionStatus, assistantId, mcpServerSettings]);
 
   useEffect(() => {
     return () => {

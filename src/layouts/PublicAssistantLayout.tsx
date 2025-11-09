@@ -286,6 +286,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 systemInstruction={systemInstruction}
                 onSaveToMemory={handleSaveToMemory}
                 onTurnComplete={handleTurnComplete}
+                mcpServerSettings={assistant.mcp_server_settings}
              >
                 <PublicAssistantView 
                     assistant={fullAssistant} 

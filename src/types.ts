@@ -28,6 +28,7 @@ export interface Assistant {
   author_name?: string | null;
   orb_hue?: number | null;
   original_assistant_id?: string | null;
+  mcp_server_settings?: MCPServerSettings | null;
 }
 
 export interface MemoryItem {
@@ -59,4 +60,23 @@ export interface AppLog {
   assistant_id?: string;
   event_type: string;
   metadata?: Record<string, any>;
+}
+
+export interface MCPServerConfig {
+  url: string;
+  headers?: Record<string, string>;
+  apiKey?: string;
+}
+
+export interface MCPTool {
+  name: string;
+  description: string;
+  parameters?: Record<string, any>;
+}
+
+export interface MCPServerSettings {
+  enabled: boolean;
+  config: MCPServerConfig;
+  tools: MCPTool[];
+  optimizedToolDescriptions?: string;
 }

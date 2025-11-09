@@ -1,7 +1,8 @@
 import React from 'react';
-import type { Assistant, PersonalityTrait } from '../types.ts';
+import type { Assistant, PersonalityTrait, MCPServerSettings } from '../types.ts';
 import { AvatarUploader } from './AvatarUploader.tsx';
 import { SelectionButton } from './SelectionButton.tsx';
+import { MCPServerSettingsComponent } from './MCPServerSettings.tsx';
 import {
   PERSONALITY_TRAITS,
   ATTITUDE_OPTIONS,
@@ -209,6 +210,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             disabled={disabled}
           />
         </div>
+      </div>
+
+      {/* MCP Server Integration */}
+      <div className="pt-6 border-t border-border-color dark:border-dark-border-color">
+        <MCPServerSettingsComponent
+          settings={settings.mcp_server_settings}
+          onSettingsChange={(mcpSettings: MCPServerSettings) =>
+            onSettingsChange({ mcp_server_settings: mcpSettings })
+          }
+          disabled={disabled}
+        />
       </div>
     </div>
   );

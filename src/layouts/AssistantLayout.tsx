@@ -409,12 +409,13 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nCurrent date and time: ${dateTimeString}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, rely on your internal knowledge.\n\nBased on this persona, engage in a conversation with the user.\nKey information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
 
     return (
-        <GeminiLiveProvider 
-            assistantId={assistant.id} 
-            voice={assistant.voice || 'Zephyr'} 
-            systemInstruction={systemInstruction} 
-            onSaveToMemory={handleSaveToMemory} 
+        <GeminiLiveProvider
+            assistantId={assistant.id}
+            voice={assistant.voice || 'Zephyr'}
+            systemInstruction={systemInstruction}
+            onSaveToMemory={handleSaveToMemory}
             onTurnComplete={handleTurnComplete}
+            mcpServerSettings={assistant.mcp_server_settings}
         >
             <AssistantLayoutContent
                 assistant={assistant} memories={memories} history={history} currentPage={currentPage} isMobileNavOpen={isMobileNavOpen}
