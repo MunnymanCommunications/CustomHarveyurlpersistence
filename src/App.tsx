@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getSupabase, SUPABASE_CONFIG_ERROR } from './lib/supabaseClient.ts';
 import type { Session } from '@supabase/supabase-js';
 import type { Profile } from './types.ts';
-import { MEMORY_VAULT_DEFAULTS } from './constants.ts';
+import { MEMORY_VAULT_DEFAULTS, DEFAULT_AVATAR_URL } from './constants.ts';
 import { Icon } from './components/Icon.tsx';
 
 import AuthPage from './pages/AuthPage.tsx';
@@ -186,7 +186,7 @@ export default function App() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-screen bg-base-light dark:bg-dark-base-light">
-                <img src="/favicon.svg" alt="Loading..." className="w-32 h-32 animate-blink" />
+                <img src={DEFAULT_AVATAR_URL} alt="Loading..." className="w-32 h-32 rounded-full animate-blink shadow-lg" />
             </div>
         );
     }

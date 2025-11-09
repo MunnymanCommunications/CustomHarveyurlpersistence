@@ -346,10 +346,10 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     
     const handleSettingsChange = async (newSettings: Assistant) => {
         if (previewMode || !assistant) return;
-        const { name, avatar, personality, attitude, voice, prompt, is_public, is_embeddable, description, author_name, orb_hue } = newSettings;
+        const { name, avatar, personality, attitude, voice, prompt, is_public, is_embeddable, description, author_name, orb_hue, mcp_server_settings } = newSettings;
         const { data, error } = await getSupabase()
             .from('assistants')
-            .update({ name, avatar, personality, attitude, voice, prompt, is_public, is_embeddable, description, author_name, orb_hue, updated_at: new Date().toISOString() })
+            .update({ name, avatar, personality, attitude, voice, prompt, is_public, is_embeddable, description, author_name, orb_hue, mcp_server_settings, updated_at: new Date().toISOString() })
             .eq('id', assistant.id).select().single();
         if (error) throw error;
         else setAssistant(data as Assistant);

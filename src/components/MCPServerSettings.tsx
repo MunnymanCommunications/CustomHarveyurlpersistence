@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { MCPServerSettings, MCPTool } from '../types.ts';
 import { GoogleGenAI } from '@google/genai';
 import { optimizeToolDescriptions } from '../agents/mcpToolAgent.ts';
+import { Icon } from './Icon.tsx';
 
 interface MCPServerSettingsProps {
   settings: MCPServerSettings | null | undefined;
@@ -15,12 +16,7 @@ export const MCPServerSettingsComponent: React.FC<MCPServerSettingsProps> = ({
   disabled,
 }) => {
   const [isOptimizing, setIsOptimizing] = useState(false);
-  const [toolsInput, setToolsInput] = useState(
-    settings?.tools ? JSON.stringify(settings.tools, null, 2) : '[]'
-  );
-  const [headersInput, setHeadersInput] = useState(
-    settings?.config.headers ? JSON.stringify(settings.config.headers, null, 2) : '{}'
-  );
+  const [optimizeError, setOptimizeError] = useState<string | null>(null);
 
   const currentSettings: MCPServerSettings = settings || {
     enabled: false,
@@ -60,48 +56,112 @@ export const MCPServerSettingsComponent: React.FC<MCPServerSettingsProps> = ({
     });
   };
 
-  const handleHeadersChange = (value: string) => {
-    setHeadersInput(value);
-    try {
-      const parsed = JSON.parse(value);
-      onSettingsChange({
-        ...currentSettings,
-        config: {
-          ...currentSettings.config,
-          headers: parsed,
-        },
-      });
-    } catch (e) {
-      // Invalid JSON, don't update settings yet
-    }
+  // Handle headers as key-value pairs
+  const headerEntries = Object.entries(currentSettings.config.headers || {});
+
+  const handleAddHeader = () => {
+    const newHeaders = { ...currentSettings.config.headers, '': '' };
+    onSettingsChange({
+      ...currentSettings,
+      config: {
+        ...currentSettings.config,
+        headers: newHeaders,
+      },
+    });
   };
 
-  const handleToolsChange = (value: string) => {
-    setToolsInput(value);
-    try {
-      const parsed: MCPTool[] = JSON.parse(value);
-      onSettingsChange({
-        ...currentSettings,
-        tools: parsed,
-      });
-    } catch (e) {
-      // Invalid JSON, don't update settings yet
+  const handleHeaderKeyChange = (oldKey: string, newKey: string) => {
+    const headers = { ...currentSettings.config.headers };
+    if (oldKey !== newKey) {
+      const value = headers[oldKey];
+      delete headers[oldKey];
+      headers[newKey] = value;
     }
+    onSettingsChange({
+      ...currentSettings,
+      config: {
+        ...currentSettings.config,
+        headers,
+      },
+    });
+  };
+
+  const handleHeaderValueChange = (key: string, value: string) => {
+    onSettingsChange({
+      ...currentSettings,
+      config: {
+        ...currentSettings.config,
+        headers: {
+          ...currentSettings.config.headers,
+          [key]: value,
+        },
+      },
+    });
+  };
+
+  const handleRemoveHeader = (key: string) => {
+    const headers = { ...currentSettings.config.headers };
+    delete headers[key];
+    onSettingsChange({
+      ...currentSettings,
+      config: {
+        ...currentSettings.config,
+        headers,
+      },
+    });
+  };
+
+  // Handle tools as individual entries
+  const handleAddTool = () => {
+    const newTool: MCPTool = {
+      name: '',
+      description: '',
+      parameters: {},
+    };
+    onSettingsChange({
+      ...currentSettings,
+      tools: [...currentSettings.tools, newTool],
+    });
+  };
+
+  const handleToolChange = (index: number, field: keyof MCPTool, value: string) => {
+    const newTools = [...currentSettings.tools];
+    newTools[index] = { ...newTools[index], [field]: value };
+    onSettingsChange({
+      ...currentSettings,
+      tools: newTools,
+    });
+  };
+
+  const handleRemoveTool = (index: number) => {
+    const newTools = currentSettings.tools.filter((_, i) => i !== index);
+    onSettingsChange({
+      ...currentSettings,
+      tools: newTools,
+    });
   };
 
   const handleOptimize = async () => {
-    const apiKey = process.env.API_KEY;
+    const apiKey = import.meta.env.VITE_API_KEY || (window as any).process?.env?.API_KEY;
     if (!apiKey || apiKey === 'undefined') {
-      alert('API key is not configured. Cannot optimize tool descriptions.');
+      setOptimizeError('API key is not configured. Cannot optimize tool descriptions.');
       return;
     }
 
     if (currentSettings.tools.length === 0) {
-      alert('Please add at least one tool before optimizing.');
+      setOptimizeError('Please add at least one tool before optimizing.');
+      return;
+    }
+
+    // Validate tools have names and descriptions
+    const invalidTools = currentSettings.tools.filter(t => !t.name || !t.description);
+    if (invalidTools.length > 0) {
+      setOptimizeError('All tools must have a name and description before optimizing.');
       return;
     }
 
     setIsOptimizing(true);
+    setOptimizeError(null);
     try {
       const aiClient = new GoogleGenAI({ apiKey });
       const optimized = await optimizeToolDescriptions(currentSettings.tools, aiClient);
@@ -110,11 +170,9 @@ export const MCPServerSettingsComponent: React.FC<MCPServerSettingsProps> = ({
         ...currentSettings,
         optimizedToolDescriptions: optimized,
       });
-
-      alert('Tool descriptions have been optimized by Harvey!');
     } catch (error) {
       console.error('Failed to optimize tool descriptions:', error);
-      alert('Failed to optimize tool descriptions. Please try again.');
+      setOptimizeError('Failed to optimize tool descriptions. Please try again.');
     } finally {
       setIsOptimizing(false);
     }
@@ -160,7 +218,8 @@ export const MCPServerSettingsComponent: React.FC<MCPServerSettingsProps> = ({
       </div>
 
       {currentSettings.enabled && (
-        <div className="space-y-4 pt-4 border-t border-border-color dark:border-dark-border-color">
+        <div className="space-y-6 pt-4 border-t border-border-color dark:border-dark-border-color">
+          {/* Server URL */}
           <div>
             <label
               htmlFor="mcp-url"
@@ -179,6 +238,7 @@ export const MCPServerSettingsComponent: React.FC<MCPServerSettingsProps> = ({
             />
           </div>
 
+          {/* API Key */}
           <div>
             <label
               htmlFor="mcp-api-key"
@@ -197,72 +257,150 @@ export const MCPServerSettingsComponent: React.FC<MCPServerSettingsProps> = ({
             />
           </div>
 
+          {/* Custom Headers */}
           <div>
-            <label
-              htmlFor="mcp-headers"
-              className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-1"
-            >
-              Custom Headers (Optional, JSON format)
-            </label>
-            <textarea
-              id="mcp-headers"
-              value={headersInput}
-              onChange={e => handleHeadersChange(e.target.value)}
-              className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition font-mono text-sm dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary"
-              rows={3}
-              placeholder='{"X-Custom-Header": "value"}'
-              disabled={disabled}
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label
-                htmlFor="mcp-tools"
-                className="block text-sm font-medium text-text-primary dark:text-dark-text-primary"
-              >
-                Tool Descriptions (JSON format)
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-text-primary dark:text-dark-text-primary">
+                Custom Headers (Optional)
               </label>
               <button
-                onClick={handleOptimize}
-                disabled={disabled || isOptimizing || currentSettings.tools.length === 0}
-                className="px-4 py-2 bg-brand-secondary-glow text-white rounded-md hover:bg-brand-secondary-glow/90 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium"
+                onClick={handleAddHeader}
+                disabled={disabled}
+                className="text-sm text-brand-secondary-glow hover:underline disabled:opacity-50"
               >
-                {isOptimizing ? 'Optimizing...' : 'Have Harvey Optimize'}
+                + Add Header
               </button>
             </div>
-            <p className="text-xs text-text-secondary dark:text-dark-text-secondary mb-2">
-              Define the tools available from your MCP server. Harvey can optimize these descriptions
-              to make them easier for AI agents to understand and use.
-            </p>
-            <textarea
-              id="mcp-tools"
-              value={toolsInput}
-              onChange={e => handleToolsChange(e.target.value)}
-              className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition font-mono text-sm dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary"
-              rows={8}
-              placeholder={`[
-  {
-    "name": "get_weather",
-    "description": "Get current weather for a location",
-    "parameters": {
-      "location": {
-        "type": "string",
-        "description": "City name or coordinates"
-      }
-    }
-  }
-]`}
-              disabled={disabled}
-            />
+            {headerEntries.length > 0 && (
+              <div className="space-y-2">
+                {headerEntries.map(([key, value], index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={key}
+                      onChange={e => handleHeaderKeyChange(key, e.target.value)}
+                      placeholder="Header name"
+                      className="w-1/3 p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary text-sm"
+                      disabled={disabled}
+                    />
+                    <input
+                      type="text"
+                      value={value}
+                      onChange={e => handleHeaderValueChange(key, e.target.value)}
+                      placeholder="Header value"
+                      className="flex-1 p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary text-sm"
+                      disabled={disabled}
+                    />
+                    <button
+                      onClick={() => handleRemoveHeader(key)}
+                      disabled={disabled}
+                      className="px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition disabled:opacity-50"
+                    >
+                      <Icon name="trash" className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
+          {/* Tools */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <label className="block text-sm font-medium text-text-primary dark:text-dark-text-primary">
+                  Tool Definitions
+                </label>
+                <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-1">
+                  Define the tools available from your MCP server
+                </p>
+              </div>
+              <button
+                onClick={handleAddTool}
+                disabled={disabled}
+                className="text-sm text-brand-secondary-glow hover:underline disabled:opacity-50"
+              >
+                + Add Tool
+              </button>
+            </div>
+
+            {currentSettings.tools.length > 0 && (
+              <div className="space-y-4">
+                {currentSettings.tools.map((tool, index) => (
+                  <div
+                    key={index}
+                    className="p-4 border border-border-color dark:border-dark-border-color rounded-md bg-white/50 dark:bg-dark-base-light/50 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-text-primary dark:text-dark-text-primary">
+                        Tool {index + 1}
+                      </h4>
+                      <button
+                        onClick={() => handleRemoveTool(index)}
+                        disabled={disabled}
+                        className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded transition disabled:opacity-50"
+                      >
+                        <Icon name="trash" className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={tool.name}
+                      onChange={e => handleToolChange(index, 'name', e.target.value)}
+                      placeholder="Tool name (e.g., get_weather)"
+                      className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary text-sm"
+                      disabled={disabled}
+                    />
+                    <textarea
+                      value={tool.description}
+                      onChange={e => handleToolChange(index, 'description', e.target.value)}
+                      placeholder="Tool description (e.g., Get current weather for a location)"
+                      className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary text-sm"
+                      rows={2}
+                      disabled={disabled}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Optimize Button */}
+          {currentSettings.tools.length > 0 && (
+            <div>
+              <button
+                onClick={handleOptimize}
+                disabled={disabled || isOptimizing}
+                className="w-full px-4 py-3 bg-gradient-to-r from-brand-secondary-glow to-brand-tertiary-glow text-white rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium flex items-center justify-center gap-2"
+              >
+                {isOptimizing ? (
+                  <>
+                    <Icon name="loader" className="w-5 h-5 animate-spin" />
+                    Optimizing with Harvey...
+                  </>
+                ) : (
+                  <>
+                    <Icon name="sparkles" className="w-5 h-5" />
+                    Have Harvey Optimize
+                  </>
+                )}
+              </button>
+              {optimizeError && (
+                <p className="text-sm text-red-500 mt-2">{optimizeError}</p>
+              )}
+              <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-2">
+                Harvey will analyze your tool descriptions and rewrite them to be clearer and more effective for AI agents.
+              </p>
+            </div>
+          )}
+
+          {/* Optimized Descriptions */}
           {currentSettings.optimizedToolDescriptions && (
             <div>
               <label className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-1">
                 Harvey's Optimized Descriptions
               </label>
-              <div className="w-full p-3 border border-green-500 rounded-md bg-green-50 dark:bg-green-900/20 text-sm whitespace-pre-wrap">
+              <div className="w-full p-3 border border-green-500 rounded-md bg-green-50 dark:bg-green-900/20 text-sm whitespace-pre-wrap text-text-primary dark:text-dark-text-primary">
                 {currentSettings.optimizedToolDescriptions}
               </div>
             </div>
