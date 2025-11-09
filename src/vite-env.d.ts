@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 // This file augments the global NodeJS namespace to add type definitions
 // for the environment variables defined in vite.config.ts. This prevents
 // TypeScript errors like "Cannot find name 'process'" or redeclaration conflicts.
@@ -17,10 +19,6 @@ interface ImportMetaEnv {
   readonly VITE_API_KEY: string;
   readonly VITE_SUPABASE_URL: string;
   readonly VITE_SUPABASE_ANON_KEY: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
 }
 
 // This export statement makes the file a module, which is required for augmentation.
