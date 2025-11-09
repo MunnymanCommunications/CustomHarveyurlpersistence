@@ -259,7 +259,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                                 } else {
                                     result = "Could not perform web search due to an invalid query.";
                                 }
-                            } else if (mcpServerSettings?.enabled && mcpServerSettings.tools.find(t => t.name === fc.name)) {
+                            } else if (mcpServerSettings?.enabled && fc.name && mcpServerSettings.tools.find(t => t.name === fc.name)) {
                                 // Handle MCP tool execution via Gemini Pro sub-agent
                                 toolUsed = fc.name;
                                 if (aiRef.current) {

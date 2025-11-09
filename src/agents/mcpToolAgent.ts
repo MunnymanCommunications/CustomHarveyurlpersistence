@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import type { MCPServerConfig, MCPTool } from '../types.ts';
 
 /**
@@ -20,10 +20,6 @@ export async function optimizeToolDescriptions(
   tools: MCPTool[],
   aiClient: GoogleGenAI
 ): Promise<string> {
-  const model = aiClient.generativeModel({
-    model: 'gemini-1.5-pro',
-  });
-
   const toolsJson = JSON.stringify(tools, null, 2);
   const prompt = `You are Harvey, an AI assistant optimizer. Your task is to analyze and rewrite tool descriptions to make them clearer and easier for AI agents to understand and execute.
 
@@ -39,9 +35,12 @@ Please rewrite these tool descriptions following these principles:
 
 Return the optimized descriptions in a clear, structured format that an AI agent can easily parse and understand.`;
 
-  const result = await model.generateContent(prompt);
-  const response = result.response;
-  return response.text();
+  const result = await aiClient.models.generateContent({
+    model: 'gemini-1.5-pro',
+    contents: prompt,
+  });
+
+  return result.text ?? '';
 }
 
 /**
@@ -94,10 +93,6 @@ export async function executeMCPTool(
     const result = await response.json();
 
     // Use Gemini Pro to summarize the result for the main agent
-    const model = aiClient.generativeModel({
-      model: 'gemini-1.5-pro',
-    });
-
     const summaryPrompt = `You are a sub-agent for Harvey, the main AI assistant. You've just executed a tool via an MCP server and received the following result:
 
 Tool: ${toolName}
@@ -114,8 +109,12 @@ Please provide a clear, concise summary of this result that the main assistant c
 
 Keep the summary conversational and user-friendly.`;
 
-    const summaryResult = await model.generateContent(summaryPrompt);
-    const summary = summaryResult.response.text();
+    const summaryResult = await aiClient.models.generateContent({
+      model: 'gemini-1.5-pro',
+      contents: summaryPrompt,
+    });
+
+    const summary = summaryResult.text ?? '';
 
     return {
       success: true,
@@ -143,7 +142,7 @@ export function convertMCPToolsToFunctionDeclarations(tools: MCPTool[]) {
     name: tool.name,
     description: tool.description,
     parameters: {
-      type: 'object' as const,
+      type: Type.OBJECT,
       properties: tool.parameters || {},
       required: Object.keys(tool.parameters || {}),
     },
