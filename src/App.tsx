@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getSupabase, SUPABASE_CONFIG_ERROR } from './lib/supabaseClient.ts';
 import type { Session } from '@supabase/supabase-js';
 import type { Profile } from './types.ts';
@@ -63,11 +63,30 @@ export default function App() {
     const [route, setRoute] = useState(parseHash());
     const [loading, setLoading] = useState(true);
     const [vaultCheckComplete, setVaultCheckComplete] = useState(false);
+    const hasRedirectedToMain = useRef(false);
 
     // Immediately check for configuration errors. If found, render the error screen and stop.
     if (SUPABASE_CONFIG_ERROR) {
         return <ConfigurationErrorScreen message={SUPABASE_CONFIG_ERROR} />;
     }
+
+    // Handle PWA redirect for public assistants (Safari strips hash from start_url)
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const pwaId = urlParams.get('pwa_id');
+
+        if (pwaId) {
+            // Look up the stored URL for this assistant
+            const storedUrl = localStorage.getItem(`pwa_public_assistant_${pwaId}`);
+            if (storedUrl) {
+                // Redirect to the stored assistant URL
+                window.location.href = storedUrl;
+            } else {
+                // Fallback: construct the URL manually
+                window.location.hash = `#/public/${pwaId}`;
+            }
+        }
+    }, []);
 
     useEffect(() => {
         const supabase = getSupabase();
@@ -149,14 +168,25 @@ export default function App() {
         return () => window.removeEventListener('hashchange', handleHashChange);
     }, []);
 
+    // Check for main assistant and redirect if on dashboard (only on initial load)
+    useEffect(() => {
+        if (session && route.path === 'dashboard' && !loading && !hasRedirectedToMain.current) {
+            const mainAssistantId = localStorage.getItem('mainAssistantId');
+            if (mainAssistantId) {
+                hasRedirectedToMain.current = true;
+                window.location.hash = `#/assistant/${mainAssistantId}`;
+            }
+        }
+    }, [session, route.path, loading]);
+
     const handleAssistantCreated = (assistantId: string) => {
         window.location.hash = `#/assistant/${assistantId}`;
     };
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen">
-                <img src="/favicon.svg" alt="Loading..." className="w-24 h-24 animate-pulse" />
+            <div className="flex items-center justify-center h-screen bg-base-light dark:bg-dark-base-light">
+                <img src="/favicon.svg" alt="Loading..." className="w-32 h-32 animate-blink" />
             </div>
         );
     }

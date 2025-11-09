@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import type { Assistant, HistoryEntry, MemoryItem } from '../types.ts';
 import { useLocalStorage } from '../hooks/useLocalStorage.ts';
@@ -89,25 +89,6 @@ const AssistantLayoutContent = ({
     }
   };
   
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-  const minSwipeDistance = 50; 
-
-  const onTouchStartHandler = (e: React.TouchEvent) => {
-      setTouchEnd(null);
-      setTouchStart(e.targetTouches[0].clientX);
-  };
-  const onTouchMoveHandler = (e: React.TouchEvent) => setTouchEnd(e.targetTouches[0].clientX);
-  const onTouchEndHandler = () => {
-      if (!touchStart || !touchEnd) return;
-      const distance = touchStart - touchEnd;
-      const isRightSwipe = distance < -minSwipeDistance;
-      if (isRightSwipe) {
-          handleSwipeToVoice();
-      }
-      setTouchStart(null);
-      setTouchEnd(null);
-  };
 
   const renderPage = () => {
     if (!assistant) return null;
@@ -124,34 +105,23 @@ const AssistantLayoutContent = ({
       }
     }
     
-    // Conversation View with Swiping
-    return (
-      <div className="w-full h-full relative">
-        <div className={`flex w-[200%] h-full transition-transform duration-500 ease-in-out ${conversationMode === 'chat' ? '-translate-x-1/2' : ''}`}>
-          <div className="w-1/2 h-full">
-            <ConversationPage 
-              assistant={assistant} 
-              memory={previewMode ? [] : memories.map(m => m.content)} 
-              onNavigateToMemory={() => !previewMode && setCurrentPage('memory')}
-              groundingSources={groundingSources}
-              onSwipe={handleSwipeToChat}
-            />
-          </div>
-          <div 
-            className="w-1/2 h-full"
-            onTouchStart={onTouchStartHandler}
-            onTouchMove={onTouchMoveHandler}
-            onTouchEnd={onTouchEndHandler}
-          >
-            <TextChatPage
-              assistant={assistant}
-              messages={chatMessages}
-              onSendMessage={handleSendMessage}
-              isSending={isSendingMessage}
-            />
-          </div>
-        </div>
-      </div>
+    // Conversation View - Toggle between voice and chat
+    return conversationMode === 'voice' ? (
+      <ConversationPage
+        assistant={assistant}
+        memory={previewMode ? [] : memories.map(m => m.content)}
+        onNavigateToMemory={() => !previewMode && setCurrentPage('memory')}
+        groundingSources={groundingSources}
+        onToggleChat={handleSwipeToChat}
+      />
+    ) : (
+      <TextChatPage
+        assistant={assistant}
+        messages={chatMessages}
+        onSendMessage={handleSendMessage}
+        isSending={isSendingMessage}
+        onToggleVoice={handleSwipeToVoice}
+      />
     );
   };
 
@@ -180,22 +150,32 @@ const AssistantLayoutContent = ({
                 <Icon name="settings" className="w-6 h-6 text-text-primary dark:text-dark-text-primary"/>
             </button>
 
-            {/* Animated Avatar - Placed in main layout for smooth transitions */}
-             <div className={`absolute z-30 transition-all duration-500 ease-in-out
-                ${conversationMode === 'voice' 
-                    ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%-2rem)]' 
-                    : 'top-4 left-4'
-                }`}>
-                <div className={`transition-transform duration-500 ease-in-out ${conversationMode === 'chat' ? 'scale-50 origin-top-left' : 'scale-100'}`}>
-                     <AssistantAvatar 
-                        avatarUrl={assistant.avatar} 
-                        isSpeaking={isSpeaking} 
-                        status={sessionStatus} 
+            {/* Avatar - Shown in voice mode (centered and elevated) or mini in other pages (top right) */}
+            {conversationMode === 'voice' && currentPage === 'conversation' && (
+                <div className="absolute z-30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%+8rem)]">
+                    <AssistantAvatar
+                        avatarUrl={assistant.avatar}
+                        isSpeaking={isSpeaking}
+                        status={sessionStatus}
                         onClick={handleAvatarClick}
                         orbHue={assistant.orb_hue}
                     />
                 </div>
-            </div>
+            )}
+            {/* Mini Avatar for non-conversation pages */}
+            {currentPage !== 'conversation' && (
+                <div className="absolute z-30 top-4 right-4">
+                    <div className="scale-[0.35] origin-top-right">
+                        <AssistantAvatar
+                            avatarUrl={assistant.avatar}
+                            isSpeaking={isSpeaking}
+                            status={sessionStatus}
+                            onClick={handleAvatarClick}
+                            orbHue={assistant.orb_hue}
+                        />
+                    </div>
+                </div>
+            )}
 
             {renderPage()}
         </main>
@@ -244,7 +224,19 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     
     useEffect(() => {
         if (assistant && aiRef.current) {
-            const textChatSystemInstruction = `You are an AI assistant named ${assistant.name || 'Assistant'}. Your personality traits are: ${(assistant.personality || []).join(', ')}. Your attitude is: ${assistant.attitude || 'Practical'}. Your core instruction is: ${assistant.prompt || 'Be a helpful assistant.'} Based on this persona, engage in a text-based conversation with the user. Keep responses concise and conversational.`;
+            // Get current date and time for text chat
+            const now = new Date();
+            const dateTimeString = now.toLocaleString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                timeZoneName: 'short'
+            });
+
+            const textChatSystemInstruction = `You are an AI assistant named ${assistant.name || 'Assistant'}. Your personality traits are: ${(assistant.personality || []).join(', ')}. Your attitude is: ${assistant.attitude || 'Practical'}. Your core instruction is: ${assistant.prompt || 'Be a helpful assistant.'} Current date and time: ${dateTimeString}. Based on this persona, engage in a text-based conversation with the user. Keep responses concise and conversational.`;
             const chatInstance = aiRef.current.chats.create({
                 model: 'gemini-flash-latest',
                 config: { systemInstruction: textChatSystemInstruction }
@@ -395,14 +387,26 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         }
     };
 
-    if (loading) { return <div className="flex items-center justify-center h-screen"><Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow"/></div>; }
+    if (loading) { return <div className="flex items-center justify-center h-screen bg-base-light dark:bg-dark-base-light"><img src="/favicon.svg" alt="Loading..." className="w-32 h-32 animate-blink" /></div>; }
     if (error || !assistant) { return <div className="flex flex-col items-center justify-center h-screen text-center"><Icon name="error" className="w-16 h-16 text-danger mb-4" /><h1 className="text-2xl font-bold">{error || "Assistant not found."}</h1><a href="#/" className="mt-4 text-brand-secondary-glow hover:underline">Go to Dashboard</a></div>; }
 
     const recentHistory = history.slice(0, 3).reverse();
     const historyContext = !previewMode && recentHistory.length ? recentHistory.map(e => `User: "${e.user}"\nAssistant: "${e.assistant}"`).join('\n\n') : "No recent conversation history.";
     const memoryContext = !previewMode && memories.length ? memories.map(m => m.content).join('\n') : "No information is stored in long-term memory.";
-    
-    const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, rely on your internal knowledge.\n\nBased on this persona, engage in a conversation with the user.\nKey information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
+
+    // Get current date and time
+    const now = new Date();
+    const dateTimeString = now.toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short'
+    });
+
+    const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nCurrent date and time: ${dateTimeString}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, rely on your internal knowledge.\n\nBased on this persona, engage in a conversation with the user.\nKey information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
 
     return (
         <GeminiLiveProvider 
