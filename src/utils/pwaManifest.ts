@@ -64,7 +64,7 @@ export function generatePublicAssistantManifest(
  */
 export function generateDefaultManifest(): PWAManifest {
   return {
-    name: 'Harvey IO - by Nicholas Munn',
+    name: 'Harvey IO - The Nexus',
     short_name: 'Harvey IO',
     description: 'A fully customizable AI voice assistant with a visual avatar, personality traits, knowledge base, and a memory system.',
     start_url: '/',
@@ -73,15 +73,15 @@ export function generateDefaultManifest(): PWAManifest {
     theme_color: '#111827',
     icons: [
       {
-        src: '/favicon.svg',
+        src: 'https://database.harveyio.com/storage/v1/object/public/avatars/Nexus.png',
         sizes: '192x192',
-        type: 'image/svg+xml',
+        type: 'image/png',
         purpose: 'any maskable',
       },
       {
-        src: '/favicon.svg',
+        src: 'https://database.harveyio.com/storage/v1/object/public/avatars/Nexus.png',
         sizes: '512x512',
-        type: 'image/svg+xml',
+        type: 'image/png',
         purpose: 'any maskable',
       },
     ],
