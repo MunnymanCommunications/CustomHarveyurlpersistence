@@ -11,8 +11,6 @@ interface MarkdownTextProps {
  */
 export const MarkdownText: React.FC<MarkdownTextProps> = ({ text, className = '' }) => {
   const parseMarkdown = (input: string): React.ReactNode[] => {
-    const elements: React.ReactNode[] = [];
-    let currentIndex = 0;
     let key = 0;
 
     // Patterns for markdown elements
@@ -38,7 +36,7 @@ export const MarkdownText: React.FC<MarkdownTextProps> = ({ text, className = ''
         <em key={key++} className="italic">{match}</em>
       )},
       // Links ([text](url))
-      { regex: /\[([^\]]+)\]\(([^)]+)\)/g, render: (match: string, text: string, url: string) => (
+      { regex: /\[([^\]]+)\]\(([^)]+)\)/g, render: (text: string, url: string) => (
         <a key={key++} href={url} target="_blank" rel="noopener noreferrer" className="text-brand-secondary-glow hover:underline">
           {text}
         </a>
@@ -65,7 +63,7 @@ export const MarkdownText: React.FC<MarkdownTextProps> = ({ text, className = ''
 
             if (pattern.regex.source.includes('\\[')) {
               // Link pattern - has capture groups
-              element = pattern.render(match[0], match[1], match[2]);
+              element = pattern.render(match[1], match[2]);
             } else {
               // Other patterns - extract content
               element = pattern.render(match[1]);
@@ -102,7 +100,7 @@ export const MarkdownText: React.FC<MarkdownTextProps> = ({ text, className = ''
     };
 
     // Split by newlines to preserve line breaks
-    const lines = text.split('\n');
+    const lines = input.split('\n');
 
     return lines.flatMap((line, lineIndex) => {
       const processed = processText(line);
