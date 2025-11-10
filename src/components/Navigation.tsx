@@ -99,11 +99,62 @@ export const Navigation: React.FC<NavigationProps> = ({
         </header>
 
         <ul className="space-y-2 flex-grow">
-            <NavItem icon="dashboard" label="Dashboard" isActive={false} onClick={() => window.location.hash = '#/'} isCollapsed={isCollapsed} />
-            <NavItem icon="chat" label="Conversation" isActive={currentPage === 'conversation'} onClick={() => onNavigate('conversation')} isCollapsed={isCollapsed} />
-            <NavItem icon="brain" label="Memory" isActive={currentPage === 'memory'} onClick={() => onNavigate('memory')} isCollapsed={isCollapsed} disabled={previewMode} />
-            <NavItem icon="history" label="History" isActive={currentPage === 'history'} onClick={() => onNavigate('history')} isCollapsed={isCollapsed} disabled={previewMode} />
-            <NavItem icon="settings" label="Settings" isActive={currentPage === 'settings'} onClick={() => onNavigate('settings')} isCollapsed={isCollapsed} />
+            <NavItem
+              icon="dashboard"
+              label="Dashboard"
+              isActive={false}
+              onClick={() => {
+                window.location.hash = '#/';
+                onMobileClose();
+                if (!isCollapsed) onToggleCollapse();
+              }}
+              isCollapsed={isCollapsed}
+            />
+            <NavItem
+              icon="chat"
+              label="Conversation"
+              isActive={currentPage === 'conversation'}
+              onClick={() => {
+                onNavigate('conversation');
+                onMobileClose();
+              }}
+              isCollapsed={isCollapsed}
+            />
+            <NavItem
+              icon="brain"
+              label="Memory"
+              isActive={currentPage === 'memory'}
+              onClick={() => {
+                onNavigate('memory');
+                onMobileClose();
+                if (!isCollapsed) onToggleCollapse();
+              }}
+              isCollapsed={isCollapsed}
+              disabled={previewMode}
+            />
+            <NavItem
+              icon="history"
+              label="History"
+              isActive={currentPage === 'history'}
+              onClick={() => {
+                onNavigate('history');
+                onMobileClose();
+                if (!isCollapsed) onToggleCollapse();
+              }}
+              isCollapsed={isCollapsed}
+              disabled={previewMode}
+            />
+            <NavItem
+              icon="settings"
+              label="Settings"
+              isActive={currentPage === 'settings'}
+              onClick={() => {
+                onNavigate('settings');
+                onMobileClose();
+                if (!isCollapsed) onToggleCollapse();
+              }}
+              isCollapsed={isCollapsed}
+            />
         </ul>
 
         <div className="pt-4 border-t border-border-color/50 dark:border-dark-border-color/50">

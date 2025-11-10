@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Assistant } from '../types.ts';
 import { Icon } from '../components/Icon.tsx';
+import { MarkdownText } from '../components/MarkdownText.tsx';
 import { DEFAULT_AVATAR_URL } from '../constants.ts';
 
 // Define a simple message type for the chat
@@ -19,6 +20,7 @@ interface TextChatPageProps {
 
 export default function TextChatPage({ assistant, messages, onSendMessage, isSending, onToggleVoice }: TextChatPageProps) {
   const [inputText, setInputText] = useState('');
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -34,6 +36,16 @@ export default function TextChatPage({ assistant, messages, onSendMessage, isSen
     if (inputText.trim() && !isSending) {
       onSendMessage(inputText);
       setInputText('');
+    }
+  };
+
+  const handleCopy = async (text: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy text:', err);
     }
   };
 
@@ -54,12 +66,30 @@ export default function TextChatPage({ assistant, messages, onSendMessage, isSen
 
       <div className="flex-grow overflow-y-auto pr-4 space-y-4 chat-container">
         {messages.map((msg, index) => (
-          <div key={index} className={`flex items-end gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role === 'model' && (
-              <img src={assistant.avatar || DEFAULT_AVATAR_URL} alt="assistant" className="w-8 h-8 rounded-full self-start flex-shrink-0" />
+              <img src={assistant.avatar || DEFAULT_AVATAR_URL} alt="assistant" className="w-8 h-8 rounded-full flex-shrink-0 mt-1" />
             )}
-            <div className={`chat-bubble ${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}`}>
-              <p className="text-text-primary dark:text-dark-text-primary">{msg.text}</p>
+            <div className="flex flex-col gap-2 max-w-[75%]">
+              <div className={`chat-bubble ${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'} relative group`}>
+                <MarkdownText text={msg.text} className="text-text-primary dark:text-dark-text-primary" />
+                <button
+                  onClick={() => handleCopy(msg.text, index)}
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-base-medium dark:bg-dark-base-medium hover:bg-base-dark dark:hover:bg-dark-base-dark p-1.5 rounded"
+                  aria-label="Copy message"
+                  title={copiedIndex === index ? "Copied!" : "Copy"}
+                >
+                  {copiedIndex === index ? (
+                    <svg className="w-4 h-4 text-brand-secondary-glow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         ))}
