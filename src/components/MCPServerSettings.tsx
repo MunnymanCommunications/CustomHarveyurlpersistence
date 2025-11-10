@@ -142,7 +142,7 @@ export const MCPServerSettingsComponent: React.FC<MCPServerSettingsProps> = ({
   };
 
   const handleOptimize = async () => {
-    const apiKey = import.meta.env.VITE_API_KEY || (window as any).process?.env?.API_KEY;
+    const apiKey = process.env.API_KEY;
     if (!apiKey || apiKey === 'undefined') {
       setOptimizeError('API key is not configured. Cannot optimize tool descriptions.');
       return;
@@ -172,7 +172,8 @@ export const MCPServerSettingsComponent: React.FC<MCPServerSettingsProps> = ({
       });
     } catch (error) {
       console.error('Failed to optimize tool descriptions:', error);
-      setOptimizeError('Failed to optimize tool descriptions. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setOptimizeError(`Failed to optimize: ${errorMessage}. Please check your API key and try again.`);
     } finally {
       setIsOptimizing(false);
     }
