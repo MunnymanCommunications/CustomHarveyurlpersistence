@@ -75,15 +75,22 @@ export default function App() {
         const urlParams = new URLSearchParams(window.location.search);
         const pwaId = urlParams.get('pwa_id');
 
-        if (pwaId) {
+        if (pwaId && !hasRedirectedToMain.current) {
+            hasRedirectedToMain.current = true;
+
             // Look up the stored URL for this assistant
             const storedUrl = localStorage.getItem(`pwa_public_assistant_${pwaId}`);
             if (storedUrl) {
-                // Redirect to the stored assistant URL
-                window.location.href = storedUrl;
+                // Extract hash from stored URL and navigate to it
+                const url = new URL(storedUrl);
+                window.location.hash = url.hash;
+                // Clean up the query parameter from the URL without reloading
+                window.history.replaceState({}, '', url.pathname + url.hash);
             } else {
-                // Fallback: construct the URL manually
+                // Fallback: construct the hash manually
                 window.location.hash = `#/public/${pwaId}`;
+                // Clean up the query parameter from the URL without reloading
+                window.history.replaceState({}, '', '/' + window.location.hash);
             }
         }
     }, []);

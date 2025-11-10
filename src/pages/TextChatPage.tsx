@@ -39,13 +39,17 @@ export default function TextChatPage({ assistant, messages, onSendMessage, isSen
 
   return (
     <div className="flex flex-col h-full w-full max-w-4xl mx-auto px-4 pt-20 relative">
-      {/* Voice Mode Button - Top Left */}
+      {/* Voice Mode Button - Top Right */}
       <button
         onClick={onToggleVoice}
-        className="absolute top-8 left-8 bg-gradient-to-r from-brand-secondary-glow to-brand-tertiary-glow text-on-brand p-4 rounded-full shadow-lg hover:shadow-2xl hover:scale-110 transition-all duration-300 z-20"
+        className="absolute top-8 right-8 bg-gradient-to-r from-brand-secondary-glow to-brand-tertiary-glow text-on-brand rounded-full shadow-lg hover:shadow-2xl hover:scale-110 transition-all duration-300 z-20 overflow-hidden"
         aria-label="Switch to voice mode"
       >
-        <Icon name="micOn" className="w-6 h-6" />
+        <img
+          src={assistant.avatar || DEFAULT_AVATAR_URL}
+          alt="Switch to voice mode"
+          className="w-14 h-14 object-cover"
+        />
       </button>
 
       <div className="flex-grow overflow-y-auto pr-4 space-y-4 chat-container">

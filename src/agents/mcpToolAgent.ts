@@ -138,13 +138,29 @@ Keep the summary conversational and user-friendly.`;
  * Converts MCP tools to Gemini function declarations
  */
 export function convertMCPToolsToFunctionDeclarations(tools: MCPTool[]) {
-  return tools.map(tool => ({
-    name: tool.name,
-    description: tool.description,
-    parameters: {
-      type: Type.OBJECT,
-      properties: tool.parameters || {},
-      required: Object.keys(tool.parameters || {}),
-    },
-  }));
+  return tools.map(tool => {
+    const parameters = tool.parameters || {};
+
+    // Ensure each parameter has a type field
+    const properties: Record<string, any> = {};
+    for (const [key, value] of Object.entries(parameters)) {
+      if (typeof value === 'object' && value !== null) {
+        // If it's already an object with a type, use it as-is
+        properties[key] = value.type ? value : { type: Type.STRING, ...value };
+      } else {
+        // If it's a simple value, wrap it with a type
+        properties[key] = { type: Type.STRING, description: String(value) };
+      }
+    }
+
+    return {
+      name: tool.name,
+      description: tool.description,
+      parameters: {
+        type: Type.OBJECT,
+        properties,
+        required: Object.keys(parameters),
+      },
+    };
+  });
 }
