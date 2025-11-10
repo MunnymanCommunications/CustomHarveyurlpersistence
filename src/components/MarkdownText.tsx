@@ -16,23 +16,23 @@ export const MarkdownText: React.FC<MarkdownTextProps> = ({ text, className = ''
     // Patterns for markdown elements
     const patterns = [
       // Code blocks (```code```)
-      { regex: /```([\s\S]*?)```/g, render: (match: string) => (
+      { regex: /```([\s\S]*?)```/g, render: (match: string, _unused?: string) => (
         <pre key={key++} className="bg-base-medium dark:bg-dark-base-medium p-2 rounded my-2 overflow-x-auto">
           <code className="text-sm font-mono">{match}</code>
         </pre>
       )},
       // Inline code (`code`)
-      { regex: /`([^`]+)`/g, render: (match: string) => (
+      { regex: /`([^`]+)`/g, render: (match: string, _unused?: string) => (
         <code key={key++} className="bg-base-medium dark:bg-dark-base-medium px-1.5 py-0.5 rounded text-sm font-mono">
           {match}
         </code>
       )},
       // Bold (**text**)
-      { regex: /\*\*([^*]+)\*\*/g, render: (match: string) => (
+      { regex: /\*\*([^*]+)\*\*/g, render: (match: string, _unused?: string) => (
         <strong key={key++} className="font-bold">{match}</strong>
       )},
       // Italic (*text*)
-      { regex: /\*([^*]+)\*/g, render: (match: string) => (
+      { regex: /\*([^*]+)\*/g, render: (match: string, _unused?: string) => (
         <em key={key++} className="italic">{match}</em>
       )},
       // Links ([text](url))
@@ -59,15 +59,8 @@ export const MarkdownText: React.FC<MarkdownTextProps> = ({ text, className = ''
           const match = pattern.regex.exec(remaining);
 
           if (match && (earliestMatch === null || match.index < earliestMatch.index)) {
-            let element: React.ReactNode;
-
-            if (pattern.regex.source.includes('\\[')) {
-              // Link pattern - has capture groups
-              element = pattern.render(match[1], match[2]);
-            } else {
-              // Other patterns - extract content
-              element = pattern.render(match[1]);
-            }
+            // Call render with both capture groups (second will be undefined for single-group patterns)
+            const element = pattern.render(match[1], match[2]);
 
             earliestMatch = {
               index: match.index,
