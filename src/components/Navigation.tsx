@@ -167,7 +167,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               <Icon name={isCollapsed ? 'chevronRight' : 'chevronLeft'} className="w-5 h-5" />
           </button>
           <div className={`text-center text-xs text-text-tertiary dark:text-dark-text-tertiary pt-4 transition-all duration-300 overflow-hidden ${isCollapsed ? 'h-0 opacity-0' : 'h-auto opacity-100'}`}>
-              <p>AI Assistant v1.0</p>
+              <p>Harvey iO - The Nexus v1.0</p>
               <p>
                 Powered by{' '}
                 <a
