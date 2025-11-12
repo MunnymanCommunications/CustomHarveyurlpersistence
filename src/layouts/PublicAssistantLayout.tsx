@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
-import type { Assistant, Chat, ChatMessage } from '../types.ts';
-import { GoogleGenAI } from '@google/genai';
+import type { Assistant } from '../types.ts';
+import { GoogleGenAI, Chat } from '@google/genai';
 
 import { Icon } from '../components/Icon.tsx';
 import { AssistantAvatar } from '../components/AssistantAvatar.tsx';
@@ -30,6 +30,11 @@ const getMimeTypeFromUrl = (url: string): string => {
 };
 
 type ConversationMode = 'voice' | 'chat';
+
+interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+}
 
 const PublicAssistantView = ({
     assistant,
