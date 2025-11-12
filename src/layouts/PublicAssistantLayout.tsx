@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
-import type { Assistant } from '../types.ts';
+import type { Assistant, Chat, ChatMessage } from '../types.ts';
 import { GoogleGenAI } from '@google/genai';
 
 import { Icon } from '../components/Icon.tsx';
 import { AssistantAvatar } from '../components/AssistantAvatar.tsx';
 import ConversationPage from '../pages/ConversationPage.tsx';
+import TextChatPage from '../pages/TextChatPage.tsx';
 import { GeminiLiveProvider } from '../contexts/GeminiLiveContext.tsx';
 import { useGeminiLive } from '../hooks/useGeminiLive.ts';
 
@@ -28,10 +29,34 @@ const getMimeTypeFromUrl = (url: string): string => {
     return 'image/png'; // Default
 };
 
-const PublicAssistantView = ({ assistant, groundingChunks }: { assistant: Assistant, groundingChunks: any[]}) => {
+type ConversationMode = 'voice' | 'chat';
+
+const PublicAssistantView = ({
+    assistant,
+    groundingChunks,
+    conversationMode,
+    onSwipeToChat,
+    onSwipeToVoice,
+    chatMessages,
+    isSendingMessage,
+    onSendMessage
+}: {
+    assistant: Assistant,
+    groundingChunks: any[],
+    conversationMode: ConversationMode,
+    onSwipeToChat: () => void,
+    onSwipeToVoice: () => void,
+    chatMessages: ChatMessage[],
+    isSendingMessage: boolean,
+    onSendMessage: (message: string) => Promise<void>
+}) => {
     const { sessionStatus, startSession, stopSession, isSpeaking } = useGeminiLive();
 
     const handleAvatarClick = () => {
+        if (conversationMode === 'chat') {
+            onSwipeToVoice();
+            return;
+        }
         if (sessionStatus === 'IDLE' || sessionStatus === 'ERROR') {
             startSession();
         } else {
@@ -41,24 +66,36 @@ const PublicAssistantView = ({ assistant, groundingChunks }: { assistant: Assist
 
     return (
         <>
-            {/* Avatar - Centered and elevated higher for transcription space */}
-            <div className="absolute z-30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%+8rem)]">
-                <AssistantAvatar
-                    avatarUrl={assistant.avatar}
-                    isSpeaking={isSpeaking}
-                    status={sessionStatus}
-                    onClick={handleAvatarClick}
-                    orbHue={assistant.orb_hue}
-                />
-            </div>
+            {/* Avatar - Shown in voice mode (centered and elevated) */}
+            {conversationMode === 'voice' && (
+                <div className="absolute z-30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%+8rem)]">
+                    <AssistantAvatar
+                        avatarUrl={assistant.avatar}
+                        isSpeaking={isSpeaking}
+                        status={sessionStatus}
+                        onClick={handleAvatarClick}
+                        orbHue={assistant.orb_hue}
+                    />
+                </div>
+            )}
 
-            <ConversationPage
-                assistant={assistant}
-                memory={[]}
-                onNavigateToMemory={() => {}}
-                groundingSources={groundingChunks}
-                onToggleChat={() => {}}
-            />
+            {conversationMode === 'voice' ? (
+                <ConversationPage
+                    assistant={assistant}
+                    memory={[]}
+                    onNavigateToMemory={() => {}}
+                    groundingSources={groundingChunks}
+                    onToggleChat={onSwipeToChat}
+                />
+            ) : (
+                <TextChatPage
+                    assistant={assistant}
+                    messages={chatMessages}
+                    onSendMessage={onSendMessage}
+                    isSending={isSendingMessage}
+                    onToggleVoice={onSwipeToVoice}
+                />
+            )}
         </>
     );
 };
@@ -70,6 +107,10 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
     const [error, setError] = useState<string | null>(null);
     const [ai, setAi] = useState<GoogleGenAI | null>(null);
     const [groundingChunks, setGroundingChunks] = useState<any[]>([]);
+    const [conversationMode, setConversationMode] = useState<ConversationMode>('voice');
+    const [chat, setChat] = useState<Chat | null>(null);
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+    const [isSendingMessage, setIsSendingMessage] = useState(false);
 
 
     useEffect(() => {
@@ -133,13 +174,14 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 const absoluteAvatarUrl = avatarUrl.startsWith('http') ? avatarUrl : `${baseUrl}${avatarUrl}`;
                 const mimeType = getMimeTypeFromUrl(avatarUrl);
 
-                // Use direct hash URL for PWA - modern browsers support this
-                const publicUrl = `${baseUrl}/#/public/${assistantId}`;
+                // Store the current URL for PWA redirect (Safari/iOS strips hash from start_url)
+                const pwaKey = `pwa_public_assistant_${assistantId}`;
+                localStorage.setItem(pwaKey, window.location.href);
 
                 const manifest = {
                     name: `Harvey IO - ${data.name}`,
                     short_name: data.name,
-                    start_url: publicUrl,
+                    start_url: `${baseUrl}/?pwa_id=${assistantId}`,
                     scope: '/',
                     display: 'standalone',
                     background_color: '#111827',
@@ -173,6 +215,51 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
             fetchPublicAssistant();
         }
     }, [assistantId, ai]);
+
+    // Initialize text chat when ai and assistant are ready
+    useEffect(() => {
+        if (!ai || !assistant) return;
+
+        const now = new Date();
+        const dateTimeString = now.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            timeZoneName: 'short'
+        });
+
+        const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nCurrent date and time: ${dateTimeString}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information. For all other questions, rely on your internal knowledge.\n\nBased on this persona, engage in a conversation with the user.`;
+
+        const newChat = ai.chats.create({
+            model: 'gemini-2.5-flash',
+            config: {
+                systemInstruction,
+                tools: [{ googleSearch: {} }],
+            },
+        });
+
+        setChat(newChat);
+    }, [ai, assistant]);
+
+    const handleSendMessage = async (message: string) => {
+        if (!chat) return;
+        setIsSendingMessage(true);
+        const userMessage: ChatMessage = { role: 'user', text: message };
+        setChatMessages(prev => [...prev, userMessage]);
+        try {
+            const response = await chat.sendMessage({ message });
+            const modelMessage: ChatMessage = { role: 'model', text: response.text ?? '' };
+            setChatMessages(prev => [...prev, modelMessage]);
+        } catch (e) {
+            console.error("Error sending text message:", e);
+            setChatMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error." }]);
+        } finally {
+            setIsSendingMessage(false);
+        }
+    };
 
     const fetchGrounding = useCallback(async (text: string) => {
         if (!ai || !text.trim()) {
@@ -286,9 +373,15 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 onTurnComplete={handleTurnComplete}
                 mcpServerSettings={assistant.mcp_server_settings}
              >
-                <PublicAssistantView 
-                    assistant={fullAssistant} 
+                <PublicAssistantView
+                    assistant={fullAssistant}
                     groundingChunks={groundingChunks}
+                    conversationMode={conversationMode}
+                    onSwipeToChat={() => setConversationMode('chat')}
+                    onSwipeToVoice={() => setConversationMode('voice')}
+                    chatMessages={chatMessages}
+                    isSendingMessage={isSendingMessage}
+                    onSendMessage={handleSendMessage}
                 />
             </GeminiLiveProvider>
             <a href="#/upgrade" className="absolute bottom-4 text-xs text-text-tertiary dark:text-dark-text-tertiary hover:underline z-10">
