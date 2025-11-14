@@ -45,6 +45,17 @@ export interface HistoryEntry {
   timestamp: string;
 }
 
+export interface Reminder {
+  id: string;
+  user_id: string;
+  assistant_id: string;
+  content: string;
+  due_date: string | null;
+  is_completed: boolean;
+  created_at: string;
+  completed_at: string | null;
+}
+
 export interface Profile {
   id: string;
   username?: string | null;

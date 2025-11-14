@@ -4,7 +4,7 @@ import { ThemeToggle } from './ThemeToggle.tsx';
 import type { ConversationStatus } from '../types.ts';
 import { DEFAULT_AVATAR_URL } from '../constants.ts';
 
-type Page = 'conversation' | 'memory' | 'history' | 'settings';
+type Page = 'conversation' | 'memory' | 'history' | 'settings' | 'reminders';
 
 interface NavigationProps {
   currentPage: Page;
@@ -138,6 +138,18 @@ export const Navigation: React.FC<NavigationProps> = ({
               isActive={currentPage === 'history'}
               onClick={() => {
                 onNavigate('history');
+                onMobileClose();
+                if (!isCollapsed) onToggleCollapse();
+              }}
+              isCollapsed={isCollapsed}
+              disabled={previewMode}
+            />
+            <NavItem
+              icon="calendar"
+              label="Reminders"
+              isActive={currentPage === 'reminders'}
+              onClick={() => {
+                onNavigate('reminders');
                 onMobileClose();
                 if (!isCollapsed) onToggleCollapse();
               }}

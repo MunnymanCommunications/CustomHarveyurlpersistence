@@ -243,6 +243,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
             config: {
                 systemInstruction,
                 tools: [{ googleSearch: {} }],
+                maxOutputTokens: 2048,
             },
         });
 
