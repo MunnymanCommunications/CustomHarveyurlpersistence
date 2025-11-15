@@ -54,9 +54,6 @@ interface AssistantLayoutContentProps {
   handleSwipeToChat: () => void;
   handleSwipeToVoice: () => void;
   handleSendMessage: (message: string) => Promise<void>;
-  handleAddReminder: (content: string, dueDate: string | null) => Promise<void>;
-  handleCompleteReminder: (id: string) => Promise<void>;
-  handleDeleteReminder: (id: string) => Promise<void>;
 }
 
 const AssistantLayoutContent = ({
@@ -117,8 +114,6 @@ const AssistantLayoutContent = ({
           return previewMode ? null : <RemindersPage reminders={reminders} onAdd={handleAddReminder} onUpdate={handleUpdateReminder} onDelete={handleDeleteReminder} onComplete={handleCompleteReminder} />;
         case 'history':
           return previewMode ? null : <HistoryPage history={history} onClear={handleClearHistory} />;
-        case 'reminders':
-          return previewMode ? null : <RemindersPage reminders={reminders} onAdd={handleAddReminder} onComplete={handleCompleteReminder} onDelete={handleDeleteReminder} />;
         case 'settings':
           return <SettingsDashboardPage settings={assistant} onSettingsChange={handleSettingsChange} previewMode={previewMode} />;
         default:
@@ -544,9 +539,6 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
                 handleSwipeToChat={() => { setCurrentPage('conversation'); setConversationMode('chat'); }}
                 handleSwipeToVoice={() => setConversationMode('voice')}
                 handleSendMessage={handleSendMessage}
-                handleAddReminder={handleAddReminder}
-                handleCompleteReminder={handleCompleteReminder}
-                handleDeleteReminder={handleDeleteReminder}
             />
         </GeminiLiveProvider>
     );
