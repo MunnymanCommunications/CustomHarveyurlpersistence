@@ -145,7 +145,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               disabled={previewMode}
             />
             <NavItem
-              icon="calendar"
+              icon="sparkles"
               label="Reminders"
               isActive={currentPage === 'reminders'}
               onClick={() => {
