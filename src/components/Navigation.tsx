@@ -133,11 +133,11 @@ export const Navigation: React.FC<NavigationProps> = ({
               disabled={previewMode}
             />
             <NavItem
-              icon="history"
-              label="History"
-              isActive={currentPage === 'history'}
+              icon="clock"
+              label="Reminders"
+              isActive={currentPage === 'reminders'}
               onClick={() => {
-                onNavigate('history');
+                onNavigate('reminders');
                 onMobileClose();
                 if (!isCollapsed) onToggleCollapse();
               }}
@@ -145,11 +145,11 @@ export const Navigation: React.FC<NavigationProps> = ({
               disabled={previewMode}
             />
             <NavItem
-              icon="sparkles"
-              label="Reminders"
-              isActive={currentPage === 'reminders'}
+              icon="history"
+              label="History"
+              isActive={currentPage === 'history'}
               onClick={() => {
-                onNavigate('reminders');
+                onNavigate('history');
                 onMobileClose();
                 if (!isCollapsed) onToggleCollapse();
               }}

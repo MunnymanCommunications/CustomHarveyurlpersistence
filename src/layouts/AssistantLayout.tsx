@@ -44,6 +44,10 @@ interface AssistantLayoutContentProps {
   handleAddMemory: (content: string) => Promise<void>;
   handleUpdateMemory: (id: number, content: string) => Promise<void>;
   handleDeleteMemory: (id: number) => Promise<void>;
+  handleAddReminder: (title: string, description: string, dueDate: string, reminderTime?: string) => Promise<void>;
+  handleUpdateReminder: (id: string, updates: Partial<Reminder>) => Promise<void>;
+  handleDeleteReminder: (id: string) => Promise<void>;
+  handleCompleteReminder: (id: string) => Promise<void>;
   handleClearHistory: () => void;
   handleSettingsChange: (newSettings: Assistant) => Promise<void>;
   handleCloneAssistant: () => Promise<void>;
@@ -74,6 +78,10 @@ const AssistantLayoutContent = ({
   handleAddMemory,
   handleUpdateMemory,
   handleDeleteMemory,
+  handleAddReminder,
+  handleUpdateReminder,
+  handleDeleteReminder,
+  handleCompleteReminder,
   handleClearHistory,
   handleSettingsChange,
   handleCloneAssistant,
@@ -105,6 +113,8 @@ const AssistantLayoutContent = ({
       switch (currentPage) {
         case 'memory':
           return previewMode ? null : <MemoryPage memories={memories} onAdd={handleAddMemory} onUpdate={handleUpdateMemory} onDelete={handleDeleteMemory} />;
+        case 'reminders':
+          return previewMode ? null : <RemindersPage reminders={reminders} onAdd={handleAddReminder} onUpdate={handleUpdateReminder} onDelete={handleDeleteReminder} onComplete={handleCompleteReminder} />;
         case 'history':
           return previewMode ? null : <HistoryPage history={history} onClear={handleClearHistory} />;
         case 'reminders':
@@ -202,11 +212,12 @@ interface AssistantLayoutProps {
 export default function AssistantLayout({ assistantId, previewMode }: AssistantLayoutProps) {
     const [assistant, setAssistant] = useState<Assistant | null>(null);
     const [memories, setMemories] = useState<MemoryItem[]>([]);
+    const [reminders, setReminders] = useState<Reminder[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState<Page>('conversation');
     const [isCloning, setIsCloning] = useState(false);
-    
+
     const [history, setHistory] = useLocalStorage<HistoryEntry[]>(`assistant_history_${assistantId}`, []);
 
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -284,7 +295,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
                 .from('memory_items')
                 .select('*')
                 .order('created_at', { ascending: true });
-            
+
             if (assistantData.name === 'Memory Vault') {
                 memoryQuery = memoryQuery.eq('user_id', user.id);
             } else {
@@ -299,20 +310,18 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             }
             setMemories(memoryData as MemoryItem[]);
 
-            // Fetch reminders for this assistant
-            const { data: reminderData, error: reminderError } = await supabase
+            // Fetch reminders for the user
+            const { data: remindersData, error: remindersError } = await supabase
                 .from('reminders')
                 .select('*')
-                .eq('assistant_id', assistantId)
-                .eq('is_completed', false)
-                .order('due_date', { ascending: true, nullsFirst: false });
+                .eq('user_id', user.id)
+                .order('due_date', { ascending: true });
 
-            if (reminderError) {
-                console.error("Error fetching reminders:", reminderError);
-                // Don't throw, just set empty reminders
-                setReminders([]);
+            if (remindersError) {
+                console.error("Error fetching reminders:", remindersError);
+                // Don't throw - reminders are optional
             } else {
-                setReminders(reminderData as Reminder[]);
+                setReminders(remindersData as Reminder[]);
             }
         } else {
             setMemories([]);
@@ -376,51 +385,38 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         if (error) { console.error(error); setMemories(original); }
     };
 
-    const handleAddReminder = async (content: string, dueDate: string | null) => {
-        if (previewMode || !assistant) return;
+    const handleAddReminder = async (title: string, description: string, dueDate: string, reminderTime?: string) => {
+        if (previewMode) return;
         const supabase = getSupabase();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const { data: newReminder, error: insertError } = await supabase
-            .from('reminders')
-            .insert({ assistant_id: assistant.id, user_id: user.id, content, due_date: dueDate })
-            .select()
-            .single();
+        const newReminder = {
+            user_id: user.id,
+            assistant_id: assistantId,
+            title,
+            description: description || null,
+            due_date: dueDate,
+            reminder_time: reminderTime ? `${dueDate}T${reminderTime}:00Z` : null,
+            status: 'pending' as const,
+        };
 
-        if (insertError) {
-            console.error("Error creating reminder:", insertError);
-        } else if (newReminder) {
-            setReminders(prev => [...prev, newReminder as Reminder]);
+        const { data, error } = await supabase.from('reminders').insert(newReminder).select().single();
+        if (error) {
+            console.error('Error adding reminder:', error);
+        } else {
+            setReminders(p => [...p, data as Reminder]);
         }
     };
 
-    const handleCompleteReminder = async (id: string) => {
+    const handleUpdateReminder = async (id: string, updates: Partial<Reminder>) => {
         if (previewMode) return;
         const original = [...reminders];
-        setReminders(p => p.map(r => r.id === id ? { ...r, is_completed: true, completed_at: new Date().toISOString() } : r));
-
-        const { error } = await getSupabase()
-            .from('reminders')
-            .update({ is_completed: true, completed_at: new Date().toISOString() })
-            .eq('id', id);
-
+        setReminders(p => p.map(r => r.id === id ? { ...r, ...updates } : r));
+        const { error } = await getSupabase().from('reminders').update(updates).eq('id', id);
         if (error) {
-            console.error(error);
+            console.error('Error updating reminder:', error);
             setReminders(original);
-        } else {
-            // Refetch to remove completed reminder from active list
-            const supabase = getSupabase();
-            const { data: reminderData } = await supabase
-                .from('reminders')
-                .select('*')
-                .eq('assistant_id', assistant?.id)
-                .eq('is_completed', false)
-                .order('due_date', { ascending: true, nullsFirst: false });
-
-            if (reminderData) {
-                setReminders(reminderData as Reminder[]);
-            }
         }
     };
 
@@ -429,7 +425,14 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         const original = [...reminders];
         setReminders(p => p.filter(r => r.id !== id));
         const { error } = await getSupabase().from('reminders').delete().eq('id', id);
-        if (error) { console.error(error); setReminders(original); }
+        if (error) {
+            console.error('Error deleting reminder:', error);
+            setReminders(original);
+        }
+    };
+
+    const handleCompleteReminder = async (id: string) => {
+        await handleUpdateReminder(id, { status: 'completed' });
     };
 
     const handleSettingsChange = async (newSettings: Assistant) => {
@@ -534,7 +537,9 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
                 isNavCollapsed={isNavCollapsed} previewMode={previewMode} isCloning={isCloning} conversationMode={conversationMode}
                 chatMessages={chatMessages} isSendingMessage={isSendingMessage} setCurrentPage={setCurrentPage} setIsMobileNavOpen={setIsMobileNavOpen}
                 setIsNavCollapsed={setIsNavCollapsed} handleAddMemory={handleAddMemory} handleUpdateMemory={handleUpdateMemory}
-                handleDeleteMemory={handleDeleteMemory} handleClearHistory={handleClearHistory} handleSettingsChange={handleSettingsChange}
+                handleDeleteMemory={handleDeleteMemory} handleAddReminder={handleAddReminder} handleUpdateReminder={handleUpdateReminder}
+                handleDeleteReminder={handleDeleteReminder} handleCompleteReminder={handleCompleteReminder}
+                handleClearHistory={handleClearHistory} handleSettingsChange={handleSettingsChange}
                 handleCloneAssistant={handleCloneAssistant}
                 handleSwipeToChat={() => { setCurrentPage('conversation'); setConversationMode('chat'); }}
                 handleSwipeToVoice={() => setConversationMode('voice')}
