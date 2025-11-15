@@ -16,13 +16,13 @@ type LiveSession = Awaited<ReturnType<InstanceType<typeof GoogleGenAI>['live']['
 
 const saveToMemoryFunctionDeclaration: FunctionDeclaration = {
   name: 'saveToMemory',
-  description: 'Saves a piece of information that the user explicitly asks to be remembered. Only use this when the user says "remember that", "save this", or a similar direct command.',
+  description: 'Saves important information that the user wants you to remember for future conversations. Use this when the user: (1) explicitly asks you to remember something ("remember that", "save this", "don\'t forget"), (2) mentions preferences, likes/dislikes, or personal information, (3) shares important facts about themselves, their work, or their life, (4) gives you instructions about how they want you to behave or respond, (5) asks you to add something to memory. Always use this proactively to build a better understanding of the user over time.',
   parameters: {
     type: Type.OBJECT,
     properties: {
       info: {
         type: Type.STRING,
-        description: 'The specific piece of information to save.',
+        description: 'The specific piece of information to save. Be concise but complete.',
       },
     },
     required: ['info'],

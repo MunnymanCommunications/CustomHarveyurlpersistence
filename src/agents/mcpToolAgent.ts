@@ -36,7 +36,7 @@ Please rewrite these tool descriptions following these principles:
 Return the optimized descriptions in a clear, structured format that an AI agent can easily parse and understand.`;
 
   const result = await aiClient.models.generateContent({
-    model: 'gemini-1.5-pro',
+    model: 'gemini-2.5-flash',
     contents: prompt,
   });
 
@@ -110,7 +110,7 @@ Please provide a clear, concise summary of this result that the main assistant c
 Keep the summary conversational and user-friendly.`;
 
     const summaryResult = await aiClient.models.generateContent({
-      model: 'gemini-1.5-pro',
+      model: 'gemini-2.5-flash',
       contents: summaryPrompt,
     });
 
