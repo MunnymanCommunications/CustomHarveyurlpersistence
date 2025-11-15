@@ -103,7 +103,7 @@ export default function RemindersPage({ reminders, onAdd, onComplete, onDelete }
               />
               <div className="flex items-center gap-3">
                 <div className="flex-1 flex items-center gap-2">
-                  <Icon name="calendar" className="w-5 h-5 text-text-secondary dark:text-dark-text-secondary" />
+                  <Icon name="history" className="w-5 h-5 text-text-secondary dark:text-dark-text-secondary" />
                   <input
                     type="date"
                     value={newReminderDate}
@@ -127,7 +127,7 @@ export default function RemindersPage({ reminders, onAdd, onComplete, onDelete }
         <div className="space-y-3">
           {displayedReminders.length === 0 ? (
             <div className="text-center py-12 text-text-secondary dark:text-dark-text-secondary">
-              <Icon name="checkCircle" className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <Icon name="sparkles" className="w-16 h-16 mx-auto mb-4 opacity-50" />
               <p>
                 {showCompleted
                   ? 'No completed reminders yet'
