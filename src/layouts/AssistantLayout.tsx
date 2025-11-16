@@ -508,7 +508,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             const dueDateText = r.due_date
                 ? ` (Due: ${new Date(r.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })})`
                 : '';
-            return `- ${r.content}${dueDateText}`;
+            return `- ${r.title}${dueDateText}`;
         }).join('\n')}\n\nWhen appropriate in the conversation, naturally remind the user about these items. Ask if they've completed them yet. If they confirm completion, acknowledge it warmly.`
         : '';
 
