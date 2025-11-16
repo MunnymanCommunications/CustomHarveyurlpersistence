@@ -85,9 +85,6 @@ const AssistantLayoutContent = ({
   handleSwipeToChat,
   handleSwipeToVoice,
   handleSendMessage,
-  handleAddReminder,
-  handleCompleteReminder,
-  handleDeleteReminder,
 }: AssistantLayoutContentProps) => {
   const { sessionStatus, stopSession, startSession, isSpeaking, groundingSources } = useGeminiLive();
 
@@ -224,7 +221,6 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     const [chat, setChat] = useState<Chat | null>(null);
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [isSendingMessage, setIsSendingMessage] = useState(false);
-    const [reminders, setReminders] = useState<Reminder[]>([]);
 
     useEffect(() => {
         if (previewMode) {
