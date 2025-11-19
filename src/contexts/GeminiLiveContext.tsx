@@ -102,7 +102,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
   }, [assistantId]);
 
   useEffect(() => {
-    const apiKey = process.env.API_KEY;
+    const apiKey = import.meta.env.VITE_API_KEY;
     if (!apiKey || apiKey === 'undefined') {
       setError('API key is not configured. Please set VITE_API_KEY in your environment.');
       setSessionStatus('ERROR');
@@ -342,11 +342,26 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
 
     } catch (err: any) {
       console.error('Failed to start session:', err);
-      setError(err.message || 'Failed to start the microphone.');
+      let errorMessage = 'Failed to start the voice session.';
+
+      // Provide more specific error messages
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage = 'Microphone permission was denied. Please allow microphone access in your browser settings and try again.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorMessage = 'No microphone found. Please connect a microphone and try again.';
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        errorMessage = 'Microphone is already in use by another application. Please close other apps using the microphone and try again.';
+      } else if (err.message?.includes('API key')) {
+        errorMessage = 'API key error. Please check your VITE_API_KEY environment variable.';
+      } else if (err.message) {
+        errorMessage = `Error: ${err.message}`;
+      }
+
+      setError(errorMessage);
       setSessionStatus('ERROR');
       logEvent('SESSION_ERROR', {
           assistantId,
-          metadata: { error: err.message || 'Failed to start microphone' }
+          metadata: { error: err.message || 'Failed to start microphone', errorName: err.name }
       });
     }
   }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, stopSession, sessionStatus, assistantId]);

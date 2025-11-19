@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
-import type { Assistant, HistoryEntry, MemoryItem } from '../types.ts';
+import type { Assistant, HistoryEntry, MemoryItem, Reminder } from '../types.ts';
 import { useLocalStorage } from '../hooks/useLocalStorage.ts';
 import { GoogleGenAI, Chat } from '@google/genai';
 
@@ -14,10 +14,11 @@ import MemoryPage from '../pages/MemoryPage.tsx';
 import HistoryPage from '../pages/HistoryPage.tsx';
 import SettingsDashboardPage from '../pages/SettingsDashboardPage.tsx';
 import TextChatPage from '../pages/TextChatPage.tsx';
+import RemindersPage from '../pages/RemindersPage.tsx';
 import { GeminiLiveProvider } from '../contexts/GeminiLiveContext.tsx';
 import { useGeminiLive } from '../hooks/useGeminiLive.ts';
 
-type Page = 'conversation' | 'memory' | 'history' | 'settings';
+type Page = 'conversation' | 'memory' | 'history' | 'settings' | 'reminders';
 type ConversationMode = 'voice' | 'chat';
 interface ChatMessage {
   role: 'user' | 'model';
@@ -28,6 +29,7 @@ interface AssistantLayoutContentProps {
   assistant: Assistant;
   memories: MemoryItem[];
   history: HistoryEntry[];
+  reminders: Reminder[];
   currentPage: Page;
   isMobileNavOpen: boolean;
   isNavCollapsed: boolean;
@@ -42,6 +44,10 @@ interface AssistantLayoutContentProps {
   handleAddMemory: (content: string) => Promise<void>;
   handleUpdateMemory: (id: number, content: string) => Promise<void>;
   handleDeleteMemory: (id: number) => Promise<void>;
+  handleAddReminder: (title: string, description: string, dueDate: string, reminderTime?: string) => Promise<void>;
+  handleUpdateReminder: (id: string, updates: Partial<Reminder>) => Promise<void>;
+  handleDeleteReminder: (id: string) => Promise<void>;
+  handleCompleteReminder: (id: string) => Promise<void>;
   handleClearHistory: () => void;
   handleSettingsChange: (newSettings: Assistant) => Promise<void>;
   handleCloneAssistant: () => Promise<void>;
@@ -50,12 +56,13 @@ interface AssistantLayoutContentProps {
   handleSendMessage: (message: string) => Promise<void>;
 }
 
-const AssistantLayoutContent = ({ 
-  assistant, 
-  memories, 
-  history, 
-  currentPage, 
-  isMobileNavOpen, 
+const AssistantLayoutContent = ({
+  assistant,
+  memories,
+  history,
+  reminders,
+  currentPage,
+  isMobileNavOpen,
   isNavCollapsed,
   previewMode,
   isCloning,
@@ -68,6 +75,10 @@ const AssistantLayoutContent = ({
   handleAddMemory,
   handleUpdateMemory,
   handleDeleteMemory,
+  handleAddReminder,
+  handleUpdateReminder,
+  handleDeleteReminder,
+  handleCompleteReminder,
   handleClearHistory,
   handleSettingsChange,
   handleCloneAssistant,
@@ -117,6 +128,8 @@ const AssistantLayoutContent = ({
           return previewMode ? null : <MemoryPage memories={memories} onAdd={handleAddMemory} onUpdate={handleUpdateMemory} onDelete={handleDeleteMemory} />;
         case 'history':
           return previewMode ? null : <HistoryPage history={history} onClear={handleClearHistory} />;
+        case 'reminders':
+          return previewMode ? null : <RemindersPage reminders={reminders} onAdd={handleAddReminder} onUpdate={handleUpdateReminder} onDelete={handleDeleteReminder} onComplete={handleCompleteReminder} />;
         case 'settings':
           return <SettingsDashboardPage settings={assistant} onSettingsChange={handleSettingsChange} previewMode={previewMode} />;
         default:
@@ -211,11 +224,12 @@ interface AssistantLayoutProps {
 export default function AssistantLayout({ assistantId, previewMode }: AssistantLayoutProps) {
     const [assistant, setAssistant] = useState<Assistant | null>(null);
     const [memories, setMemories] = useState<MemoryItem[]>([]);
+    const [reminders, setReminders] = useState<Reminder[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState<Page>('conversation');
     const [isCloning, setIsCloning] = useState(false);
-    
+
     const [history, setHistory] = useLocalStorage<HistoryEntry[]>(`assistant_history_${assistantId}`, []);
 
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -235,7 +249,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     }, [previewMode]);
 
     useEffect(() => {
-        const apiKey = process.env.API_KEY;
+        const apiKey = import.meta.env.VITE_API_KEY;
         if (apiKey && apiKey !== 'undefined') {
             const ai = new GoogleGenAI({ apiKey });
             aiRef.current = ai;
@@ -277,7 +291,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
                 .from('memory_items')
                 .select('*')
                 .order('created_at', { ascending: true });
-            
+
             if (assistantData.name === 'Memory Vault') {
                 memoryQuery = memoryQuery.eq('user_id', user.id);
             } else {
@@ -285,14 +299,28 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             }
 
             const { data: memoryData, error: memoryError } = await memoryQuery;
-            
+
             if (memoryError) {
                 console.error("Error fetching memories:", memoryError);
                 throw new Error("Could not load assistant memories.");
             }
             setMemories(memoryData as MemoryItem[]);
+
+            // Fetch reminders
+            const { data: reminderData, error: reminderError } = await supabase
+                .from('reminders')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('due_date', { ascending: true });
+
+            if (reminderError) {
+                console.error("Error fetching reminders:", reminderError);
+            } else {
+                setReminders(reminderData as Reminder[]);
+            }
         } else {
             setMemories([]);
+            setReminders([]);
         }
     }, [assistantId, previewMode]);
 
@@ -351,7 +379,50 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         const { error } = await getSupabase().from('memory_items').delete().eq('id', id);
         if (error) { console.error(error); setMemories(original); }
     };
-    
+
+    const handleAddReminder = async (title: string, description: string, dueDate: string, reminderTime?: string) => {
+        if (previewMode) return;
+        const supabase = getSupabase();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: newReminder, error: insertError } = await supabase
+            .from('reminders')
+            .insert({
+                user_id: user.id,
+                assistant_id: assistantId,
+                title,
+                description,
+                due_date: dueDate,
+                reminder_time: reminderTime,
+                status: 'pending'
+            })
+            .select()
+            .single();
+        if (insertError) console.error("Error adding reminder:", insertError);
+        else if (newReminder) setReminders(prev => [...prev, newReminder as Reminder]);
+    };
+
+    const handleUpdateReminder = async (id: string, updates: Partial<Reminder>) => {
+        if (previewMode) return;
+        const original = [...reminders];
+        setReminders(p => p.map(r => r.id === id ? { ...r, ...updates } : r));
+        const { error } = await getSupabase().from('reminders').update(updates).eq('id', id);
+        if (error) { console.error(error); setReminders(original); }
+    };
+
+    const handleDeleteReminder = async (id: string) => {
+        if (previewMode) return;
+        const original = [...reminders];
+        setReminders(p => p.filter(r => r.id !== id));
+        const { error } = await getSupabase().from('reminders').delete().eq('id', id);
+        if (error) { console.error(error); setReminders(original); }
+    };
+
+    const handleCompleteReminder = async (id: string) => {
+        if (previewMode) return;
+        await handleUpdateReminder(id, { status: 'completed' });
+    };
+
     const handleSettingsChange = async (newSettings: Assistant) => {
         if (previewMode || !assistant) return;
         const { name, avatar, personality, attitude, voice, prompt, is_public, is_embeddable, description, author_name, orb_hue } = newSettings;
@@ -401,8 +472,9 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     const recentHistory = history.slice(0, 3).reverse();
     const historyContext = !previewMode && recentHistory.length ? recentHistory.map(e => `User: "${e.user}"\nAssistant: "${e.assistant}"`).join('\n\n') : "No recent conversation history.";
     const memoryContext = !previewMode && memories.length ? memories.map(m => m.content).join('\n') : "No information is stored in long-term memory.";
-    
-    const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, rely on your internal knowledge.\n\nBased on this persona, engage in a conversation with the user.\nKey information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
+    const reminderContext = !previewMode && reminders.length ? reminders.filter(r => r.status === 'pending').map(r => `- ${r.title} (Due: ${r.due_date})`).join('\n') : "No active reminders.";
+
+    const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, rely on your internal knowledge.\n\nBased on this persona, engage in a conversation with the user.\nKey information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nActive reminders:\n${reminderContext}\n\nRecent conversation history (for context):\n${historyContext}`;
 
     return (
         <GeminiLiveProvider 
@@ -413,11 +485,12 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             onTurnComplete={handleTurnComplete}
         >
             <AssistantLayoutContent
-                assistant={assistant} memories={memories} history={history} currentPage={currentPage} isMobileNavOpen={isMobileNavOpen}
+                assistant={assistant} memories={memories} history={history} reminders={reminders} currentPage={currentPage} isMobileNavOpen={isMobileNavOpen}
                 isNavCollapsed={isNavCollapsed} previewMode={previewMode} isCloning={isCloning} conversationMode={conversationMode}
                 chatMessages={chatMessages} isSendingMessage={isSendingMessage} setCurrentPage={setCurrentPage} setIsMobileNavOpen={setIsMobileNavOpen}
                 setIsNavCollapsed={setIsNavCollapsed} handleAddMemory={handleAddMemory} handleUpdateMemory={handleUpdateMemory}
-                handleDeleteMemory={handleDeleteMemory} handleClearHistory={handleClearHistory} handleSettingsChange={handleSettingsChange}
+                handleDeleteMemory={handleDeleteMemory} handleAddReminder={handleAddReminder} handleUpdateReminder={handleUpdateReminder}
+                handleDeleteReminder={handleDeleteReminder} handleCompleteReminder={handleCompleteReminder} handleClearHistory={handleClearHistory} handleSettingsChange={handleSettingsChange}
                 handleCloneAssistant={handleCloneAssistant}
                 handleSwipeToChat={() => { setCurrentPage('conversation'); setConversationMode('chat'); }}
                 handleSwipeToVoice={() => setConversationMode('voice')}

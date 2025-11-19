@@ -28,6 +28,7 @@ export interface Assistant {
   author_name?: string | null;
   orb_hue?: number | null;
   original_assistant_id?: string | null;
+  mcp_server_settings?: MCPServerSettings | null;
 }
 
 export interface MemoryItem {
@@ -59,4 +60,38 @@ export interface AppLog {
   assistant_id?: string;
   event_type: string;
   metadata?: Record<string, any>;
+}
+
+export interface MCPServerConfig {
+  url: string;
+  headers?: Record<string, string>;
+  apiKey?: string;
+}
+
+export interface MCPTool {
+  name: string;
+  description: string;
+  parameters?: Record<string, any>;
+}
+
+export interface MCPServerSettings {
+  enabled: boolean;
+  config: MCPServerConfig;
+  tools: MCPTool[];
+  optimizedToolDescriptions?: string;
+}
+
+export type ReminderStatus = 'pending' | 'completed' | 'cancelled';
+
+export interface Reminder {
+  id: string;
+  user_id: string;
+  assistant_id?: string | null;
+  title: string;
+  description?: string | null;
+  due_date: string;
+  reminder_time?: string | null;
+  status: ReminderStatus;
+  created_at: string;
+  updated_at: string;
 }
