@@ -321,6 +321,14 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                                 toolUsed = 'webSearch';
                                 const query = fc.args?.query;
                                 if (typeof query === 'string' && aiRef.current) {
+                                    // Speak "searching the web now" immediately using Web Speech API
+                                    if ('speechSynthesis' in window) {
+                                        const utterance = new SpeechSynthesisUtterance('Searching the web now');
+                                        utterance.rate = 1.1;
+                                        utterance.pitch = 1.0;
+                                        window.speechSynthesis.speak(utterance);
+                                    }
+
                                     const searchResult = await performSearchAndSummarize(query, aiRef.current);
                                     result = searchResult.summary;
                                     setGroundingSources(searchResult.sources);

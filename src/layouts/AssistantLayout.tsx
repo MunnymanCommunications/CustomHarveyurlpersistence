@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import type { Assistant, HistoryEntry, MemoryItem, Reminder } from '../types.ts';
 import { useLocalStorage } from '../hooks/useLocalStorage.ts';
-import { GoogleGenAI, Chat } from '@google/genai';
+import { GoogleGenAI, Chat, Type, FunctionDeclaration } from '@google/genai';
 
 import { Navigation } from '../components/Navigation.tsx';
 import { Icon } from '../components/Icon.tsx';
@@ -249,11 +249,50 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             });
 
             const textChatSystemInstruction = `You are an AI assistant named ${assistant.name || 'Assistant'}. Your personality traits are: ${(assistant.personality || []).join(', ')}. Your attitude is: ${assistant.attitude || 'Practical'}. Your core instruction is: ${assistant.prompt || 'Be a helpful assistant.'} Current date and time: ${dateTimeString}. Based on this persona, engage in a text-based conversation with the user. Provide thoughtful, complete responses.`;
+
+            // Tool declarations for text chat
+            const addReminderTool: FunctionDeclaration = {
+                name: 'addReminder',
+                description: 'Creates a reminder for the user. Use this when the user asks you to remind them of something, set a reminder, or mentions they need to do something later. You can set reminders with or without a specific date.',
+                parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                        content: {
+                            type: Type.STRING,
+                            description: 'The content of the reminder (what the user wants to be reminded about).'
+                        },
+                        dueDate: {
+                            type: Type.STRING,
+                            description: 'Optional: The date and time when the reminder should trigger (in ISO format, e.g., "2024-01-15T14:30:00"). Leave empty for reminders without a specific time.'
+                        }
+                    },
+                    required: ['content']
+                }
+            };
+
+            const completeReminderTool: FunctionDeclaration = {
+                name: 'completeReminder',
+                description: 'Marks a reminder as completed. Use this when the user confirms they have completed a task you reminded them about, or when they explicitly say they finished something that was in their reminders.',
+                parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                        content: {
+                            type: Type.STRING,
+                            description: 'The content of the reminder to mark as complete. This should match the exact content of an existing reminder.'
+                        }
+                    },
+                    required: ['content']
+                }
+            };
+
             const chatInstance = aiRef.current.chats.create({
                 model: 'gemini-flash-latest',
                 config: {
                     systemInstruction: textChatSystemInstruction,
-                    maxOutputTokens: 2048
+                    maxOutputTokens: 2048,
+                    tools: [{
+                        functionDeclarations: [addReminderTool, completeReminderTool]
+                    }]
                 }
             });
             setChat(chatInstance);
@@ -482,8 +521,59 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         setChatMessages(prev => [...prev, userMessage]);
         try {
             const response = await chat.sendMessage({ message });
-            const modelMessage: ChatMessage = { role: 'model', text: response.text ?? '' };
-            setChatMessages(prev => [...prev, modelMessage]);
+
+            // Check for function calls in response
+            if (response.functionCalls && response.functionCalls.length > 0) {
+                const functionCall = response.functionCalls[0];
+                let functionResult = '';
+
+                if (functionCall.name === 'addReminder') {
+                    try {
+                        const content = functionCall.args?.content;
+                        const dueDate = typeof functionCall.args?.dueDate === 'string' ? functionCall.args.dueDate : null;
+                        if (typeof content === 'string') {
+                            await handleAddReminder(content, dueDate);
+                            functionResult = 'Successfully created reminder.';
+                        } else {
+                            functionResult = 'Failed to create reminder, content was not provided.';
+                        }
+                    } catch (e) {
+                        console.error('Failed to create reminder:', e);
+                        functionResult = 'Failed to create reminder.';
+                    }
+                } else if (functionCall.name === 'completeReminder') {
+                    try {
+                        const content = functionCall.args?.content;
+                        if (typeof content === 'string') {
+                            // Find the reminder by content and complete it
+                            const reminderToComplete = reminders.find(r => r.content === content && !r.is_completed);
+                            if (reminderToComplete) {
+                                await handleCompleteReminder(reminderToComplete.id);
+                                functionResult = 'Successfully marked reminder as complete.';
+                            } else {
+                                functionResult = 'Could not find a matching reminder to complete.';
+                            }
+                        } else {
+                            functionResult = 'Failed to complete reminder, content was not provided.';
+                        }
+                    } catch (e) {
+                        console.error('Failed to complete reminder:', e);
+                        functionResult = 'Failed to complete reminder.';
+                    }
+                }
+
+                // Send the function execution result back as a system message for the model to respond to
+                const finalResponse = await chat.sendMessage({
+                    message: `[System: Function "${functionCall.name}" executed. Result: ${functionResult}]`
+                });
+
+                const modelMessage: ChatMessage = { role: 'model', text: finalResponse.text ?? '' };
+                setChatMessages(prev => [...prev, modelMessage]);
+            } else {
+                // No function calls, just display the text response
+                const modelMessage: ChatMessage = { role: 'model', text: response.text ?? '' };
+                setChatMessages(prev => [...prev, modelMessage]);
+            }
         } catch (e) {
             console.error("Error sending text message:", e);
             setChatMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error." }]);
