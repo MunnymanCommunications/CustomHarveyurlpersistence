@@ -299,12 +299,12 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             }
             setMemories(memoryData as MemoryItem[]);
 
-            // Fetch reminders for this assistant
-            const { data: reminderData, error: reminderError } = await supabase
+            // Fetch ALL reminders for this assistant (both active and completed)
+            const { data: reminderData, error: reminderError} = await supabase
                 .from('reminders')
                 .select('*')
                 .eq('assistant_id', assistantId)
-                .eq('is_completed', false)
+                .order('is_completed', { ascending: true })
                 .order('due_date', { ascending: true, nullsFirst: false });
 
             if (reminderError) {
@@ -409,13 +409,13 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             console.error(error);
             setReminders(original);
         } else {
-            // Refetch to remove completed reminder from active list
+            // Refetch all reminders to update the list
             const supabase = getSupabase();
             const { data: reminderData } = await supabase
                 .from('reminders')
                 .select('*')
                 .eq('assistant_id', assistant?.id)
-                .eq('is_completed', false)
+                .order('is_completed', { ascending: true })
                 .order('due_date', { ascending: true, nullsFirst: false });
 
             if (reminderData) {
@@ -430,6 +430,23 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         setReminders(p => p.filter(r => r.id !== id));
         const { error } = await getSupabase().from('reminders').delete().eq('id', id);
         if (error) { console.error(error); setReminders(original); }
+    };
+
+    const handleCompleteReminderByContent = async (content: string) => {
+        if (previewMode || !assistant) return;
+        // Find the reminder by content (case-insensitive partial match)
+        const reminder = reminders.find(r =>
+            r.content.toLowerCase().includes(content.toLowerCase()) ||
+            content.toLowerCase().includes(r.content.toLowerCase())
+        );
+
+        if (!reminder) {
+            console.log("No matching reminder found for content:", content);
+            return;
+        }
+
+        // Use the existing handleCompleteReminder function
+        await handleCompleteReminder(reminder.id);
     };
 
     const handleSettingsChange = async (newSettings: Assistant) => {
@@ -527,6 +544,8 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             systemInstruction={systemInstruction}
             onSaveToMemory={handleSaveToMemory}
             onTurnComplete={handleTurnComplete}
+            onAddReminder={handleAddReminder}
+            onCompleteReminder={handleCompleteReminderByContent}
             mcpServerSettings={assistant.mcp_server_settings}
         >
             <AssistantLayoutContent

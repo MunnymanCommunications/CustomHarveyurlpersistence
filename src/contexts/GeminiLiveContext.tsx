@@ -44,6 +44,41 @@ const webSearchFunctionDeclaration: FunctionDeclaration = {
     },
 };
 
+const addReminderFunctionDeclaration: FunctionDeclaration = {
+    name: 'addReminder',
+    description: 'Creates a reminder for the user. Use this when the user asks you to remind them of something, set a reminder, or mentions they need to do something later. You can set reminders with or without a specific date.',
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            content: {
+                type: Type.STRING,
+                description: 'What the user wants to be reminded about. Be clear and specific.',
+            },
+            dueDate: {
+                type: Type.STRING,
+                description: 'Optional due date in ISO 8601 format (YYYY-MM-DD). Only include if the user specifies a date. Leave empty for general reminders.',
+            },
+        },
+        required: ['content'],
+    },
+};
+
+const completeReminderFunctionDeclaration: FunctionDeclaration = {
+    name: 'completeReminder',
+    description: 'Marks a reminder as completed. Use this when the user confirms they have completed a task you reminded them about, or when they explicitly say they finished something that was in their reminders.',
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            content: {
+                type: Type.STRING,
+                description: 'The content of the reminder to mark as complete. Should match what the user is referring to.',
+            },
+        },
+        required: ['content'],
+    },
+};
+
+
 export interface GeminiLiveContextType {
   sessionStatus: ConversationStatus;
   startSession: () => Promise<void>;
@@ -64,6 +99,8 @@ interface GeminiLiveProviderProps {
   assistantId: string;
   onSaveToMemory: (info: string) => Promise<void>;
   onTurnComplete: (userTranscript: string, assistantTranscript: string) => void;
+  onAddReminder: (content: string, dueDate: string | null) => Promise<void>;
+  onCompleteReminder: (content: string) => Promise<void>;
   mcpServerSettings?: MCPServerSettings | null;
 }
 
@@ -74,6 +111,8 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
   assistantId,
   onSaveToMemory,
   onTurnComplete,
+  onAddReminder,
+  onCompleteReminder,
   mcpServerSettings,
 }) => {
   const [sessionStatus, setSessionStatus] = useState<ConversationStatus>('IDLE');
@@ -249,6 +288,35 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                                     console.error("Failed to save to memory:", e);
                                     result = "Failed to save to memory.";
                                 }
+                            } else if (fc.name === 'addReminder') {
+                                toolUsed = 'addReminder';
+                                try {
+                                    const content = fc.args?.content;
+                                    const dueDate = fc.args?.dueDate || null;
+                                    if (typeof content === 'string') {
+                                        await onAddReminder(content, dueDate);
+                                        result = "Successfully created reminder.";
+                                    } else {
+                                        result = "Failed to create reminder, content was not provided.";
+                                    }
+                                } catch (e) {
+                                    console.error("Failed to create reminder:", e);
+                                    result = "Failed to create reminder.";
+                                }
+                            } else if (fc.name === 'completeReminder') {
+                                toolUsed = 'completeReminder';
+                                try {
+                                    const content = fc.args?.content;
+                                    if (typeof content === 'string') {
+                                        await onCompleteReminder(content);
+                                        result = "Successfully marked reminder as complete.";
+                                    } else {
+                                        result = "Failed to complete reminder, content was not provided.";
+                                    }
+                                } catch (e) {
+                                    console.error("Failed to complete reminder:", e);
+                                    result = "Failed to complete reminder.";
+                                }
                             } else if (fc.name === 'webSearch') {
                                 toolUsed = 'webSearch';
                                 const query = fc.args?.query;
@@ -366,6 +434,8 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                 tools: [{
                     functionDeclarations: [
                         saveToMemoryFunctionDeclaration,
+                        addReminderFunctionDeclaration,
+                        completeReminderFunctionDeclaration,
                         webSearchFunctionDeclaration,
                         // Add MCP tools if enabled
                         ...(mcpServerSettings?.enabled && mcpServerSettings.tools.length > 0
@@ -387,7 +457,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
           metadata: { error: err.message || 'Failed to start microphone' }
       });
     }
-  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, stopSession, sessionStatus, assistantId, mcpServerSettings]);
+  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, onAddReminder, onCompleteReminder, stopSession, sessionStatus, assistantId, mcpServerSettings]);
 
   useEffect(() => {
     return () => {
