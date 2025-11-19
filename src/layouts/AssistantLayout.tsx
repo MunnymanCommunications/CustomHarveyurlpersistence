@@ -44,7 +44,7 @@ interface AssistantLayoutContentProps {
   handleAddMemory: (content: string) => Promise<void>;
   handleUpdateMemory: (id: number, content: string) => Promise<void>;
   handleDeleteMemory: (id: number) => Promise<void>;
-  handleAddReminder: (title: string, description: string, dueDate: string, reminderTime?: string) => Promise<void>;
+  handleAddReminder: (content: string, dueDate: string | null) => Promise<void>;
   handleUpdateReminder: (id: string, updates: Partial<Reminder>) => Promise<void>;
   handleDeleteReminder: (id: string) => Promise<void>;
   handleCompleteReminder: (id: string) => Promise<void>;
@@ -352,7 +352,27 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             setHistory(prev => [{ user: userTranscript, assistant: assistantTranscript, timestamp: new Date().toISOString() }, ...prev]);
         }
     }, [setHistory, previewMode]);
-    
+
+    const handleVoiceCreateReminder = async (content: string, dueDate: string | null) => {
+        await handleAddReminder(content, dueDate);
+    };
+
+    const handleVoiceListReminders = async (): Promise<string> => {
+        const activeReminders = reminders.filter(r => !r.is_completed);
+        if (activeReminders.length === 0) {
+            return "You don't have any active reminders.";
+        }
+        const reminderList = activeReminders.map((r, i) => {
+            const dueDateStr = r.due_date ? ` due on ${new Date(r.due_date).toLocaleDateString()}` : '';
+            return `${i + 1}. ${r.content}${dueDateStr}`;
+        }).join('\n');
+        return `You have ${activeReminders.length} active reminder${activeReminders.length > 1 ? 's' : ''}:\n${reminderList}`;
+    };
+
+    const handleVoiceCompleteReminder = async (reminderId: string) => {
+        await handleCompleteReminder(reminderId);
+    };
+
     const handleClearHistory = () => {
         if (!previewMode) {
             setHistory([]);
@@ -380,7 +400,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         if (error) { console.error(error); setMemories(original); }
     };
 
-    const handleAddReminder = async (title: string, description: string, dueDate: string, reminderTime?: string) => {
+    const handleAddReminder = async (content: string, dueDate: string | null) => {
         if (previewMode) return;
         const supabase = getSupabase();
         const { data: { user } } = await supabase.auth.getUser();
@@ -390,11 +410,9 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             .insert({
                 user_id: user.id,
                 assistant_id: assistantId,
-                title,
-                description,
+                content,
                 due_date: dueDate,
-                reminder_time: reminderTime,
-                status: 'pending'
+                is_completed: false
             })
             .select()
             .single();
@@ -420,7 +438,10 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
 
     const handleCompleteReminder = async (id: string) => {
         if (previewMode) return;
-        await handleUpdateReminder(id, { status: 'completed' });
+        await handleUpdateReminder(id, {
+            is_completed: true,
+            completed_at: new Date().toISOString()
+        });
     };
 
     const handleSettingsChange = async (newSettings: Assistant) => {
@@ -472,17 +493,20 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     const recentHistory = history.slice(0, 3).reverse();
     const historyContext = !previewMode && recentHistory.length ? recentHistory.map(e => `User: "${e.user}"\nAssistant: "${e.assistant}"`).join('\n\n') : "No recent conversation history.";
     const memoryContext = !previewMode && memories.length ? memories.map(m => m.content).join('\n') : "No information is stored in long-term memory.";
-    const reminderContext = !previewMode && reminders.length ? reminders.filter(r => r.status === 'pending').map(r => `- ${r.title} (Due: ${r.due_date})`).join('\n') : "No active reminders.";
+    const reminderContext = !previewMode && reminders.length ? reminders.filter(r => !r.is_completed).map(r => `- ${r.content}${r.due_date ? ` (Due: ${new Date(r.due_date).toLocaleDateString()})` : ''}`).join('\n') : "No active reminders.";
 
-    const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, rely on your internal knowledge.\n\nBased on this persona, engage in a conversation with the user.\nKey information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nActive reminders:\n${reminderContext}\n\nRecent conversation history (for context):\n${historyContext}`;
+    const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nYou have access to the following tools:\n- 'webSearch': Find current, real-time information. MUST use when user asks about recent events, news, or up-to-date topics.\n- 'saveToMemory': Save information the user explicitly asks to remember.\n- 'createReminder': Create a new reminder for the user when they ask to be reminded about something.\n- 'listReminders': List all active reminders when the user asks what reminders they have.\n- 'completeReminder': Mark a reminder as complete when the user says they finished a task.\n\nBased on this persona, engage in a conversation with the user.\n\nKey information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nActive reminders:\n${reminderContext}\n\nRecent conversation history (for context):\n${historyContext}`;
 
     return (
-        <GeminiLiveProvider 
-            assistantId={assistant.id} 
-            voice={assistant.voice || 'Zephyr'} 
-            systemInstruction={systemInstruction} 
-            onSaveToMemory={handleSaveToMemory} 
+        <GeminiLiveProvider
+            assistantId={assistant.id}
+            voice={assistant.voice || 'Zephyr'}
+            systemInstruction={systemInstruction}
+            onSaveToMemory={handleSaveToMemory}
             onTurnComplete={handleTurnComplete}
+            onCreateReminder={handleVoiceCreateReminder}
+            onListReminders={handleVoiceListReminders}
+            onCompleteReminder={handleVoiceCompleteReminder}
         >
             <AssistantLayoutContent
                 assistant={assistant} memories={memories} history={history} reminders={reminders} currentPage={currentPage} isMobileNavOpen={isMobileNavOpen}

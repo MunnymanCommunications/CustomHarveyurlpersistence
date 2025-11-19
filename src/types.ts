@@ -81,17 +81,13 @@ export interface MCPServerSettings {
   optimizedToolDescriptions?: string;
 }
 
-export type ReminderStatus = 'pending' | 'completed' | 'cancelled';
-
 export interface Reminder {
   id: string;
   user_id: string;
-  assistant_id?: string | null;
-  title: string;
-  description?: string | null;
-  due_date: string;
-  reminder_time?: string | null;
-  status: ReminderStatus;
+  assistant_id: string;
+  content: string;
+  due_date: string | null;
+  is_completed: boolean;
   created_at: string;
-  updated_at: string;
+  completed_at: string | null;
 }
