@@ -333,6 +333,14 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         // Do nothing in public mode
     }, []);
 
+    const handleAddReminder = useCallback(async (_content: string, _dueDate: string | null) => {
+        // Do nothing in public mode - reminders not supported for public assistants
+    }, []);
+
+    const handleCompleteReminder = useCallback(async (_content: string) => {
+        // Do nothing in public mode - reminders not supported for public assistants
+    }, []);
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-screen bg-base-light dark:bg-dark-base-light">
@@ -377,6 +385,8 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 systemInstruction={systemInstruction}
                 onSaveToMemory={handleSaveToMemory}
                 onTurnComplete={handleTurnComplete}
+                onAddReminder={handleAddReminder}
+                onCompleteReminder={handleCompleteReminder}
                 mcpServerSettings={assistant.mcp_server_settings}
              >
                 <PublicAssistantView
