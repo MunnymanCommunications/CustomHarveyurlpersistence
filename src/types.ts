@@ -50,6 +50,7 @@ export interface Profile {
   full_name?: string | null;
   updated_at?: string;
   role: 'user' | 'admin';
+  subscription_tier?: string;
 }
 
 export interface AppLog {
@@ -59,4 +60,39 @@ export interface AppLog {
   assistant_id?: string;
   event_type: string;
   metadata?: Record<string, any>;
+}
+
+export interface SubscriptionTier {
+  id: string;
+  name: string;
+  price_monthly: number;
+  price_annual: number;
+  memory_limit: number | null;
+  assistant_limit: number | null;
+  features: Record<string, any>;
+}
+
+export interface UserSubscription {
+  id: string;
+  user_id: string;
+  tier_id: string;
+  stripe_customer_id?: string;
+  stripe_subscription_id?: string;
+  status: 'active' | 'canceled' | 'past_due' | 'trialing';
+  current_period_start?: string;
+  current_period_end?: string;
+  cancel_at_period_end: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UsageTracking {
+  id: string;
+  user_id: string;
+  memory_count: number;
+  assistant_count: number;
+  first_memory_added_at?: string;
+  shown_first_memory_congrats: boolean;
+  shown_upgrade_prompt: boolean;
+  updated_at: string;
 }

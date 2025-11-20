@@ -22,3 +22,27 @@ export const MEMORY_VAULT_DEFAULTS = {
     orb_hue: 180, // Teal
     is_public: false,
 } as const;
+
+export const HARVEY_DEFAULTS = {
+    name: 'Harvey',
+    avatar: DEFAULT_AVATAR_URL,
+    personality: ['Friendly', 'Helpful', 'Engaging'],
+    attitude: 'Balanced',
+    voice: 'Puck',
+    prompt: `You are Harvey, a friendly and helpful AI assistant. Your primary goal is to assist the user with whatever they need, whether it's answering questions, helping with tasks, or just having a conversation. You have access to the user's memory bank, so you can remember things they've told you. Be conversational, warm, and supportive. When appropriate, you can save important information to the memory bank for future reference.`,
+    description: 'Your main AI assistant. I\'m here to help with anything you need!',
+    orb_hue: 220, // Blue
+    is_public: false,
+} as const;
+
+// Subscription limits
+export const SUBSCRIPTION_LIMITS = {
+    FREE: {
+        MEMORY_LIMIT: 5,
+        ASSISTANT_LIMIT: 1, // Plus Harvey (auto-created) = 2 total
+    },
+    PRO: {
+        MEMORY_LIMIT: null, // Unlimited
+        ASSISTANT_LIMIT: null, // Unlimited
+    },
+} as const;

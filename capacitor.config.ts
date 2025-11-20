@@ -20,9 +20,17 @@ const config: CapacitorConfig = {
     // Suppress incremental rendering for better performance
     suppressesIncrementalRendering: false,
     // Handle links
-    limitsNavigationsToAppBoundDomains: false
+    limitsNavigationsToAppBoundDomains: false,
+    // URL Scheme for iOS Shortcuts and Siri integration
+    // This allows the app to be opened via aiarchitect://voice/{assistant_id}
+    scheme: 'aiarchitect'
   },
   plugins: {
+    // Capacitor App plugin for deep linking
+    App: {
+      // Handle incoming app URLs (for Siri Shortcuts)
+      handleBackButton: true
+    },
     // Enable Safari Web Inspector for debugging
     CapacitorHttp: {
       enabled: true
