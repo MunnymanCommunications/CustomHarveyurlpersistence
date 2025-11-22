@@ -299,12 +299,12 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             }
             setMemories(memoryData as MemoryItem[]);
 
-            // Fetch reminders for this assistant
+            // Fetch ALL reminders for this assistant (both active and completed) so UI can show both tabs
             const { data: reminderData, error: reminderError } = await supabase
                 .from('reminders')
                 .select('*')
                 .eq('assistant_id', assistantId)
-                .eq('is_completed', false)
+                .order('is_completed', { ascending: true })
                 .order('due_date', { ascending: true, nullsFirst: false });
 
             if (reminderError) {
@@ -409,13 +409,13 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             console.error(error);
             setReminders(original);
         } else {
-            // Refetch to remove completed reminder from active list
+            // Refetch all reminders to update the list
             const supabase = getSupabase();
             const { data: reminderData } = await supabase
                 .from('reminders')
                 .select('*')
                 .eq('assistant_id', assistant?.id)
-                .eq('is_completed', false)
+                .order('is_completed', { ascending: true })
                 .order('due_date', { ascending: true, nullsFirst: false });
 
             if (reminderData) {
@@ -430,6 +430,24 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         setReminders(p => p.filter(r => r.id !== id));
         const { error } = await getSupabase().from('reminders').delete().eq('id', id);
         if (error) { console.error(error); setReminders(original); }
+    };
+
+    // Handler for completing reminders by content (fuzzy matching for assistant)
+    const handleCompleteReminderByContent = async (reminderContent: string): Promise<boolean> => {
+        if (previewMode || !assistant) return false;
+
+        // Find a matching reminder (case-insensitive partial match)
+        const contentLower = reminderContent.toLowerCase();
+        const matchingReminder = reminders.find(r =>
+            !r.is_completed &&
+            (r.content.toLowerCase().includes(contentLower) ||
+             contentLower.includes(r.content.toLowerCase()))
+        );
+
+        if (!matchingReminder) return false;
+
+        await handleCompleteReminder(matchingReminder.id);
+        return true;
     };
 
     const handleSettingsChange = async (newSettings: Assistant) => {
@@ -494,7 +512,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         timeZoneName: 'short'
     });
 
-    // Filter reminders to show only relevant ones
+    // Filter reminders to show only relevant ones for the system instruction
     const getActiveReminders = () => {
         if (previewMode || !reminders.length) return [];
 
@@ -502,6 +520,8 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
 
         return reminders.filter(reminder => {
+            // Filter out completed reminders
+            if (reminder.is_completed) return false;
             if (!reminder.due_date) return true; // No date = always show
             const dueDate = new Date(reminder.due_date);
             return dueDate <= threeDaysFromNow; // Show if due within 3 days
@@ -515,10 +535,15 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
                 ? ` (Due: ${new Date(r.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })})`
                 : '';
             return `- ${r.content}${dueDateText}`;
-        }).join('\n')}\n\nWhen appropriate in the conversation, naturally remind the user about these items. Ask if they've completed them yet. If they confirm completion, acknowledge it warmly.`
+        }).join('\n')}\n\nWhen appropriate in the conversation, naturally remind the user about these items. Ask if they've completed them yet. If they confirm completion, USE THE completeReminder TOOL to mark it as done.`
         : '';
 
-    const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nCurrent date and time: ${dateTimeString}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, rely on your internal knowledge.\n\nBased on this persona, engage in a conversation with the user.\n\n${reminderContext ? reminderContext + '\n\n' : ''}Key information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
+    // Add reminder tool instructions to system instruction
+    const reminderToolInstructions = `You have access to reminder tools:
+- 'addReminder': Use this when the user asks you to remind them about something or set a reminder. Extract the content and due date from their request.
+- 'completeReminder': Use this when the user indicates they have completed a task that was set as a reminder. Match the content as closely as possible to mark the correct reminder as done.`;
+
+    const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nCurrent date and time: ${dateTimeString}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, rely on your internal knowledge.\n\n${reminderToolInstructions}\n\nBased on this persona, engage in a conversation with the user.\n\n${reminderContext ? reminderContext + '\n\n' : ''}Key information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
 
     return (
         <GeminiLiveProvider
@@ -527,6 +552,8 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             systemInstruction={systemInstruction}
             onSaveToMemory={handleSaveToMemory}
             onTurnComplete={handleTurnComplete}
+            onAddReminder={handleAddReminder}
+            onCompleteReminder={handleCompleteReminderByContent}
             mcpServerSettings={assistant.mcp_server_settings}
         >
             <AssistantLayoutContent
