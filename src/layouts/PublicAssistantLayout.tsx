@@ -69,7 +69,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
     }, []);
 
     useEffect(() => {
-        const apiKey = process.env.API_KEY;
+        const apiKey = import.meta.env.VITE_API_KEY;
         if (apiKey && apiKey !== 'undefined') {
             setAi(new GoogleGenAI({ apiKey }));
         } else {
@@ -232,6 +232,9 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 systemInstruction={systemInstruction}
                 onSaveToMemory={handleSaveToMemory}
                 onTurnComplete={handleTurnComplete}
+                onCreateReminder={async () => {}}
+                onListReminders={async () => "Reminders are not available in public mode."}
+                onCompleteReminderByContent={async () => "Reminders are not available in public mode."}
              >
                 <PublicAssistantView 
                     assistant={fullAssistant} 

@@ -128,7 +128,7 @@ export default function RemindersPage({ reminders, onAdd, onUpdate, onDelete, on
             onClick={() => setShowForm(!showForm)}
             className="bg-gradient-to-r from-brand-secondary-glow to-brand-tertiary-glow text-on-brand font-bold py-2 px-4 rounded-full flex items-center transition-all duration-300 shadow-lg"
           >
-            <Icon name={showForm ? "x" : "plus"} className="w-5 h-5 mr-1" />
+            <Icon name={showForm ? "close" : "plus"} className="w-5 h-5 mr-1" />
             {showForm ? 'Cancel' : 'New'}
           </button>
         </div>
