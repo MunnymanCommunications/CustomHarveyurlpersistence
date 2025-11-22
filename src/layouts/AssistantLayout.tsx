@@ -369,8 +369,41 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         return `You have ${activeReminders.length} active reminder${activeReminders.length > 1 ? 's' : ''}:\n${reminderList}`;
     };
 
-    const handleVoiceCompleteReminder = async (reminderId: string) => {
-        await handleCompleteReminder(reminderId);
+    const handleVoiceCompleteReminderByContent = async (reminderContent: string): Promise<string> => {
+        // Find the best matching active reminder by content
+        const activeReminders = reminders.filter(r => !r.is_completed);
+        if (activeReminders.length === 0) {
+            return "You don't have any active reminders to complete.";
+        }
+
+        // Find a reminder that matches the content (case-insensitive partial match)
+        const searchTerm = reminderContent.toLowerCase();
+        const matchingReminder = activeReminders.find(r =>
+            r.content.toLowerCase().includes(searchTerm) ||
+            searchTerm.includes(r.content.toLowerCase())
+        );
+
+        if (matchingReminder) {
+            await handleCompleteReminder(matchingReminder.id);
+            return `Marked "${matchingReminder.content}" as complete.`;
+        }
+
+        // If no exact match, try to find the closest match
+        const possibleMatches = activeReminders.filter(r =>
+            r.content.toLowerCase().split(' ').some(word =>
+                searchTerm.includes(word) || word.includes(searchTerm.split(' ')[0])
+            )
+        );
+
+        if (possibleMatches.length === 1) {
+            await handleCompleteReminder(possibleMatches[0].id);
+            return `Marked "${possibleMatches[0].content}" as complete.`;
+        } else if (possibleMatches.length > 1) {
+            const list = possibleMatches.map(r => `- ${r.content}`).join('\n');
+            return `Found multiple matching reminders. Please be more specific:\n${list}`;
+        }
+
+        return `Could not find a reminder matching "${reminderContent}". Your active reminders are:\n${activeReminders.map(r => `- ${r.content}`).join('\n')}`;
     };
 
     const handleClearHistory = () => {
@@ -506,7 +539,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             onTurnComplete={handleTurnComplete}
             onCreateReminder={handleVoiceCreateReminder}
             onListReminders={handleVoiceListReminders}
-            onCompleteReminder={handleVoiceCompleteReminder}
+            onCompleteReminderByContent={handleVoiceCompleteReminderByContent}
         >
             <AssistantLayoutContent
                 assistant={assistant} memories={memories} history={history} reminders={reminders} currentPage={currentPage} isMobileNavOpen={isMobileNavOpen}

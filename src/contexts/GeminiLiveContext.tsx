@@ -73,16 +73,16 @@ const listRemindersFunctionDeclaration: FunctionDeclaration = {
 
 const completeReminderFunctionDeclaration: FunctionDeclaration = {
     name: 'completeReminder',
-    description: 'Marks a reminder as complete. Use when the user says they completed a task or want to mark a reminder as done.',
+    description: 'Marks a reminder as complete. Use when the user says they completed a task or want to mark a reminder as done. Match the reminder by its content/description.',
     parameters: {
         type: Type.OBJECT,
         properties: {
-            reminderId: {
+            reminderContent: {
                 type: Type.STRING,
-                description: 'The ID of the reminder to complete.',
+                description: 'The content or description of the reminder to complete. This will be matched against existing reminders.',
             },
         },
-        required: ['reminderId'],
+        required: ['reminderContent'],
     },
 };
 
@@ -108,7 +108,7 @@ interface GeminiLiveProviderProps {
   onTurnComplete: (userTranscript: string, assistantTranscript: string) => void;
   onCreateReminder: (content: string, dueDate: string | null) => Promise<void>;
   onListReminders: () => Promise<string>;
-  onCompleteReminder: (reminderId: string) => Promise<void>;
+  onCompleteReminderByContent: (reminderContent: string) => Promise<string>;
 }
 
 export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
@@ -120,7 +120,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
   onTurnComplete,
   onCreateReminder,
   onListReminders,
-  onCompleteReminder,
+  onCompleteReminderByContent,
 }) => {
   const [sessionStatus, setSessionStatus] = useState<ConversationStatus>('IDLE');
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -145,7 +145,18 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
 
   const currentInputTranscriptionRef = useRef('');
   const currentOutputTranscriptionRef = useRef('');
-  
+  const isSpeakingRef = useRef(false);
+  const gainNodeRef = useRef<GainNode | null>(null);
+
+  // Keep the ref in sync with state for use in audio processing
+  useEffect(() => {
+    isSpeakingRef.current = isSpeaking;
+    // Mute microphone input when assistant is speaking to prevent echo
+    if (gainNodeRef.current) {
+      gainNodeRef.current.gain.value = isSpeaking ? 0 : 1;
+    }
+  }, [isSpeaking]);
+
   useEffect(() => {
     assistantIdRef.current = assistantId;
   }, [assistantId]);
@@ -171,6 +182,10 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
       scriptProcessorRef.current.disconnect();
       scriptProcessorRef.current = null;
     }
+    if (gainNodeRef.current) {
+      gainNodeRef.current.disconnect();
+      gainNodeRef.current = null;
+    }
     if (mediaStreamSourceRef.current) {
       mediaStreamSourceRef.current.disconnect();
       mediaStreamSourceRef.current = null;
@@ -179,7 +194,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
       microphoneStreamRef.current.getTracks().forEach(track => track.stop());
       microphoneStreamRef.current = null;
     }
-    
+
     if (inputAudioContextRef.current && inputAudioContextRef.current.state !== 'closed') {
       await inputAudioContextRef.current.close();
     }
@@ -232,7 +247,14 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
         outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
         nextStartTimeRef.current = 0;
 
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Request echo cancellation and noise suppression to prevent self-interruption
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+            }
+        });
         microphoneStreamRef.current = stream;
 
         const sessionPromise = aiRef.current.live.connect({
@@ -240,21 +262,32 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
             callbacks: {
                 onopen: () => {
                     setSessionStatus('ACTIVE');
-                    
+
                     const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
                     mediaStreamSourceRef.current = source;
-                    
+
+                    // Create a gain node to mute/unmute microphone when assistant is speaking
+                    const gainNode = inputAudioContextRef.current!.createGain();
+                    gainNode.gain.value = 1; // Start unmuted
+                    gainNodeRef.current = gainNode;
+
                     const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
                     scriptProcessorRef.current = scriptProcessor;
 
                     scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
+                        // Don't send audio when assistant is speaking (additional safety check)
+                        if (isSpeakingRef.current) return;
+
                         const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
                         const pcmBlob = createBlob(inputData);
                         sessionPromise.then((session) => {
                             session.sendRealtimeInput({ media: pcmBlob });
                         });
                     };
-                    source.connect(scriptProcessor);
+
+                    // Chain: source -> gainNode -> scriptProcessor -> destination
+                    source.connect(gainNode);
+                    gainNode.connect(scriptProcessor);
                     scriptProcessor.connect(inputAudioContextRef.current!.destination);
                 },
                 onmessage: async (message: LiveServerMessage) => {
@@ -331,12 +364,11 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                             } else if (fc.name === 'completeReminder') {
                                 toolUsed = 'completeReminder';
                                 try {
-                                    const reminderId = fc.args?.reminderId;
-                                    if (typeof reminderId === 'string') {
-                                        await onCompleteReminder(reminderId);
-                                        result = "Reminder marked as complete.";
+                                    const reminderContent = fc.args?.reminderContent;
+                                    if (typeof reminderContent === 'string') {
+                                        result = await onCompleteReminderByContent(reminderContent);
                                     } else {
-                                        result = "Failed to complete reminder: reminder ID is required.";
+                                        result = "Failed to complete reminder: please specify which reminder to complete.";
                                     }
                                 } catch (e) {
                                     console.error("Failed to complete reminder:", e);
@@ -450,7 +482,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
           metadata: { error: err.message || 'Failed to start microphone', errorName: err.name }
       });
     }
-  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, onCreateReminder, onListReminders, onCompleteReminder, stopSession, sessionStatus, assistantId]);
+  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, onCreateReminder, onListReminders, onCompleteReminderByContent, stopSession, sessionStatus, assistantId]);
 
   useEffect(() => {
     return () => {
