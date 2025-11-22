@@ -44,6 +44,40 @@ const webSearchFunctionDeclaration: FunctionDeclaration = {
     },
 };
 
+const addReminderFunctionDeclaration: FunctionDeclaration = {
+    name: 'addReminder',
+    description: 'Creates a reminder for the user. Use this when the user asks you to remind them about something, set a reminder, or when they mention something they need to do in the future. Examples: "remind me to call mom tomorrow", "set a reminder for my meeting", "I need to remember to buy groceries".',
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            content: {
+                type: Type.STRING,
+                description: 'The reminder content - what the user wants to be reminded about.',
+            },
+            dueDate: {
+                type: Type.STRING,
+                description: 'Optional due date in ISO format (YYYY-MM-DD). Calculate this based on what the user says (e.g., "tomorrow" means the next day, "next week" means 7 days from now).',
+            },
+        },
+        required: ['content'],
+    },
+};
+
+const completeReminderFunctionDeclaration: FunctionDeclaration = {
+    name: 'completeReminder',
+    description: 'Marks a reminder as completed. Use this when the user indicates they have done or completed a task that was set as a reminder. Examples: "I did that", "done", "finished", "completed", "I already did that".',
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            reminderContent: {
+                type: Type.STRING,
+                description: 'The content of the reminder to mark as complete. Match it as closely as possible to the original reminder text.',
+            },
+        },
+        required: ['reminderContent'],
+    },
+};
+
 export interface GeminiLiveContextType {
   sessionStatus: ConversationStatus;
   startSession: () => Promise<void>;
@@ -64,8 +98,23 @@ interface GeminiLiveProviderProps {
   assistantId: string;
   onSaveToMemory: (info: string) => Promise<void>;
   onTurnComplete: (userTranscript: string, assistantTranscript: string) => void;
+  onAddReminder: (content: string, dueDate: string | null) => Promise<void>;
+  onCompleteReminder: (reminderContent: string) => Promise<boolean>;
   mcpServerSettings?: MCPServerSettings | null;
 }
+
+// Helper function to count legible words (at least 2 characters each)
+const countLegibleWords = (text: string): number => {
+  if (!text) return 0;
+  // Split by whitespace and filter for words with at least 2 characters
+  // Also filter out common filler sounds
+  const fillerSounds = ['um', 'uh', 'ah', 'eh', 'oh', 'mm', 'hm', 'hmm'];
+  const words = text.toLowerCase().split(/\s+/).filter(word => {
+    const cleanWord = word.replace(/[^a-zA-Z]/g, '');
+    return cleanWord.length >= 2 && !fillerSounds.includes(cleanWord);
+  });
+  return words.length;
+};
 
 export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
   children,
@@ -74,6 +123,8 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
   assistantId,
   onSaveToMemory,
   onTurnComplete,
+  onAddReminder,
+  onCompleteReminder,
   mcpServerSettings,
 }) => {
   const [sessionStatus, setSessionStatus] = useState<ConversationStatus>('IDLE');
@@ -99,6 +150,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
 
   const currentInputTranscriptionRef = useRef('');
   const currentOutputTranscriptionRef = useRef('');
+  const hasInterruptedCurrentTurnRef = useRef(false);
   
   useEffect(() => {
     assistantIdRef.current = assistantId;
@@ -216,6 +268,20 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                         const newText = message.serverContent.inputTranscription.text;
                         currentInputTranscriptionRef.current += newText;
                         setUserTranscript(currentInputTranscriptionRef.current);
+
+                        // Check if we should allow interruption (2+ legible words threshold)
+                        // Only interrupt if assistant is speaking and we haven't already interrupted
+                        if (isSpeaking && !hasInterruptedCurrentTurnRef.current) {
+                            const wordCount = countLegibleWords(currentInputTranscriptionRef.current);
+                            if (wordCount >= 2) {
+                                // User has said at least 2 legible words, allow interruption
+                                hasInterruptedCurrentTurnRef.current = true;
+                                sourcesRef.current.forEach(source => source.stop());
+                                sourcesRef.current.clear();
+                                setIsSpeaking(false);
+                                nextStartTimeRef.current = 0;
+                            }
+                        }
                     }
                     if (message.serverContent?.outputTranscription) {
                         const newText = message.serverContent.outputTranscription.text;
@@ -226,6 +292,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                         onTurnComplete(currentInputTranscriptionRef.current, currentOutputTranscriptionRef.current);
                         currentInputTranscriptionRef.current = '';
                         currentOutputTranscriptionRef.current = '';
+                        hasInterruptedCurrentTurnRef.current = false; // Reset interrupt flag for next turn
                         // Clear sources after a turn is complete
                         setTimeout(() => setGroundingSources([]), 3000);
                     }
@@ -258,6 +325,39 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                                     setGroundingSources(searchResult.sources);
                                 } else {
                                     result = "Could not perform web search due to an invalid query.";
+                                }
+                            } else if (fc.name === 'addReminder') {
+                                toolUsed = 'addReminder';
+                                try {
+                                    const content = fc.args?.content;
+                                    const dueDate = typeof fc.args?.dueDate === 'string' ? fc.args.dueDate : null;
+                                    if (typeof content === 'string') {
+                                        await onAddReminder(content, dueDate);
+                                        result = `Successfully created reminder: "${content}"${dueDate ? ` for ${dueDate}` : ''}.`;
+                                    } else {
+                                        result = "Failed to create reminder, content was not provided.";
+                                    }
+                                } catch (e) {
+                                    console.error("Failed to add reminder:", e);
+                                    result = "Failed to create reminder.";
+                                }
+                            } else if (fc.name === 'completeReminder') {
+                                toolUsed = 'completeReminder';
+                                try {
+                                    const reminderContent = fc.args?.reminderContent;
+                                    if (typeof reminderContent === 'string') {
+                                        const success = await onCompleteReminder(reminderContent);
+                                        if (success) {
+                                            result = `Great! I've marked the reminder "${reminderContent}" as completed.`;
+                                        } else {
+                                            result = `I couldn't find a matching reminder for "${reminderContent}". It may have already been completed or doesn't exist.`;
+                                        }
+                                    } else {
+                                        result = "Failed to complete reminder, content was not provided.";
+                                    }
+                                } catch (e) {
+                                    console.error("Failed to complete reminder:", e);
+                                    result = "Failed to complete reminder.";
                                 }
                             } else if (mcpServerSettings?.enabled && fc.name && mcpServerSettings.tools.find(t => t.name === fc.name)) {
                                 // Handle MCP tool execution via Gemini Pro sub-agent
@@ -330,10 +430,14 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                     }
                     
                     if (message.serverContent?.interrupted) {
-                       sourcesRef.current.forEach(source => source.stop());
-                       sourcesRef.current.clear();
-                       setIsSpeaking(false);
-                       nextStartTimeRef.current = 0;
+                       // Only allow server-side interrupt if we've already passed the 2-word threshold
+                       // This ensures users can't interrupt with just a single sound/word
+                       if (hasInterruptedCurrentTurnRef.current) {
+                           sourcesRef.current.forEach(source => source.stop());
+                           sourcesRef.current.clear();
+                           setIsSpeaking(false);
+                           nextStartTimeRef.current = 0;
+                       }
                     }
                 },
                 onerror: (e: ErrorEvent) => {
@@ -367,6 +471,8 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                     functionDeclarations: [
                         saveToMemoryFunctionDeclaration,
                         webSearchFunctionDeclaration,
+                        addReminderFunctionDeclaration,
+                        completeReminderFunctionDeclaration,
                         // Add MCP tools if enabled
                         ...(mcpServerSettings?.enabled && mcpServerSettings.tools.length > 0
                             ? convertMCPToolsToFunctionDeclarations(mcpServerSettings.tools)
@@ -387,7 +493,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
           metadata: { error: err.message || 'Failed to start microphone' }
       });
     }
-  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, stopSession, sessionStatus, assistantId, mcpServerSettings]);
+  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, onAddReminder, onCompleteReminder, stopSession, sessionStatus, assistantId, mcpServerSettings, isSpeaking]);
 
   useEffect(() => {
     return () => {

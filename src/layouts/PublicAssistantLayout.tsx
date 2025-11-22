@@ -377,6 +377,8 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 systemInstruction={systemInstruction}
                 onSaveToMemory={handleSaveToMemory}
                 onTurnComplete={handleTurnComplete}
+                onAddReminder={async () => {}} // No-op for public preview
+                onCompleteReminder={async () => false} // No-op for public preview
                 mcpServerSettings={assistant.mcp_server_settings}
              >
                 <PublicAssistantView

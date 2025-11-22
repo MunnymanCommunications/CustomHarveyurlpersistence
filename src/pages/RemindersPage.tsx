@@ -14,6 +14,7 @@ export default function RemindersPage({ reminders, onAdd, onComplete, onDelete }
   const [newReminderDate, setNewReminderDate] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [completingId, setCompletingId] = useState<string | null>(null);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +29,12 @@ export default function RemindersPage({ reminders, onAdd, onComplete, onDelete }
   };
 
   const handleComplete = async (id: string) => {
-    await onComplete(id);
+    setCompletingId(id);
+    try {
+      await onComplete(id);
+    } finally {
+      setCompletingId(null);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -148,9 +154,17 @@ export default function RemindersPage({ reminders, onAdd, onComplete, onDelete }
                   {!reminder.is_completed && (
                     <button
                       onClick={() => handleComplete(reminder.id)}
-                      className="mt-1 flex-shrink-0 w-5 h-5 rounded-full border-2 border-text-secondary dark:border-dark-text-secondary hover:border-brand-secondary-glow transition-colors"
+                      disabled={completingId === reminder.id}
+                      className="mt-0.5 flex-shrink-0 w-6 h-6 rounded-full border-2 border-text-secondary dark:border-dark-text-secondary hover:border-brand-secondary-glow hover:bg-brand-secondary-glow/20 transition-all flex items-center justify-center group disabled:opacity-50"
                       aria-label="Mark as complete"
-                    />
+                      title="Click to mark as complete"
+                    >
+                      {completingId === reminder.id ? (
+                        <div className="w-3 h-3 border-2 border-brand-secondary-glow border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Icon name="check" className="w-3 h-3 text-transparent group-hover:text-brand-secondary-glow transition-colors" />
+                      )}
+                    </button>
                   )}
                   <div className="flex-1 min-w-0">
                     <p
