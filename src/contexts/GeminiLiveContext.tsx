@@ -330,7 +330,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                                 toolUsed = 'addReminder';
                                 try {
                                     const content = fc.args?.content;
-                                    const dueDate = fc.args?.dueDate || null;
+                                    const dueDate = typeof fc.args?.dueDate === 'string' ? fc.args.dueDate : null;
                                     if (typeof content === 'string') {
                                         await onAddReminder(content, dueDate);
                                         result = `Successfully created reminder: "${content}"${dueDate ? ` for ${dueDate}` : ''}.`;
