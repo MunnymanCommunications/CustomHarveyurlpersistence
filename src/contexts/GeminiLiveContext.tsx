@@ -238,18 +238,50 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
         outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
         nextStartTimeRef.current = 0;
 
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // iOS PWA fix: Resume AudioContext if suspended (required for iOS)
+        if (inputAudioContextRef.current.state === 'suspended') {
+            await inputAudioContextRef.current.resume();
+        }
+        if (outputAudioContextRef.current.state === 'suspended') {
+            await outputAudioContextRef.current.resume();
+        }
+
+        // iOS-friendly audio constraints
+        const audioConstraints = {
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+                // Helps with iOS PWA audio capture
+                sampleRate: 16000,
+            }
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
         microphoneStreamRef.current = stream;
+
+        // Verify audio tracks are active
+        const audioTrack = stream.getAudioTracks()[0];
+        if (!audioTrack || !audioTrack.enabled) {
+            throw new Error('Microphone track is not available or enabled');
+        }
+        console.log('Microphone active:', audioTrack.label, 'enabled:', audioTrack.enabled, 'muted:', audioTrack.muted);
 
         const sessionPromise = aiRef.current.live.connect({
             model: 'gemini-2.5-flash-native-audio-preview-09-2025',
             callbacks: {
-                onopen: () => {
+                onopen: async () => {
                     setSessionStatus('ACTIVE');
-                    
+
+                    // iOS PWA fix: Ensure AudioContext is resumed when connection opens
+                    if (inputAudioContextRef.current?.state === 'suspended') {
+                        await inputAudioContextRef.current.resume();
+                        console.log('AudioContext resumed in onopen');
+                    }
+
                     const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
                     mediaStreamSourceRef.current = source;
-                    
+
                     const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
                     scriptProcessorRef.current = scriptProcessor;
 
