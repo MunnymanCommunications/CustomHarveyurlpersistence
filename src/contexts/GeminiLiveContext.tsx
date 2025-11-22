@@ -234,8 +234,21 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
     
     try {
         logEvent('SESSION_START', { assistantId });
-        inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-        outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+
+        // Detect if running as iOS PWA
+        const isIOSPWA = (window.navigator as any).standalone === true;
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+        // For iOS, don't specify sampleRate - let it use native rate
+        // iOS Safari typically uses 48kHz and doesn't support custom sample rates well
+        if (isIOS || isIOSPWA) {
+            inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+            outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+            console.log('iOS detected, using native sample rate:', inputAudioContextRef.current.sampleRate);
+        } else {
+            inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+            outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        }
         nextStartTimeRef.current = 0;
 
         // iOS PWA fix: Resume AudioContext if suspended (required for iOS)
@@ -246,14 +259,12 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
             await outputAudioContextRef.current.resume();
         }
 
-        // iOS-friendly audio constraints
-        const audioConstraints = {
+        // iOS-friendly audio constraints - don't specify sampleRate as iOS doesn't support it
+        const audioConstraints: MediaStreamConstraints = {
             audio: {
                 echoCancellation: true,
                 noiseSuppression: true,
                 autoGainControl: true,
-                // Helps with iOS PWA audio capture
-                sampleRate: 16000,
             }
         };
 
@@ -265,7 +276,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
         if (!audioTrack || !audioTrack.enabled) {
             throw new Error('Microphone track is not available or enabled');
         }
-        console.log('Microphone active:', audioTrack.label, 'enabled:', audioTrack.enabled, 'muted:', audioTrack.muted);
+        console.log('Microphone active:', audioTrack.label, 'enabled:', audioTrack.enabled, 'muted:', audioTrack.muted, 'readyState:', audioTrack.readyState);
 
         const sessionPromise = aiRef.current.live.connect({
             model: 'gemini-2.5-flash-native-audio-preview-09-2025',
@@ -279,14 +290,25 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                         console.log('AudioContext resumed in onopen');
                     }
 
+                    console.log('AudioContext state:', inputAudioContextRef.current?.state, 'sampleRate:', inputAudioContextRef.current?.sampleRate);
+
                     const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
                     mediaStreamSourceRef.current = source;
 
                     const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
                     scriptProcessorRef.current = scriptProcessor;
 
+                    let audioChunkCount = 0;
                     scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
                         const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
+
+                        // Debug: Check if we're getting actual audio data (not silence)
+                        audioChunkCount++;
+                        if (audioChunkCount % 50 === 1) { // Log every ~50 chunks
+                            const maxAmplitude = Math.max(...Array.from(inputData).map(Math.abs));
+                            console.log('Audio chunk', audioChunkCount, 'max amplitude:', maxAmplitude.toFixed(4), 'buffer length:', inputData.length);
+                        }
+
                         const pcmBlob = createBlob(inputData);
                         sessionPromise.then((session) => {
                             session.sendRealtimeInput({ media: pcmBlob });
