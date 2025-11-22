@@ -400,15 +400,19 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
         const original = [...reminders];
         setReminders(p => p.map(r => r.id === id ? { ...r, is_completed: true, completed_at: new Date().toISOString() } : r));
 
-        const { error } = await getSupabase()
+        const { data, error } = await getSupabase()
             .from('reminders')
             .update({ is_completed: true, completed_at: new Date().toISOString() })
-            .eq('id', id);
+            .eq('id', id)
+            .select()
+            .single();
 
         if (error) {
-            console.error(error);
+            console.error("Failed to complete reminder:", error);
+            alert(`Failed to mark reminder as complete: ${error.message}`);
             setReminders(original);
         } else {
+            console.log("Reminder completed successfully:", data);
             // Refetch all reminders to update the list
             const supabase = getSupabase();
             const { data: reminderData } = await supabase
