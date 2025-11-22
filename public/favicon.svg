@@ -1,0 +1,64 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <pattern id="dots" patternUnits="userSpaceOnUse" width="4" height="4">
+      <circle cx="2" cy="2" r="0.75" fill="#a6c1ee"/>
+    </pattern>
+    <linearGradient id="stroke-grad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#87e0f5"/>
+        <stop offset="100%" stop-color="#6a82fb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="128" height="128" fill="#080E24"/>
+
+  <g filter="url(#glow)">
+    <!-- N-shape dotted fill -->
+    <g fill="url(#dots)">
+      <!-- Left Vertical bar -->
+      <polygon points="18,36 30,42 30,86 18,92" />
+      <!-- Right Vertical bar -->
+      <polygon points="98,42 110,36 110,92 98,86" />
+      <!-- Diagonal bar -->
+      <polygon points="24,35 35,24 104,93 93,104" />
+    </g>
+
+    <!-- Corner Circles -->
+    <g stroke="url(#stroke-grad)" stroke-width="2.5" fill="none">
+      <circle cx="24" cy="24" r="12"/>
+      <circle cx="104" cy="24" r="12"/>
+      <circle cx="24" cy="104" r="12"/>
+      <circle cx="104" cy="104" r="12"/>
+    </g>
+
+    <!-- Dots on circles -->
+    <g fill="#87e0f5">
+      <circle cx="24" cy="10" r="1.5"/>
+      <circle cx="10" cy="24" r="1.5"/>
+      <circle cx="38" cy="24" r="1.5"/>
+      <circle cx="24" cy="38" r="1.5"/>
+      
+      <circle cx="104" cy="10" r="1.5"/>
+      <circle cx="90" cy="24" r="1.5"/>
+      <circle cx="118" cy="24" r="1.5"/>
+      <circle cx="104" cy="38" r="1.5"/>
+      
+      <circle cx="24" cy="90" r="1.5"/>
+      <circle cx="10" cy="104" r="1.5"/>
+      <circle cx="38" cy="104" r="1.5"/>
+      <circle cx="24" cy="118" r="1.5"/>
+
+      <circle cx="104" cy="90" r="1.5"/>
+      <circle cx="90" cy="104" r="1.5"/>
+      <circle cx="118" cy="104" r="1.5"/>
+      <circle cx="104" cy="118" r="1.5"/>
+    </g>
+  </g>
+</svg>

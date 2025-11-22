@@ -7,21 +7,22 @@ import {
   Type,
 } from '@google/genai';
 import { createBlob, decode, decodeAudioData } from '../utils/audio.ts';
-import type { ConversationStatus, VoiceOption } from '../types.ts';
+import type { ConversationStatus, VoiceOption, MCPServerSettings } from '../types.ts';
 import { logEvent } from '../lib/logger.ts';
 import { performSearchAndSummarize } from '../agents/webSearchAgent.ts';
+import { executeMCPTool, convertMCPToolsToFunctionDeclarations } from '../agents/mcpToolAgent.ts';
 
 type LiveSession = Awaited<ReturnType<InstanceType<typeof GoogleGenAI>['live']['connect']>>;
 
 const saveToMemoryFunctionDeclaration: FunctionDeclaration = {
   name: 'saveToMemory',
-  description: 'Saves a piece of information that the user explicitly asks to be remembered. Only use this when the user says "remember that", "save this", or a similar direct command.',
+  description: 'Saves important information that the user wants you to remember for future conversations. Use this when the user: (1) explicitly asks you to remember something ("remember that", "save this", "don\'t forget"), (2) mentions preferences, likes/dislikes, or personal information, (3) shares important facts about themselves, their work, or their life, (4) gives you instructions about how they want you to behave or respond, (5) asks you to add something to memory. Always use this proactively to build a better understanding of the user over time.',
   parameters: {
     type: Type.OBJECT,
     properties: {
       info: {
         type: Type.STRING,
-        description: 'The specific piece of information to save.',
+        description: 'The specific piece of information to save. Be concise but complete.',
       },
     },
     required: ['info'],
@@ -63,6 +64,7 @@ interface GeminiLiveProviderProps {
   assistantId: string;
   onSaveToMemory: (info: string) => Promise<void>;
   onTurnComplete: (userTranscript: string, assistantTranscript: string) => void;
+  mcpServerSettings?: MCPServerSettings | null;
 }
 
 export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
@@ -72,6 +74,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
   assistantId,
   onSaveToMemory,
   onTurnComplete,
+  mcpServerSettings,
 }) => {
   const [sessionStatus, setSessionStatus] = useState<ConversationStatus>('IDLE');
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -256,6 +259,32 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                                 } else {
                                     result = "Could not perform web search due to an invalid query.";
                                 }
+                            } else if (mcpServerSettings?.enabled && fc.name && mcpServerSettings.tools.find(t => t.name === fc.name)) {
+                                // Handle MCP tool execution via Gemini Pro sub-agent
+                                toolUsed = fc.name;
+                                if (aiRef.current) {
+                                    const mcpResult = await executeMCPTool(
+                                        fc.name,
+                                        fc.args || {},
+                                        mcpServerSettings.config,
+                                        mcpServerSettings.tools,
+                                        mcpServerSettings.optimizedToolDescriptions,
+                                        aiRef.current
+                                    );
+                                    result = mcpResult.summary;
+
+                                    // Log MCP tool execution
+                                    logEvent('MCP_TOOL_EXECUTED', {
+                                        assistantId,
+                                        metadata: {
+                                            tool: fc.name,
+                                            success: mcpResult.success,
+                                            error: mcpResult.error,
+                                        }
+                                    });
+                                } else {
+                                    result = "Could not execute MCP tool: AI client not initialized.";
+                                }
                             }
 
                            if (toolUsed) {
@@ -334,7 +363,16 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                 systemInstruction: systemInstruction,
                 inputAudioTranscription: {},
                 outputAudioTranscription: {},
-                tools: [{ functionDeclarations: [saveToMemoryFunctionDeclaration, webSearchFunctionDeclaration] }],
+                tools: [{
+                    functionDeclarations: [
+                        saveToMemoryFunctionDeclaration,
+                        webSearchFunctionDeclaration,
+                        // Add MCP tools if enabled
+                        ...(mcpServerSettings?.enabled && mcpServerSettings.tools.length > 0
+                            ? convertMCPToolsToFunctionDeclarations(mcpServerSettings.tools)
+                            : [])
+                    ]
+                }],
             },
         });
         
@@ -349,7 +387,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
           metadata: { error: err.message || 'Failed to start microphone' }
       });
     }
-  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, stopSession, sessionStatus, assistantId]);
+  }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, stopSession, sessionStatus, assistantId, mcpServerSettings]);
 
   useEffect(() => {
     return () => {

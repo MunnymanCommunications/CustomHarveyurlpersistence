@@ -4,7 +4,7 @@ import { ThemeToggle } from './ThemeToggle.tsx';
 import type { ConversationStatus } from '../types.ts';
 import { DEFAULT_AVATAR_URL } from '../constants.ts';
 
-type Page = 'conversation' | 'memory' | 'history' | 'settings';
+type Page = 'conversation' | 'memory' | 'history' | 'settings' | 'reminders';
 
 interface NavigationProps {
   currentPage: Page;
@@ -36,13 +36,13 @@ const NavItem: React.FC<{
         isActive
           ? 'bg-white/80 shadow-sm dark:bg-dark-base-medium'
           : 'text-text-secondary hover:bg-white/70 hover:text-text-primary dark:text-dark-text-secondary dark:hover:bg-dark-base-medium/70 dark:hover:text-dark-text-primary'
-      } ${isCollapsed ? 'justify-center' : ''} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      } ${isCollapsed ? 'md:justify-center' : ''} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       aria-current={isActive ? 'page' : undefined}
     >
       <div className={`p-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-gradient-to-br from-brand-secondary-glow to-brand-tertiary-glow text-on-brand shadow-md' : 'bg-base-light text-text-secondary group-hover:bg-white dark:bg-dark-base-light dark:text-dark-text-secondary dark:group-hover:bg-dark-base-medium'}`}>
         <Icon name={icon} className="w-5 h-5" />
       </div>
-      <span className={`font-semibold whitespace-nowrap pl-4 transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>{label}</span>
+      <span className={`font-semibold whitespace-nowrap pl-4 transition-all duration-300 ${isCollapsed ? 'md:w-0 md:opacity-0' : 'w-auto opacity-100'}`}>{label}</span>
     </button>
   </li>
 );
@@ -70,14 +70,14 @@ export const Navigation: React.FC<NavigationProps> = ({
         className={`fixed inset-0 bg-black/20 z-40 md:hidden transition-opacity ${isMobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
       />
       
-      <nav className={`fixed md:relative top-0 left-0 h-full z-50 bg-gradient-to-b from-white/80 to-white/60 backdrop-blur-xl border-r border-border-color p-4 flex flex-col transition-all duration-300 ease-in-out 
+      <nav className={`fixed md:relative top-0 left-0 h-full z-50 bg-gradient-to-b from-white/80 to-white/60 backdrop-blur-xl border-r border-border-color p-4 flex flex-col transition-all duration-300 ease-in-out
         dark:from-dark-base-medium/80 dark:to-dark-base-medium/60 dark:border-dark-border-color
-        md:translate-x-0 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'} 
-        ${isCollapsed ? 'md:w-24' : 'md:w-72'}`}>
+        md:translate-x-0 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        w-72 ${isCollapsed ? 'md:w-24' : 'md:w-72'}`}>
         
         <header className="flex items-center gap-3 p-2 mb-8 relative">
-          <img src={assistantAvatar || DEFAULT_AVATAR_URL} alt="Assistant Avatar" className={`flex-shrink-0 w-12 h-12 rounded-full object-cover shadow-md transition-transform duration-300 ${isCollapsed ? 'scale-90' : 'scale-100'}`}/>
-          <div className={`flex flex-col overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-full opacity-100'}`}>
+          <img src={assistantAvatar || DEFAULT_AVATAR_URL} alt="Assistant Avatar" className={`flex-shrink-0 w-12 h-12 rounded-full object-cover shadow-md transition-transform duration-300 ${isCollapsed ? 'md:scale-90' : 'scale-100'}`}/>
+          <div className={`flex flex-col overflow-hidden transition-all duration-300 ${isCollapsed ? 'md:w-0 md:opacity-0' : 'w-full opacity-100'}`}>
             <h1 className="text-xl font-bold text-text-primary dark:text-dark-text-primary whitespace-nowrap">{assistantName}</h1>
             <p className="text-sm text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">{previewMode ? 'Community Assistant' : 'Personal Assistant'}</p>
             {isSessionActive && (
@@ -99,11 +99,74 @@ export const Navigation: React.FC<NavigationProps> = ({
         </header>
 
         <ul className="space-y-2 flex-grow">
-            <NavItem icon="dashboard" label="Dashboard" isActive={false} onClick={() => window.location.hash = '#/'} isCollapsed={isCollapsed} />
-            <NavItem icon="chat" label="Conversation" isActive={currentPage === 'conversation'} onClick={() => onNavigate('conversation')} isCollapsed={isCollapsed} />
-            <NavItem icon="brain" label="Memory" isActive={currentPage === 'memory'} onClick={() => onNavigate('memory')} isCollapsed={isCollapsed} disabled={previewMode} />
-            <NavItem icon="history" label="History" isActive={currentPage === 'history'} onClick={() => onNavigate('history')} isCollapsed={isCollapsed} disabled={previewMode} />
-            <NavItem icon="settings" label="Settings" isActive={currentPage === 'settings'} onClick={() => onNavigate('settings')} isCollapsed={isCollapsed} />
+            <NavItem
+              icon="dashboard"
+              label="Dashboard"
+              isActive={false}
+              onClick={() => {
+                window.location.hash = '#/';
+                onMobileClose();
+                if (!isCollapsed) onToggleCollapse();
+              }}
+              isCollapsed={isCollapsed}
+            />
+            <NavItem
+              icon="chat"
+              label="Conversation"
+              isActive={currentPage === 'conversation'}
+              onClick={() => {
+                onNavigate('conversation');
+                onMobileClose();
+              }}
+              isCollapsed={isCollapsed}
+            />
+            <NavItem
+              icon="brain"
+              label="Memory"
+              isActive={currentPage === 'memory'}
+              onClick={() => {
+                onNavigate('memory');
+                onMobileClose();
+                if (!isCollapsed) onToggleCollapse();
+              }}
+              isCollapsed={isCollapsed}
+              disabled={previewMode}
+            />
+            <NavItem
+              icon="history"
+              label="History"
+              isActive={currentPage === 'history'}
+              onClick={() => {
+                onNavigate('history');
+                onMobileClose();
+                if (!isCollapsed) onToggleCollapse();
+              }}
+              isCollapsed={isCollapsed}
+              disabled={previewMode}
+            />
+            <NavItem
+              icon="sparkles"
+              label="Reminders"
+              isActive={currentPage === 'reminders'}
+              onClick={() => {
+                onNavigate('reminders');
+                onMobileClose();
+                if (!isCollapsed) onToggleCollapse();
+              }}
+              isCollapsed={isCollapsed}
+              disabled={previewMode}
+            />
+            <NavItem
+              icon="settings"
+              label="Settings"
+              isActive={currentPage === 'settings'}
+              onClick={() => {
+                onNavigate('settings');
+                onMobileClose();
+                if (!isCollapsed) onToggleCollapse();
+              }}
+              isCollapsed={isCollapsed}
+            />
         </ul>
 
         <div className="pt-4 border-t border-border-color/50 dark:border-dark-border-color/50">
@@ -115,8 +178,8 @@ export const Navigation: React.FC<NavigationProps> = ({
           >
               <Icon name={isCollapsed ? 'chevronRight' : 'chevronLeft'} className="w-5 h-5" />
           </button>
-          <div className={`text-center text-xs text-text-tertiary dark:text-dark-text-tertiary pt-4 transition-all duration-300 overflow-hidden ${isCollapsed ? 'h-0 opacity-0' : 'h-auto opacity-100'}`}>
-              <p>AI Assistant v1.0</p>
+          <div className={`text-center text-xs text-text-tertiary dark:text-dark-text-tertiary pt-4 transition-all duration-300 overflow-hidden ${isCollapsed ? 'md:h-0 md:opacity-0' : 'h-auto opacity-100'}`}>
+              <p>Harvey iO - The Nexus v1.0</p>
               <p>
                 Powered by{' '}
                 <a

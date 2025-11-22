@@ -9,11 +9,11 @@ export const PERSONALITY_TRAITS = PERSONALITY_TRAITS_DEFINITIONS;
 export const ATTITUDE_OPTIONS = ATTITUDE_OPTIONS_DEFINITIONS;
 export const VOICE_SETTINGS = VOICE_SETTINGS_DEFINITIONS;
 
-export const DEFAULT_AVATAR_URL = 'https://i.ibb.co/6r4J5yJ/default-avatar.png';
+export const DEFAULT_AVATAR_URL = 'https://database.harveyio.com/storage/v1/object/public/avatars/Nexus.png';
 
 export const MEMORY_VAULT_DEFAULTS = {
     name: 'Memory Vault',
-    avatar: '/favicon.svg',
+    avatar: 'https://database.harveyio.com/storage/v1/object/public/avatars/Nexus.png',
     personality: ['Analytical', 'Helpful', 'Precise'],
     attitude: 'Practical',
     voice: 'Zephyr',

@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import type { Assistant } from '../types.ts';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Chat } from '@google/genai';
 
 import { Icon } from '../components/Icon.tsx';
+import { AssistantAvatar } from '../components/AssistantAvatar.tsx';
 import ConversationPage from '../pages/ConversationPage.tsx';
+import TextChatPage from '../pages/TextChatPage.tsx';
 import { GeminiLiveProvider } from '../contexts/GeminiLiveContext.tsx';
 import { useGeminiLive } from '../hooks/useGeminiLive.ts';
 
@@ -27,26 +29,78 @@ const getMimeTypeFromUrl = (url: string): string => {
     return 'image/png'; // Default
 };
 
-const PublicAssistantView = ({ assistant, groundingChunks }: { assistant: Assistant, groundingChunks: any[]}) => {
-    const { startSession } = useGeminiLive();
+type ConversationMode = 'voice' | 'chat';
+
+interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+}
+
+const PublicAssistantView = ({
+    assistant,
+    groundingChunks,
+    conversationMode,
+    onSwipeToChat,
+    onSwipeToVoice,
+    chatMessages,
+    isSendingMessage,
+    onSendMessage
+}: {
+    assistant: Assistant,
+    groundingChunks: any[],
+    conversationMode: ConversationMode,
+    onSwipeToChat: () => void,
+    onSwipeToVoice: () => void,
+    chatMessages: ChatMessage[],
+    isSendingMessage: boolean,
+    onSendMessage: (message: string) => Promise<void>
+}) => {
+    const { sessionStatus, startSession, stopSession, isSpeaking } = useGeminiLive();
+
+    const handleAvatarClick = () => {
+        if (conversationMode === 'chat') {
+            onSwipeToVoice();
+            return;
+        }
+        if (sessionStatus === 'IDLE' || sessionStatus === 'ERROR') {
+            startSession();
+        } else {
+            stopSession();
+        }
+    };
+
     return (
         <>
-            <ConversationPage
-                assistant={assistant}
-                memory={[]}
-                onNavigateToMemory={() => {}}
-                groundingSources={groundingChunks}
-                onSwipe={() => {}}
-            />
-            <div className="absolute bottom-16 left-1/2 -translate-x-1/2">
-                <button 
-                    onClick={startSession}
-                    className="bg-gradient-to-r from-brand-secondary-glow to-brand-tertiary-glow text-on-brand font-bold py-3 px-6 rounded-full flex items-center transition-all duration-300 shadow-lg transform hover:scale-105"
-                >
-                    <Icon name="micOn" className="w-6 h-6 mr-2" />
-                    Start Conversation
-                </button>
-            </div>
+            {/* Avatar - Shown in voice mode (centered and elevated) */}
+            {conversationMode === 'voice' && (
+                <div className="absolute z-30 top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%+8rem)]">
+                    <AssistantAvatar
+                        avatarUrl={assistant.avatar}
+                        isSpeaking={isSpeaking}
+                        status={sessionStatus}
+                        onClick={handleAvatarClick}
+                        orbHue={assistant.orb_hue}
+                    />
+                </div>
+            )}
+
+            {conversationMode === 'voice' ? (
+                <ConversationPage
+                    assistant={assistant}
+                    memory={[]}
+                    onNavigateToMemory={() => {}}
+                    groundingSources={groundingChunks}
+                    onToggleChat={onSwipeToChat}
+                />
+            ) : (
+                <TextChatPage
+                    assistant={assistant}
+                    messages={chatMessages}
+                    onSendMessage={onSendMessage}
+                    isSending={isSendingMessage}
+                    onToggleVoice={onSwipeToVoice}
+                />
+            )}
         </>
     );
 };
@@ -58,6 +112,10 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
     const [error, setError] = useState<string | null>(null);
     const [ai, setAi] = useState<GoogleGenAI | null>(null);
     const [groundingChunks, setGroundingChunks] = useState<any[]>([]);
+    const [conversationMode, setConversationMode] = useState<ConversationMode>('voice');
+    const [chat, setChat] = useState<Chat | null>(null);
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+    const [isSendingMessage, setIsSendingMessage] = useState(false);
 
 
     useEffect(() => {
@@ -94,26 +152,54 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
             } else {
                 setAssistant(data as unknown as PublicAssistant);
 
+                // Update document title and meta tags for sharing
+                document.title = `Harvey IO - ${data.name}`;
+
+                // Update Open Graph meta tags
+                let ogTitle = document.querySelector('meta[property="og:title"]');
+                if (ogTitle) ogTitle.setAttribute('content', `Harvey IO - ${data.name}`);
+
+                let ogDescription = document.querySelector('meta[property="og:description"]');
+                if (ogDescription && data.description) {
+                    ogDescription.setAttribute('content', data.description);
+                }
+
+                // Update Twitter meta tags
+                let twitterTitle = document.querySelector('meta[property="twitter:title"]');
+                if (twitterTitle) twitterTitle.setAttribute('content', `Harvey IO - ${data.name}`);
+
+                let twitterDescription = document.querySelector('meta[property="twitter:description"]');
+                if (twitterDescription && data.description) {
+                    twitterDescription.setAttribute('content', data.description);
+                }
+
                 // Dynamically update manifest for PWA
+                const baseUrl = window.location.origin;
                 const avatarUrl = data.avatar || '/favicon.svg';
+                const absoluteAvatarUrl = avatarUrl.startsWith('http') ? avatarUrl : `${baseUrl}${avatarUrl}`;
                 const mimeType = getMimeTypeFromUrl(avatarUrl);
 
+                // Store the current URL for PWA redirect (Safari/iOS strips hash from start_url)
+                const pwaKey = `pwa_public_assistant_${assistantId}`;
+                localStorage.setItem(pwaKey, window.location.href);
+
                 const manifest = {
-                    name: data.name,
+                    name: `Harvey IO - ${data.name}`,
                     short_name: data.name,
-                    start_url: '.',
+                    start_url: `${baseUrl}/?pwa_id=${assistantId}`,
+                    scope: '/',
                     display: 'standalone',
                     background_color: '#111827',
                     theme_color: '#111827',
                     icons: [
-                        { src: avatarUrl, sizes: '192x192', type: mimeType, purpose: 'any' },
-                        { src: avatarUrl, sizes: '512x512', type: mimeType, purpose: 'any' },
+                        { src: absoluteAvatarUrl, sizes: '192x192', type: mimeType, purpose: 'any' },
+                        { src: absoluteAvatarUrl, sizes: '512x512', type: mimeType, purpose: 'any' },
                     ],
                 };
-                
+
                 const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
                 const manifestUrl = URL.createObjectURL(manifestBlob);
-                
+
                 // Remove old and add new manifest link
                 document.querySelector('link[rel="manifest"]')?.remove();
                 const newManifestLink = document.createElement('link');
@@ -134,6 +220,52 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
             fetchPublicAssistant();
         }
     }, [assistantId, ai]);
+
+    // Initialize text chat when ai and assistant are ready
+    useEffect(() => {
+        if (!ai || !assistant) return;
+
+        const now = new Date();
+        const dateTimeString = now.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            timeZoneName: 'short'
+        });
+
+        const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nCurrent date and time: ${dateTimeString}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information. For all other questions, rely on your internal knowledge.\n\nBased on this persona, engage in a conversation with the user.`;
+
+        const newChat = ai.chats.create({
+            model: 'gemini-2.5-flash',
+            config: {
+                systemInstruction,
+                tools: [{ googleSearch: {} }],
+                maxOutputTokens: 2048,
+            },
+        });
+
+        setChat(newChat);
+    }, [ai, assistant]);
+
+    const handleSendMessage = async (message: string) => {
+        if (!chat) return;
+        setIsSendingMessage(true);
+        const userMessage: ChatMessage = { role: 'user', text: message };
+        setChatMessages(prev => [...prev, userMessage]);
+        try {
+            const response = await chat.sendMessage({ message });
+            const modelMessage: ChatMessage = { role: 'model', text: response.text ?? '' };
+            setChatMessages(prev => [...prev, modelMessage]);
+        } catch (e) {
+            console.error("Error sending text message:", e);
+            setChatMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error." }]);
+        } finally {
+            setIsSendingMessage(false);
+        }
+    };
 
     const fetchGrounding = useCallback(async (text: string) => {
         if (!ai || !text.trim()) {
@@ -162,13 +294,26 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         }
     }, [ai]);
 
+    // Get current date and time
+    const now = new Date();
+    const dateTimeString = now.toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short'
+    });
+
     const systemInstruction = assistant ? `
         You are an AI assistant named ${assistant.name || 'Assistant'}.
         Your personality traits are: ${(assistant.personality || []).join(', ')}.
         Your attitude is: ${assistant.attitude || 'Practical'}.
         Your core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}
+        Current date and time: ${dateTimeString}
         You are speaking to a member of the public. You have no memory of past conversations.
-        
+
         A Google Search tool is available to you. You MUST NOT use this tool unless the user explicitly asks you to search for something or requests current, real-time information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, you must rely solely on your internal knowledge and NOT use the search tool.
     ` : '';
 
@@ -190,8 +335,8 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen">
-                <Icon name="loader" className="w-12 h-12 animate-spin text-brand-secondary-glow"/>
+            <div className="flex items-center justify-center h-screen bg-base-light dark:bg-dark-base-light">
+                <img src="/favicon.svg" alt="Loading..." className="w-32 h-32 animate-blink" />
             </div>
         );
     }
@@ -232,10 +377,17 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                 systemInstruction={systemInstruction}
                 onSaveToMemory={handleSaveToMemory}
                 onTurnComplete={handleTurnComplete}
+                mcpServerSettings={assistant.mcp_server_settings}
              >
-                <PublicAssistantView 
-                    assistant={fullAssistant} 
+                <PublicAssistantView
+                    assistant={fullAssistant}
                     groundingChunks={groundingChunks}
+                    conversationMode={conversationMode}
+                    onSwipeToChat={() => setConversationMode('chat')}
+                    onSwipeToVoice={() => setConversationMode('voice')}
+                    chatMessages={chatMessages}
+                    isSendingMessage={isSendingMessage}
+                    onSendMessage={handleSendMessage}
                 />
             </GeminiLiveProvider>
             <a href="#/upgrade" className="absolute bottom-4 text-xs text-text-tertiary dark:text-dark-text-tertiary hover:underline z-10">

@@ -1,5 +1,5 @@
 {
-  "name": "Ai Architect - The Nexus",
+  "name": "Harvey iO - The Nexus",
   "description": "A fully customizable AI voice assistant with a visual avatar, personality traits, knowledge base, and a memory system. It uses low-latency websockets for real-time conversation.",
   "requestFramePermissions": [
     "microphone"
