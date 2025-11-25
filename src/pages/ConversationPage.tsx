@@ -25,7 +25,9 @@ export default function ConversationPage({
     startSession,
     userTranscript,
     assistantTranscript,
-    error
+    error,
+    isSearchingWeb,
+    reminderNotification
   } = useGeminiLive();
 
   const isIdle = sessionStatus === 'IDLE' || sessionStatus === 'ERROR';
@@ -46,7 +48,36 @@ export default function ConversationPage({
             <div className="w-full max-w-2xl mt-8">
                 <TranscriptionDisplay userTranscript={userTranscript} assistantTranscript={assistantTranscript} />
                 <WebResults sources={groundingSources} />
-                 {isIdle && (
+
+                {/* Web Search Indicator */}
+                {isSearchingWeb && (
+                    <div className="mt-4 flex items-center justify-center gap-2 px-4 py-3 rounded-xl glassmorphic border border-brand-secondary-glow/30 animate-pulse">
+                        <div className="w-4 h-4 border-2 border-brand-secondary-glow border-t-transparent rounded-full animate-spin" />
+                        <p className="text-brand-secondary-glow font-medium">Searching the web...</p>
+                    </div>
+                )}
+
+                {/* Reminder Notification */}
+                {reminderNotification && (
+                    <div className="mt-4 animate-[fadeIn_0.3s_ease-in-out]">
+                        <div className="px-4 py-3 rounded-full glassmorphic border border-transparent bg-gradient-to-r from-brand-secondary-glow/20 via-brand-tertiary-glow/20 to-brand-secondary-glow/20 backdrop-blur-xl shadow-lg">
+                            <div className="flex items-center justify-center gap-2">
+                                <Icon
+                                    name={reminderNotification.type === 'created' ? 'plus' : 'check'}
+                                    className="w-4 h-4 text-brand-secondary-glow"
+                                />
+                                <p className="text-text-primary dark:text-dark-text-primary font-medium text-sm">
+                                    {reminderNotification.type === 'created'
+                                        ? `Reminder created: "${reminderNotification.content}"`
+                                        : `Reminder completed: "${reminderNotification.content}"`
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {isIdle && (
                     <button onClick={startSession} className="mt-4 text-text-secondary dark:text-dark-text-secondary animate-pulse">
                         Tap {assistant.name} to start the conversation
                     </button>

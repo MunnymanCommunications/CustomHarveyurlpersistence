@@ -47,6 +47,15 @@ export default function RemindersPage({ reminders, onAdd, onComplete, onDelete }
   const completedReminders = reminders.filter(r => r.is_completed);
   const displayedReminders = showCompleted ? completedReminders : activeReminders;
 
+  // Debug logging
+  console.log('Reminders debug:', {
+    total: reminders.length,
+    active: activeReminders.length,
+    completed: completedReminders.length,
+    showCompleted,
+    displayed: displayedReminders.length
+  });
+
   const formatDueDate = (dateString: string | null) => {
     if (!dateString) return null;
     const date = new Date(dateString);

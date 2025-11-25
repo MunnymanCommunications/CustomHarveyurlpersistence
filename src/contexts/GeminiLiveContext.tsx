@@ -87,6 +87,8 @@ export interface GeminiLiveContextType {
   assistantTranscript: string;
   error: string | null;
   groundingSources: any[];
+  isSearchingWeb: boolean;
+  reminderNotification: { type: 'created' | 'completed', content: string } | null;
 }
 
 export const GeminiLiveContext = createContext<GeminiLiveContextType | undefined>(undefined);
@@ -133,6 +135,8 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
   const [assistantTranscript, setAssistantTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [groundingSources, setGroundingSources] = useState<any[]>([]);
+  const [isSearchingWeb, setIsSearchingWeb] = useState(false);
+  const [reminderNotification, setReminderNotification] = useState<{ type: 'created' | 'completed', content: string } | null>(null);
 
   const sessionRef = useRef<LiveSession | null>(null);
   const aiRef = useRef<GoogleGenAI | null>(null);
@@ -408,9 +412,14 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                                 toolUsed = 'webSearch';
                                 const query = fc.args?.query;
                                 if (typeof query === 'string' && aiRef.current) {
-                                    const searchResult = await performSearchAndSummarize(query, aiRef.current);
-                                    result = searchResult.summary;
-                                    setGroundingSources(searchResult.sources);
+                                    setIsSearchingWeb(true);
+                                    try {
+                                        const searchResult = await performSearchAndSummarize(query, aiRef.current);
+                                        result = searchResult.summary;
+                                        setGroundingSources(searchResult.sources);
+                                    } finally {
+                                        setIsSearchingWeb(false);
+                                    }
                                 } else {
                                     result = "Could not perform web search due to an invalid query.";
                                 }
@@ -422,6 +431,9 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                                     if (typeof content === 'string') {
                                         await onAddReminder(content, dueDate);
                                         result = `Successfully created reminder: "${content}"${dueDate ? ` for ${dueDate}` : ''}.`;
+                                        // Show notification
+                                        setReminderNotification({ type: 'created', content });
+                                        setTimeout(() => setReminderNotification(null), 5000);
                                     } else {
                                         result = "Failed to create reminder, content was not provided.";
                                     }
@@ -437,6 +449,9 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                                         const success = await onCompleteReminder(reminderContent);
                                         if (success) {
                                             result = `Great! I've marked the reminder "${reminderContent}" as completed.`;
+                                            // Show notification
+                                            setReminderNotification({ type: 'completed', content: reminderContent });
+                                            setTimeout(() => setReminderNotification(null), 5000);
                                         } else {
                                             result = `I couldn't find a matching reminder for "${reminderContent}". It may have already been completed or doesn't exist.`;
                                         }
@@ -598,6 +613,8 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
     assistantTranscript,
     error,
     groundingSources,
+    isSearchingWeb,
+    reminderNotification,
   };
 
   return (
