@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import type { Assistant, HistoryEntry, MemoryItem, Reminder } from '../types.ts';
 import { useLocalStorage } from '../hooks/useLocalStorage.ts';
-import { GoogleGenAI, Chat } from '@google/genai';
+import { GoogleGenAI, Chat, FunctionDeclaration, Type } from '@google/genai';
+import { performSearchAndSummarize } from '../agents/webSearchAgent.ts';
 
 import { Navigation } from '../components/Navigation.tsx';
 import { Icon } from '../components/Icon.tsx';
@@ -17,6 +18,80 @@ import TextChatPage from '../pages/TextChatPage.tsx';
 import RemindersPage from '../pages/RemindersPage.tsx';
 import { GeminiLiveProvider } from '../contexts/GeminiLiveContext.tsx';
 import { useGeminiLive } from '../hooks/useGeminiLive.ts';
+
+// Function declarations for text chat tools
+const saveToMemoryFunctionDeclaration: FunctionDeclaration = {
+  name: 'saveToMemory',
+  description: 'Saves a piece of information that the user explicitly asks to be remembered. Only use this when the user says "remember that", "save this", or a similar direct command.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      info: {
+        type: Type.STRING,
+        description: 'The specific piece of information to save.',
+      },
+    },
+    required: ['info'],
+  },
+};
+
+const webSearchFunctionDeclaration: FunctionDeclaration = {
+    name: 'webSearch',
+    description: 'Searches the web for current, real-time information, news, or topics that require up-to-date knowledge.',
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            query: {
+                type: Type.STRING,
+                description: 'The search query to look up on the web.',
+            },
+        },
+        required: ['query'],
+    },
+};
+
+const createReminderFunctionDeclaration: FunctionDeclaration = {
+    name: 'createReminder',
+    description: 'Creates a new reminder for the user. Use when the user asks to be reminded about something or to create a reminder.',
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            content: {
+                type: Type.STRING,
+                description: 'The content or description of what to remind about.',
+            },
+            dueDate: {
+                type: Type.STRING,
+                description: 'Optional due date in ISO format (YYYY-MM-DD). Leave empty if no specific date is mentioned.',
+            },
+        },
+        required: ['content'],
+    },
+};
+
+const listRemindersFunctionDeclaration: FunctionDeclaration = {
+    name: 'listReminders',
+    description: 'Lists all active (not completed) reminders for the user. Use when the user asks what reminders they have or to see their reminder list.',
+    parameters: {
+        type: Type.OBJECT,
+        properties: {},
+    },
+};
+
+const completeReminderFunctionDeclaration: FunctionDeclaration = {
+    name: 'completeReminder',
+    description: 'Marks a reminder as complete. Use when the user says they completed a task or want to mark a reminder as done. Match the reminder by its content/description.',
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            reminderContent: {
+                type: Type.STRING,
+                description: 'The content or description of the reminder to complete. This will be matched against existing reminders.',
+            },
+        },
+        required: ['reminderContent'],
+    },
+};
 
 type Page = 'conversation' | 'memory' | 'history' | 'settings' | 'reminders';
 type ConversationMode = 'voice' | 'chat';
@@ -261,7 +336,20 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             const textChatSystemInstruction = `You are an AI assistant named ${assistant.name || 'Assistant'}. Your personality traits are: ${(assistant.personality || []).join(', ')}. Your attitude is: ${assistant.attitude || 'Practical'}. Your core instruction is: ${assistant.prompt || 'Be a helpful assistant.'} Based on this persona, engage in a text-based conversation with the user. Keep responses concise and conversational.`;
             const chatInstance = aiRef.current.chats.create({
                 model: 'gemini-flash-latest',
-                config: { systemInstruction: textChatSystemInstruction }
+                config: {
+                    systemInstruction: textChatSystemInstruction,
+                    tools: [
+                        {
+                            functionDeclarations: [
+                                saveToMemoryFunctionDeclaration,
+                                webSearchFunctionDeclaration,
+                                createReminderFunctionDeclaration,
+                                listRemindersFunctionDeclaration,
+                                completeReminderFunctionDeclaration,
+                            ]
+                        }
+                    ]
+                }
             });
             setChat(chatInstance);
         }
@@ -504,12 +592,96 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     };
     
     const handleSendMessage = async (message: string) => {
-        if (!chat) return;
+        if (!chat || !aiRef.current) return;
         setIsSendingMessage(true);
         const userMessage: ChatMessage = { role: 'user', text: message };
         setChatMessages(prev => [...prev, userMessage]);
+
         try {
-            const response = await chat.sendMessage({ message });
+            let response = await chat.sendMessage({ message });
+
+            // Handle function calls if present
+            while (response.functionCalls && response.functionCalls.length > 0) {
+                const functionCall = response.functionCalls[0];
+                let functionResult = '';
+
+                if (functionCall.name === 'saveToMemory') {
+                    const info = functionCall.args?.info;
+                    if (typeof info === 'string') {
+                        try {
+                            await handleAddMemory(info);
+                            functionResult = `Saved to memory: "${info}"`;
+                        } catch (e) {
+                            console.error("Failed to save to memory:", e);
+                            functionResult = "Failed to save to memory.";
+                        }
+                    } else {
+                        functionResult = "Failed to save: no information provided.";
+                    }
+                } else if (functionCall.name === 'webSearch') {
+                    const query = functionCall.args?.query;
+                    if (typeof query === 'string') {
+                        try {
+                            const searchResult = await performSearchAndSummarize(query, aiRef.current);
+                            functionResult = searchResult.summary;
+                        } catch (e) {
+                            console.error("Failed to perform web search:", e);
+                            functionResult = "Failed to search the web.";
+                        }
+                    } else {
+                        functionResult = "Could not perform web search due to an invalid query.";
+                    }
+                } else if (functionCall.name === 'createReminder') {
+                    const content = functionCall.args?.content;
+                    const dueDate = typeof functionCall.args?.dueDate === 'string' ? functionCall.args.dueDate : null;
+                    if (typeof content === 'string') {
+                        try {
+                            await handleAddReminder(content, dueDate);
+                            functionResult = `Reminder created successfully${dueDate ? ` with due date ${dueDate}` : ''}.`;
+                        } catch (e) {
+                            console.error("Failed to create reminder:", e);
+                            functionResult = "Failed to create reminder.";
+                        }
+                    } else {
+                        functionResult = "Failed to create reminder: content is required.";
+                    }
+                } else if (functionCall.name === 'listReminders') {
+                    const activeReminders = reminders.filter(r => !r.is_completed);
+                    if (activeReminders.length === 0) {
+                        functionResult = "You don't have any active reminders.";
+                    } else {
+                        functionResult = "Your active reminders:\n" + activeReminders.map((r, i) =>
+                            `${i + 1}. ${r.content}${r.due_date ? ` (Due: ${new Date(r.due_date).toLocaleDateString()})` : ''}`
+                        ).join('\n');
+                    }
+                } else if (functionCall.name === 'completeReminder') {
+                    const reminderContent = functionCall.args?.reminderContent;
+                    if (typeof reminderContent === 'string') {
+                        try {
+                            functionResult = await handleVoiceCompleteReminderByContent(reminderContent);
+                        } catch (e) {
+                            console.error("Failed to complete reminder:", e);
+                            functionResult = "Failed to complete reminder.";
+                        }
+                    } else {
+                        functionResult = "Failed to complete reminder: please specify which reminder to complete.";
+                    }
+                }
+
+                // Send function result back to the model as a part
+                response = await chat.sendMessage({
+                    message: [
+                        {
+                            functionResponse: {
+                                id: functionCall.id,
+                                name: functionCall.name,
+                                response: { result: functionResult }
+                            }
+                        }
+                    ]
+                });
+            }
+
             const modelMessage: ChatMessage = { role: 'model', text: response.text ?? '' };
             setChatMessages(prev => [...prev, modelMessage]);
         } catch (e) {
