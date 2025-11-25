@@ -6,7 +6,7 @@ import {
   FunctionDeclaration,
   Type,
 } from '@google/genai';
-import { createBlob, decode, decodeAudioData } from '../utils/audio.ts';
+import { createBlob, decode, decodeAudioData, unlockAudioContext } from '../utils/audio.ts';
 import type { ConversationStatus, VoiceOption, MCPServerSettings } from '../types.ts';
 import { logEvent } from '../lib/logger.ts';
 import { performSearchAndSummarize } from '../agents/webSearchAgent.ts';
@@ -234,34 +234,122 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
     
     try {
         logEvent('SESSION_START', { assistantId });
-        inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-        outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+
+        // Detect if running as iOS PWA or iOS browser
+        const isIOSPWA = (window.navigator as any).standalone === true;
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const needsIOSHandling = isIOS || isIOSPWA;
+
+        console.log('Platform detection - iOS:', isIOS, 'PWA:', isIOSPWA);
+
+        // For iOS, don't specify sampleRate - let it use native rate (usually 48kHz)
+        // iOS Safari doesn't support custom sample rates well in AudioContext
+        if (needsIOSHandling) {
+            inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+            outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        } else {
+            inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+            outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        }
+
+        // Store the actual sample rate for resampling later
+        const inputSampleRate = inputAudioContextRef.current.sampleRate;
+        console.log('AudioContext created with sample rate:', inputSampleRate);
+
         nextStartTimeRef.current = 0;
 
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Unlock audio context on iOS - this is critical for PWA audio
+        if (needsIOSHandling) {
+            console.log('Unlocking audio context for iOS...');
+            await unlockAudioContext(inputAudioContextRef.current);
+            await unlockAudioContext(outputAudioContextRef.current);
+            console.log('Audio contexts unlocked');
+        } else {
+            // For non-iOS, just resume if suspended
+            if (inputAudioContextRef.current.state === 'suspended') {
+                await inputAudioContextRef.current.resume();
+            }
+            if (outputAudioContextRef.current.state === 'suspended') {
+                await outputAudioContextRef.current.resume();
+            }
+        }
+
+        console.log('AudioContext states - input:', inputAudioContextRef.current.state, 'output:', outputAudioContextRef.current.state);
+
+        // Request microphone access with iOS-compatible constraints
+        const audioConstraints: MediaStreamConstraints = {
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+            }
+        };
+
+        console.log('Requesting microphone access...');
+        const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
         microphoneStreamRef.current = stream;
+        console.log('Microphone access granted');
+
+        // Verify audio tracks are active
+        const audioTrack = stream.getAudioTracks()[0];
+        if (!audioTrack || !audioTrack.enabled) {
+            throw new Error('Microphone track is not available or enabled');
+        }
+        console.log('Microphone track:', audioTrack.label, 'enabled:', audioTrack.enabled, 'muted:', audioTrack.muted, 'readyState:', audioTrack.readyState);
+
+        // Get track settings for debugging
+        const trackSettings = audioTrack.getSettings();
+        console.log('Track settings:', JSON.stringify(trackSettings));
 
         const sessionPromise = aiRef.current.live.connect({
             model: 'gemini-2.5-flash-native-audio-preview-09-2025',
             callbacks: {
-                onopen: () => {
+                onopen: async () => {
                     setSessionStatus('ACTIVE');
-                    
+                    console.log('WebSocket connection opened');
+
+                    // iOS PWA fix: Ensure AudioContext is resumed when connection opens
+                    if (inputAudioContextRef.current?.state === 'suspended') {
+                        await inputAudioContextRef.current.resume();
+                        console.log('AudioContext resumed in onopen');
+                    }
+
+                    const currentSampleRate = inputAudioContextRef.current?.sampleRate || 16000;
+                    console.log('AudioContext state:', inputAudioContextRef.current?.state, 'sampleRate:', currentSampleRate);
+
                     const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
                     mediaStreamSourceRef.current = source;
-                    
-                    const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
+
+                    // Use larger buffer for iOS to ensure stable audio processing
+                    const bufferSize = needsIOSHandling ? 8192 : 4096;
+                    const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(bufferSize, 1, 1);
                     scriptProcessorRef.current = scriptProcessor;
 
+                    let audioChunkCount = 0;
+                    let totalSamplesSent = 0;
                     scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
                         const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
-                        const pcmBlob = createBlob(inputData);
+
+                        // Debug: Check if we're getting actual audio data (not silence)
+                        audioChunkCount++;
+                        if (audioChunkCount % 25 === 1) { // Log more frequently for debugging
+                            const maxAmplitude = Math.max(...Array.from(inputData).map(Math.abs));
+                            const hasAudio = maxAmplitude > 0.001;
+                            console.log(`Audio chunk ${audioChunkCount}: amplitude=${maxAmplitude.toFixed(4)}, hasAudio=${hasAudio}, samples=${inputData.length}, totalSent=${totalSamplesSent}`);
+                        }
+
+                        // Create blob with proper sample rate for resampling
+                        const pcmBlob = createBlob(inputData, currentSampleRate);
+                        totalSamplesSent += inputData.length;
+
                         sessionPromise.then((session) => {
                             session.sendRealtimeInput({ media: pcmBlob });
                         });
                     };
+
                     source.connect(scriptProcessor);
                     scriptProcessor.connect(inputAudioContextRef.current!.destination);
+                    console.log('Audio processing pipeline connected');
                 },
                 onmessage: async (message: LiveServerMessage) => {
                     if (message.serverContent?.inputTranscription) {
