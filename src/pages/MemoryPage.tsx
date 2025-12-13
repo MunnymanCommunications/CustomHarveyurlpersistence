@@ -14,15 +14,23 @@ export default function MemoryPage({ memories, onAdd, onUpdate, onDelete }: Memo
   const [editingMemoryId, setEditingMemoryId] = useState<number | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMemoryContent.trim()) return;
 
     setIsSaving(true);
-    await onAdd(newMemoryContent);
-    setNewMemoryContent('');
-    setIsSaving(false);
+    setError(null);
+    try {
+      await onAdd(newMemoryContent);
+      setNewMemoryContent('');
+    } catch (err) {
+      console.error('Failed to add memory:', err);
+      setError('Failed to add memory. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleEditStart = (memory: MemoryItem) => {
@@ -61,17 +69,22 @@ export default function MemoryPage({ memories, onAdd, onUpdate, onDelete }: Memo
         </p>
       </header>
       
-      <form onSubmit={handleAdd} className="flex-shrink-0 flex items-center gap-2 mb-6">
-        <input
-            type="text"
-            value={newMemoryContent}
-            onChange={(e) => setNewMemoryContent(e.target.value)}
-            placeholder="Add a new memory..."
-            className="flex-grow p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary"
-        />
-        <button type="submit" disabled={isSaving || !newMemoryContent.trim()} className="bg-gradient-to-r from-brand-secondary-glow to-brand-tertiary-glow text-on-brand font-bold py-2 px-4 rounded-full flex items-center transition-all duration-300 shadow-lg disabled:opacity-50">
-            <Icon name="plus" className="w-5 h-5 mr-1" /> Add
-        </button>
+      <form onSubmit={handleAdd} className="flex-shrink-0 mb-6">
+        <div className="flex items-center gap-2">
+          <input
+              type="text"
+              value={newMemoryContent}
+              onChange={(e) => setNewMemoryContent(e.target.value)}
+              placeholder="Add a new memory..."
+              className="flex-grow p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary"
+          />
+          <button type="submit" disabled={isSaving || !newMemoryContent.trim()} className="bg-gradient-to-r from-brand-secondary-glow to-brand-tertiary-glow text-on-brand font-bold py-2 px-4 rounded-full flex items-center transition-all duration-300 shadow-lg disabled:opacity-50">
+              <Icon name="plus" className="w-5 h-5 mr-1" /> {isSaving ? 'Adding...' : 'Add'}
+          </button>
+        </div>
+        {error && (
+          <p className="text-danger text-sm mt-2">{error}</p>
+        )}
       </form>
       
       <div className="flex-grow space-y-2 overflow-y-auto pr-2">

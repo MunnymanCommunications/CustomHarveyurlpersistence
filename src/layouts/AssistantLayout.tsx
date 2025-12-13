@@ -328,19 +328,32 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     }, [assistantId, fetchAssistantData]);
 
     const handleSaveToMemory = async (info: string) => {
-        if (previewMode || !assistant) return;
-        if (memories.some(mem => mem.content === info)) return;
+        if (previewMode || !assistant) {
+            console.warn("Cannot save memory in preview mode");
+            return;
+        }
+        if (memories.some(mem => mem.content === info)) {
+            console.warn("Memory already exists:", info);
+            return;
+        }
         const supabase = getSupabase();
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const assistant_id = assistant.name === 'Memory Vault' ? assistant.id : assistant.id;
+        if (!user) {
+            console.error("User not authenticated - cannot save memory");
+            return;
+        }
+        const assistant_id = assistant.id;
         const { data: newMemory, error: insertError } = await supabase
             .from('memory_items')
             .insert({ assistant_id, user_id: user.id, content: info })
             .select()
             .single();
-        if (insertError) console.error("Error saving to memory:", insertError);
-        else if (newMemory) setMemories(prev => [...prev, newMemory as MemoryItem]);
+        if (insertError) {
+            console.error("Error saving to memory:", insertError);
+            throw insertError; // Propagate error so UI can show feedback
+        } else if (newMemory) {
+            setMemories(prev => [...prev, newMemory as MemoryItem]);
+        }
     };
 
     const handleTurnComplete = useCallback((userTranscript: string, assistantTranscript: string) => {
