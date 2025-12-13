@@ -14,15 +14,26 @@ export default function MemoryPage({ memories, onAdd, onUpdate, onDelete }: Memo
   const [editingMemoryId, setEditingMemoryId] = useState<number | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMemoryContent.trim()) return;
 
     setIsSaving(true);
-    await onAdd(newMemoryContent);
-    setNewMemoryContent('');
-    setIsSaving(false);
+    setError(null);
+    setSuccess(null);
+    try {
+      await onAdd(newMemoryContent);
+      setNewMemoryContent('');
+      setSuccess('Memory added successfully!');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to add memory');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleEditStart = (memory: MemoryItem) => {
@@ -60,7 +71,19 @@ export default function MemoryPage({ memories, onAdd, onUpdate, onDelete }: Memo
           This is the assistant's long-term memory. Add, edit, or remove information to shape its knowledge.
         </p>
       </header>
-      
+
+      {error && (
+        <div className="flex-shrink-0 mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md dark:bg-red-900/30 dark:border-red-700 dark:text-red-300">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="flex-shrink-0 mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-md dark:bg-green-900/30 dark:border-green-700 dark:text-green-300">
+          {success}
+        </div>
+      )}
+
       <form onSubmit={handleAdd} className="flex-shrink-0 flex items-center gap-2 mb-6">
         <input
             type="text"
