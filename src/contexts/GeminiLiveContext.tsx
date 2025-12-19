@@ -15,9 +15,10 @@ import { executeMCPTool, convertMCPToolsToFunctionDeclarations } from '../agents
 type LiveSession = Awaited<ReturnType<InstanceType<typeof GoogleGenAI>['live']['connect']>>;
 
 // Gemini API Model Configuration with Automatic Fallback
+// Both models must support native audio for voice conversations
 // Primary: Uses VITE_API_KEY
-const PRIMARY_MODEL = 'gemini-2.0-flash-exp';
-// Fallback: Uses VITE_FALLBACK_API_KEY (separate API key)
+const PRIMARY_MODEL = 'gemini-2.5-flash-native-audio-preview-09-2025';
+// Fallback: Uses VITE_FALLBACK_API_KEY (separate API key, same model)
 const FALLBACK_MODEL = 'gemini-2.5-flash-native-audio-preview-09-2025';
 
 const saveToMemoryFunctionDeclaration: FunctionDeclaration = {
