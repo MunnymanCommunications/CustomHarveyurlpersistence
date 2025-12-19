@@ -14,10 +14,11 @@ import { executeMCPTool, convertMCPToolsToFunctionDeclarations } from '../agents
 
 type LiveSession = Awaited<ReturnType<InstanceType<typeof GoogleGenAI>['live']['connect']>>;
 
-// Gemini API Model Configuration
-// Primary model for voice conversations. If this fails, manually switch to fallback model below.
-// Supported models: 'gemini-2.0-flash-exp', 'gemini-flash-latest', 'gemini-2.5-flash-native-audio-preview-09-2025'
-const GEMINI_VOICE_MODEL = 'gemini-2.0-flash-exp';
+// Gemini API Model Configuration with Automatic Fallback
+// Primary: Uses VITE_API_KEY
+const PRIMARY_MODEL = 'gemini-2.0-flash-exp';
+// Fallback: Uses VITE_FALLBACK_API_KEY (separate API key)
+const FALLBACK_MODEL = 'gemini-2.5-flash-native-audio-preview-09-2025';
 
 const saveToMemoryFunctionDeclaration: FunctionDeclaration = {
   name: 'saveToMemory',
@@ -141,6 +142,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
 
   const sessionRef = useRef<LiveSession | null>(null);
   const aiRef = useRef<GoogleGenAI | null>(null);
+  const fallbackAiRef = useRef<GoogleGenAI | null>(null);
   const assistantIdRef = useRef(assistantId);
 
   const inputAudioContextRef = useRef<AudioContext | null>(null);
@@ -163,12 +165,24 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
 
   useEffect(() => {
     const apiKey = process.env.API_KEY;
+    const fallbackApiKey = process.env.FALLBACK_API_KEY;
+
     if (!apiKey || apiKey === 'undefined') {
       setError('API key is not configured. Please set VITE_API_KEY in your environment.');
       setSessionStatus('ERROR');
       return;
     }
+
+    // Initialize primary AI client
     aiRef.current = new GoogleGenAI({ apiKey });
+
+    // Initialize fallback AI client if fallback key provided
+    if (fallbackApiKey && fallbackApiKey !== 'undefined') {
+      fallbackAiRef.current = new GoogleGenAI({ apiKey: fallbackApiKey });
+      console.log('✅ Fallback API initialized (separate key)');
+    } else {
+      console.warn('⚠️ No VITE_FALLBACK_API_KEY configured. Fallback disabled.');
+    }
   }, []);
 
   const stopSession = useCallback(async () => {
@@ -306,9 +320,8 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
         const trackSettings = audioTrack.getSettings();
         console.log('Track settings:', JSON.stringify(trackSettings));
 
-        const sessionPromise = aiRef.current.live.connect({
-            model: GEMINI_VOICE_MODEL,
-            callbacks: {
+        // Extract connection configuration for reuse in fallback
+        const connectionCallbacks = {
                 onopen: async () => {
                     setSessionStatus('ACTIVE');
                     console.log('WebSocket connection opened');
@@ -553,8 +566,9 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                    });
                    stopSession();
                 },
-            },
-            config: {
+        };
+
+        const connectionConfig = {
                 responseModalities: [Modality.AUDIO],
                 speechConfig: {
                     voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
@@ -574,10 +588,67 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                             : [])
                     ]
                 }],
-            },
+        };
+
+        // Create primary connection
+        const sessionPromise = aiRef.current.live.connect({
+            model: PRIMARY_MODEL,
+            callbacks: connectionCallbacks,
+            config: connectionConfig,
         });
-        
-        sessionRef.current = await sessionPromise;
+
+        // Attempt to connect with primary model
+        try {
+            console.log(`🔵 Connecting to PRIMARY: ${PRIMARY_MODEL}`);
+            sessionRef.current = await sessionPromise;
+            console.log(`✅ Connected to PRIMARY: ${PRIMARY_MODEL}`);
+        } catch (primaryError: any) {
+            console.error(`❌ PRIMARY model failed: ${primaryError.message}`);
+
+            // Log primary failure
+            await logEvent('API_PRIMARY_FAILED', {
+                assistantId,
+                metadata: {
+                    model: PRIMARY_MODEL,
+                    error: primaryError.message
+                },
+                severity: 'WARNING'
+            });
+
+            // Attempt fallback if available
+            if (fallbackAiRef.current) {
+                console.log(`🟡 Attempting FALLBACK: ${FALLBACK_MODEL}`);
+
+                try {
+                    // Create fallback connection with same config
+                    const fallbackPromise = fallbackAiRef.current.live.connect({
+                        model: FALLBACK_MODEL,
+                        callbacks: connectionCallbacks,
+                        config: connectionConfig,
+                    });
+
+                    sessionRef.current = await fallbackPromise;
+                    console.log(`✅ Connected to FALLBACK: ${FALLBACK_MODEL}`);
+
+                    // Log successful fallback
+                    await logEvent('API_FALLBACK_SUCCESS', {
+                        assistantId,
+                        metadata: {
+                            primaryModel: PRIMARY_MODEL,
+                            fallbackModel: FALLBACK_MODEL,
+                            primaryError: primaryError.message
+                        },
+                        severity: 'WARNING'
+                    });
+                } catch (fallbackError: any) {
+                    console.error(`❌ FALLBACK model also failed: ${fallbackError.message}`);
+                    throw new Error(`Both API models failed. Primary: ${primaryError.message}, Fallback: ${fallbackError.message}`);
+                }
+            } else {
+                // No fallback available, re-throw primary error
+                throw primaryError;
+            }
+        }
 
     } catch (err: any) {
       console.error('Failed to start session:', err);
