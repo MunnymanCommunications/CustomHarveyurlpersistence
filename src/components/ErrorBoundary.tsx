@@ -31,6 +31,7 @@ export class ErrorBoundary extends Component<Props, State> {
         stack: error.stack,
         componentStack: errorInfo.componentStack,
       },
+      severity: 'CRITICAL',
     });
   }
 

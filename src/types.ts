@@ -71,6 +71,37 @@ export interface AppLog {
   assistant_id?: string;
   event_type: string;
   metadata?: Record<string, any>;
+  severity?: 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
+}
+
+export interface UserSession {
+  id: string;
+  user_id: string;
+  assistant_id: string;
+  started_at: string;
+  ended_at?: string | null;
+  duration_seconds?: number | null;
+  session_type: 'voice' | 'chat';
+  error_count: number;
+  created_at: string;
+}
+
+export interface APIHealth {
+  id: string;
+  provider: string;
+  status: 'healthy' | 'degraded' | 'down';
+  last_check: string;
+  response_time_ms?: number | null;
+  error_message?: string | null;
+  created_at: string;
+}
+
+export interface UserWithProfile {
+  user_id: string;
+  email?: string;
+  full_name?: string | null;
+  username?: string | null;
+  role: 'user' | 'admin';
 }
 
 export interface MCPServerConfig {

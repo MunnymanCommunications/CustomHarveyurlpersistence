@@ -15,6 +15,7 @@ export default function DashboardPage() {
   const [mainAssistantId, setMainAssistantId] = useState<string | null>(
     localStorage.getItem('mainAssistantId')
   );
+  const [errorCount, setErrorCount] = useState<number>(0);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -24,8 +25,22 @@ export default function DashboardPage() {
       if (user) {
         // Fetch user's profile
         const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        if (profileData) setProfile(profileData as Profile);
-        
+        if (profileData) {
+          setProfile(profileData as Profile);
+
+          // If admin, fetch error count
+          if (profileData.role === 'admin') {
+            const { count, error: errorCountError } = await supabase
+              .from('app_logs')
+              .select('*', { count: 'exact', head: true })
+              .in('severity', ['ERROR', 'CRITICAL']);
+
+            if (!errorCountError && count !== null) {
+              setErrorCount(count);
+            }
+          }
+        }
+
         // Fetch user's own assistants
         const { data: myData, error: myError } = await supabase
           .from('assistants')
@@ -147,9 +162,14 @@ export default function DashboardPage() {
            <h1 className="text-4xl font-bold text-text-primary dark:text-dark-text-primary">Dashboard</h1>
            <div className="flex items-center gap-4">
                 {profile?.role === 'admin' && (
-                    <a href="#/admin" className="bg-brand-secondary-glow/80 hover:bg-brand-secondary-glow text-on-brand font-bold py-2 px-4 rounded-full flex items-center gap-2 transition-all">
+                    <a href="#/admin" className="bg-brand-secondary-glow/80 hover:bg-brand-secondary-glow text-on-brand font-bold py-2 px-4 rounded-full flex items-center gap-2 transition-all relative">
                         <Icon name="shield" className="w-5 h-5" />
                         Admin Panel
+                        {errorCount > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-danger text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                                {errorCount}
+                            </span>
+                        )}
                     </a>
                 )}
                 <button onClick={handleLogout} className="bg-base-light hover:bg-base-medium text-text-primary font-bold py-2 px-4 rounded-full dark:bg-dark-base-medium dark:hover:bg-dark-border-color dark:text-dark-text-primary">Logout</button>

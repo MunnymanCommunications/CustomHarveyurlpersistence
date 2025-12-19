@@ -10,7 +10,7 @@ import DashboardPage from './pages/DashboardPage.tsx';
 import SettingsPage from './pages/SettingsPage.tsx';
 import AssistantLayout from './layouts/AssistantLayout.tsx';
 import PublicAssistantLayout from './layouts/PublicAssistantLayout.tsx';
-import AdminPage from './pages/AdminPage.tsx';
+import EnhancedAdminPage from './pages/EnhancedAdminPage.tsx';
 import UpgradePage from './pages/UpgradePage.tsx';
 
 const parseHash = () => {
@@ -226,7 +226,7 @@ export default function App() {
         case 'assistant':
             return <AssistantLayout assistantId={route.id!} previewMode={!!route.preview} />;
         case 'admin':
-            return profile?.role === 'admin' ? <AdminPage /> : <DashboardPage />;
+            return profile?.role === 'admin' ? <EnhancedAdminPage /> : <DashboardPage />;
         case 'dashboard':
         default:
             return <DashboardPage />;

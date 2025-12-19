@@ -8,11 +8,16 @@ import {
 } from '@google/genai';
 import { createBlob, decode, decodeAudioData, unlockAudioContext } from '../utils/audio.ts';
 import type { ConversationStatus, VoiceOption, MCPServerSettings } from '../types.ts';
-import { logEvent } from '../lib/logger.ts';
+import { logEvent, startSession as startSessionTracking, endSession as endSessionTracking, incrementSessionErrors } from '../lib/logger.ts';
 import { performSearchAndSummarize } from '../agents/webSearchAgent.ts';
 import { executeMCPTool, convertMCPToolsToFunctionDeclarations } from '../agents/mcpToolAgent.ts';
 
 type LiveSession = Awaited<ReturnType<InstanceType<typeof GoogleGenAI>['live']['connect']>>;
+
+// Gemini API Model Configuration
+// Primary model for voice conversations. If this fails, manually switch to fallback model below.
+// Supported models: 'gemini-2.0-flash-exp', 'gemini-flash-latest', 'gemini-2.5-flash-native-audio-preview-09-2025'
+const GEMINI_VOICE_MODEL = 'gemini-2.0-flash-exp';
 
 const saveToMemoryFunctionDeclaration: FunctionDeclaration = {
   name: 'saveToMemory',
@@ -168,7 +173,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
 
   const stopSession = useCallback(async () => {
     if (sessionRef.current) {
-      logEvent('SESSION_STOP', { assistantId: assistantIdRef.current });
+      await endSessionTracking();
       sessionRef.current.close();
       sessionRef.current = null;
     }
@@ -233,7 +238,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
     }
     
     try {
-        logEvent('SESSION_START', { assistantId });
+        await startSessionTracking(assistantId, 'voice');
 
         // Detect if running as iOS PWA or iOS browser
         const isIOSPWA = (window.navigator as any).standalone === true;
@@ -302,7 +307,7 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
         console.log('Track settings:', JSON.stringify(trackSettings));
 
         const sessionPromise = aiRef.current.live.connect({
-            model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+            model: GEMINI_VOICE_MODEL,
             callbacks: {
                 onopen: async () => {
                     setSessionStatus('ACTIVE');
@@ -532,9 +537,11 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                     console.error('Session error:', e);
                     setError('A connection error occurred.');
                     setSessionStatus('ERROR');
+                    incrementSessionErrors();
                     logEvent('SESSION_ERROR', {
                       assistantId,
-                      metadata: { error: e.message }
+                      metadata: { error: e.message },
+                      severity: 'ERROR'
                     });
                     stopSession();
                 },
@@ -576,9 +583,11 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
       console.error('Failed to start session:', err);
       setError(err.message || 'Failed to start the microphone.');
       setSessionStatus('ERROR');
+      incrementSessionErrors();
       logEvent('SESSION_ERROR', {
           assistantId,
-          metadata: { error: err.message || 'Failed to start microphone' }
+          metadata: { error: err.message || 'Failed to start microphone' },
+          severity: 'ERROR'
       });
     }
   }, [voice, systemInstruction, onSaveToMemory, onTurnComplete, onAddReminder, onCompleteReminder, stopSession, sessionStatus, assistantId, mcpServerSettings, isSpeaking]);
