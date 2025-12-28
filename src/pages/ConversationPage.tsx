@@ -1,4 +1,4 @@
-import { useGeminiLive } from '../hooks/useGeminiLive.ts';
+import { useConversation } from '../hooks/useConversation.ts';
 import type { Assistant } from '../types.ts';
 import { TranscriptionDisplay } from '../components/TranscriptionDisplay.tsx';
 import { MemoryBank } from '../components/MemoryBank.tsx';
@@ -26,7 +26,7 @@ export default function ConversationPage({
     userTranscript,
     assistantTranscript,
     error
-  } = useGeminiLive();
+  } = useConversation();
 
   const isIdle = sessionStatus === 'IDLE' || sessionStatus === 'ERROR';
 

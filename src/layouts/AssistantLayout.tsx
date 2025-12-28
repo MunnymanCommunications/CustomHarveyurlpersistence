@@ -16,7 +16,8 @@ import SettingsDashboardPage from '../pages/SettingsDashboardPage.tsx';
 import TextChatPage from '../pages/TextChatPage.tsx';
 import RemindersPage from '../pages/RemindersPage.tsx';
 import { GeminiLiveProvider } from '../contexts/GeminiLiveContext.tsx';
-import { useGeminiLive } from '../hooks/useGeminiLive.ts';
+import { PrivateServerProvider } from '../contexts/PrivateServerContext.tsx';
+import { useConversation } from '../hooks/useConversation.ts';
 
 type Page = 'conversation' | 'memory' | 'history' | 'settings' | 'reminders';
 type ConversationMode = 'voice' | 'chat';
@@ -84,7 +85,7 @@ const AssistantLayoutContent = ({
   handleCompleteReminder,
   handleDeleteReminder,
 }: AssistantLayoutContentProps) => {
-  const { sessionStatus, stopSession, startSession, isSpeaking, groundingSources } = useGeminiLive();
+  const { sessionStatus, stopSession, startSession, isSpeaking, groundingSources } = useConversation();
 
   const handleAvatarClick = () => {
     if (conversationMode === 'chat') {
@@ -549,6 +550,39 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
 
     const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nCurrent date and time: ${dateTimeString}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). IMPORTANT: Before using the webSearch tool, ALWAYS say "Let me search the web for that" or "Searching the web now" so the user knows you're looking something up. For all other questions, including general knowledge, creative tasks, and persona-based responses, rely on your internal knowledge.\n\n${reminderToolInstructions}\n\nBased on this persona, engage in a conversation with the user.\n\n${reminderContext ? reminderContext + '\n\n' : ''}Key information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
 
+    const layoutContent = (
+        <AssistantLayoutContent
+            assistant={assistant} memories={memories} history={history} reminders={reminders} currentPage={currentPage} isMobileNavOpen={isMobileNavOpen}
+            isNavCollapsed={isNavCollapsed} previewMode={previewMode} isCloning={isCloning} conversationMode={conversationMode}
+            chatMessages={chatMessages} isSendingMessage={isSendingMessage} setCurrentPage={setCurrentPage} setIsMobileNavOpen={setIsMobileNavOpen}
+            setIsNavCollapsed={setIsNavCollapsed} handleAddMemory={handleAddMemory} handleUpdateMemory={handleUpdateMemory}
+            handleDeleteMemory={handleDeleteMemory} handleClearHistory={handleClearHistory} handleSettingsChange={handleSettingsChange}
+            handleCloneAssistant={handleCloneAssistant}
+            handleSwipeToChat={() => { setCurrentPage('conversation'); setConversationMode('chat'); }}
+            handleSwipeToVoice={() => setConversationMode('voice')}
+            handleSendMessage={handleSendMessage}
+            handleAddReminder={handleAddReminder}
+            handleCompleteReminder={handleCompleteReminder}
+            handleDeleteReminder={handleDeleteReminder}
+        />
+    );
+
+    // Conditionally render provider based on server mode
+    const serverMode = assistant.server_mode || 'google';
+
+    if (serverMode === 'private' && assistant.private_server_config) {
+        return (
+            <PrivateServerProvider
+                assistantId={assistant.id}
+                config={assistant.private_server_config}
+                systemInstruction={systemInstruction}
+                onTurnComplete={handleTurnComplete}
+            >
+                {layoutContent}
+            </PrivateServerProvider>
+        );
+    }
+
     return (
         <GeminiLiveProvider
             assistantId={assistant.id}
@@ -560,20 +594,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
             onCompleteReminder={handleCompleteReminderByContent}
             mcpServerSettings={assistant.mcp_server_settings}
         >
-            <AssistantLayoutContent
-                assistant={assistant} memories={memories} history={history} reminders={reminders} currentPage={currentPage} isMobileNavOpen={isMobileNavOpen}
-                isNavCollapsed={isNavCollapsed} previewMode={previewMode} isCloning={isCloning} conversationMode={conversationMode}
-                chatMessages={chatMessages} isSendingMessage={isSendingMessage} setCurrentPage={setCurrentPage} setIsMobileNavOpen={setIsMobileNavOpen}
-                setIsNavCollapsed={setIsNavCollapsed} handleAddMemory={handleAddMemory} handleUpdateMemory={handleUpdateMemory}
-                handleDeleteMemory={handleDeleteMemory} handleClearHistory={handleClearHistory} handleSettingsChange={handleSettingsChange}
-                handleCloneAssistant={handleCloneAssistant}
-                handleSwipeToChat={() => { setCurrentPage('conversation'); setConversationMode('chat'); }}
-                handleSwipeToVoice={() => setConversationMode('voice')}
-                handleSendMessage={handleSendMessage}
-                handleAddReminder={handleAddReminder}
-                handleCompleteReminder={handleCompleteReminder}
-                handleDeleteReminder={handleDeleteReminder}
-            />
+            {layoutContent}
         </GeminiLiveProvider>
     );
 }

@@ -29,6 +29,8 @@ export interface Assistant {
   orb_hue?: number | null;
   original_assistant_id?: string | null;
   mcp_server_settings?: MCPServerSettings | null;
+  server_mode?: ServerMode | null;
+  private_server_config?: PrivateServerConfig | null;
 }
 
 export interface MemoryItem {
@@ -90,4 +92,11 @@ export interface MCPServerSettings {
   config: MCPServerConfig;
   tools: MCPTool[];
   optimizedToolDescriptions?: string;
+}
+
+export type ServerMode = 'google' | 'private';
+
+export interface PrivateServerConfig {
+  websocketUrl: string;
+  apiKey: string;
 }

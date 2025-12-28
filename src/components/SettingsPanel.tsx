@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Assistant, PersonalityTrait, MCPServerSettings } from '../types.ts';
+import type { Assistant, PersonalityTrait, MCPServerSettings, ServerMode } from '../types.ts';
 import { AvatarUploader } from './AvatarUploader.tsx';
 import { SelectionButton } from './SelectionButton.tsx';
 import { MCPServerSettingsComponent } from './MCPServerSettings.tsx';
@@ -176,6 +176,87 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 </div>
             </div>
         </div>
+      </div>
+
+      {/* Server Mode */}
+      <div>
+        <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">Server Mode</h3>
+        <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-1">
+          Choose between Google's audio-to-audio service or your private server.
+        </p>
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          <SelectionButton
+            onClick={() => onSettingsChange({
+              server_mode: 'google',
+              private_server_config: null
+            })}
+            isActive={!settings.server_mode || settings.server_mode === 'google'}
+            disabled={disabled}
+            size="md"
+          >
+            Google Server
+          </SelectionButton>
+          <SelectionButton
+            onClick={() => onSettingsChange({
+              server_mode: 'private',
+              private_server_config: settings.private_server_config || {
+                websocketUrl: 'wss://64a048fc37b9.ngrok-free.app/ws/audio',
+                apiKey: 'MB8w2x1hGPRBVhZdnRvqJuBxnADUQjFc7GsqXEnJJ8w'
+              }
+            })}
+            isActive={settings.server_mode === 'private'}
+            disabled={disabled}
+            size="md"
+          >
+            Private Server
+          </SelectionButton>
+        </div>
+
+        {/* Private Server Configuration */}
+        {settings.server_mode === 'private' && (
+          <div className="mt-4 p-4 border border-border-color rounded-md bg-white/50 dark:bg-dark-base-light dark:border-dark-border-color">
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="websocket-url" className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-1">
+                  WebSocket URL
+                </label>
+                <input
+                  id="websocket-url"
+                  type="text"
+                  value={settings.private_server_config?.websocketUrl || ''}
+                  onChange={e => onSettingsChange({
+                    private_server_config: {
+                      ...settings.private_server_config!,
+                      websocketUrl: e.target.value
+                    }
+                  })}
+                  className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition dark:bg-dark-base-medium dark:border-dark-border-color dark:text-dark-text-primary"
+                  placeholder="wss://example.com/ws/audio"
+                  disabled={disabled}
+                />
+              </div>
+              <div>
+                <label htmlFor="api-key" className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-1">
+                  API Key
+                </label>
+                <input
+                  id="api-key"
+                  type="password"
+                  value={settings.private_server_config?.apiKey || ''}
+                  onChange={e => onSettingsChange({
+                    private_server_config: {
+                      ...settings.private_server_config!,
+                      apiKey: e.target.value
+                    }
+                  })}
+                  className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition dark:bg-dark-base-medium dark:border-dark-border-color dark:text-dark-text-primary"
+                  placeholder="Your API key"
+                  disabled={disabled}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Knowledge & Prompt */}
