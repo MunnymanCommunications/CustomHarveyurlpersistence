@@ -52,10 +52,10 @@ export const PrivateServerProvider: React.FC<PrivateServerProviderProps> = ({
   children,
   systemInstruction,
   assistantId,
-  onSaveToMemory,
+  onSaveToMemory: _onSaveToMemory,
   onTurnComplete,
-  onAddReminder,
-  onCompleteReminder,
+  onAddReminder: _onAddReminder,
+  onCompleteReminder: _onCompleteReminder,
   serverUrl = 'ws://localhost:8765/ws/audio',
   apiKey = 'MB8w2x1hGPRBVhZdnRvqJuBxnADUQjFc7GsqXEnJJ8w',
 }) => {
