@@ -1,6 +1,6 @@
 import React, { ReactNode, useMemo } from 'react';
 import { GeminiLiveProvider, GeminiLiveContext, GeminiLiveContextType } from './GeminiLiveContext.tsx';
-import { PrivateServerProvider, PrivateServerContext, PrivateServerContextType } from './PrivateServerContext.tsx';
+import { PrivateServerProvider, PrivateServerContext } from './PrivateServerContext.tsx';
 import type { VoiceOption, MCPServerSettings } from '../types.ts';
 
 // Storage key for AI provider preference

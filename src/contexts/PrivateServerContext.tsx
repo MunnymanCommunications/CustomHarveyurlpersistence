@@ -20,10 +20,10 @@ interface PrivateServerProviderProps {
   children: ReactNode;
   systemInstruction: string;
   assistantId: string;
-  onSaveToMemory: (info: string) => Promise<void>;
+  onSaveToMemory?: (info: string) => Promise<void>;
   onTurnComplete: (userTranscript: string, assistantTranscript: string) => void;
-  onAddReminder: (content: string, dueDate: string | null) => Promise<void>;
-  onCompleteReminder: (reminderContent: string) => Promise<boolean>;
+  onAddReminder?: (content: string, dueDate: string | null) => Promise<void>;
+  onCompleteReminder?: (reminderContent: string) => Promise<boolean>;
   serverUrl?: string;
   apiKey?: string;
 }
@@ -90,7 +90,10 @@ export const PrivateServerProvider: React.FC<PrivateServerProviderProps> = ({
 
   const stopSession = useCallback(async () => {
     if (wsRef.current) {
-      logEvent('SESSION_STOP', { assistantId: assistantIdRef.current, provider: 'private_server' });
+      logEvent('SESSION_STOP', {
+        assistantId: assistantIdRef.current,
+        metadata: { provider: 'private_server' }
+      });
       wsRef.current.close();
       wsRef.current = null;
     }
@@ -150,7 +153,10 @@ export const PrivateServerProvider: React.FC<PrivateServerProviderProps> = ({
     }
 
     try {
-        logEvent('SESSION_START', { assistantId, provider: 'private_server' });
+        logEvent('SESSION_START', {
+          assistantId,
+          metadata: { provider: 'private_server' }
+        });
 
         // Detect if running as iOS PWA or iOS browser
         const isIOSPWA = (window.navigator as any).standalone === true;
