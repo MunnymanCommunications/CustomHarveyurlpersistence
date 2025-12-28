@@ -7,8 +7,8 @@ import { Icon } from '../components/Icon.tsx';
 import { AssistantAvatar } from '../components/AssistantAvatar.tsx';
 import ConversationPage from '../pages/ConversationPage.tsx';
 import TextChatPage from '../pages/TextChatPage.tsx';
-import { GeminiLiveProvider } from '../contexts/GeminiLiveContext.tsx';
-import { useGeminiLive } from '../hooks/useGeminiLive.ts';
+import { AIConversationProvider } from '../contexts/AIConversationContext.tsx';
+import { useAIConversation } from '../hooks/useAIConversation.ts';
 
 // A stripped-down version of the Assistant type for public view
 type PublicAssistant = Omit<Assistant, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'knowledge_base' | 'original_assistant_id'>;
@@ -55,7 +55,7 @@ const PublicAssistantView = ({
     isSendingMessage: boolean,
     onSendMessage: (message: string) => Promise<void>
 }) => {
-    const { sessionStatus, startSession, stopSession, isSpeaking } = useGeminiLive();
+    const { sessionStatus, startSession, stopSession, isSpeaking } = useAIConversation();
 
     const handleAvatarClick = () => {
         if (conversationMode === 'chat') {
@@ -371,7 +371,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
 
     return (
         <div className="h-screen w-screen flex items-center justify-center relative">
-             <GeminiLiveProvider
+             <AIConversationProvider
                 assistantId={assistantId}
                 voice={assistant.voice || 'Zephyr'}
                 systemInstruction={systemInstruction}
@@ -391,7 +391,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
                     isSendingMessage={isSendingMessage}
                     onSendMessage={handleSendMessage}
                 />
-            </GeminiLiveProvider>
+            </AIConversationProvider>
             <a href="#/upgrade" className="absolute bottom-4 text-xs text-text-tertiary dark:text-dark-text-tertiary hover:underline z-10">
                 Upgrade to create your own AI
             </a>

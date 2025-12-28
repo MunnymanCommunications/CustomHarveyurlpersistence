@@ -15,8 +15,8 @@ import HistoryPage from '../pages/HistoryPage.tsx';
 import SettingsDashboardPage from '../pages/SettingsDashboardPage.tsx';
 import TextChatPage from '../pages/TextChatPage.tsx';
 import RemindersPage from '../pages/RemindersPage.tsx';
-import { GeminiLiveProvider } from '../contexts/GeminiLiveContext.tsx';
-import { useGeminiLive } from '../hooks/useGeminiLive.ts';
+import { AIConversationProvider } from '../contexts/AIConversationContext.tsx';
+import { useAIConversation } from '../hooks/useAIConversation.ts';
 
 type Page = 'conversation' | 'memory' | 'history' | 'settings' | 'reminders';
 type ConversationMode = 'voice' | 'chat';
@@ -84,7 +84,7 @@ const AssistantLayoutContent = ({
   handleCompleteReminder,
   handleDeleteReminder,
 }: AssistantLayoutContentProps) => {
-  const { sessionStatus, stopSession, startSession, isSpeaking, groundingSources } = useGeminiLive();
+  const { sessionStatus, stopSession, startSession, isSpeaking, groundingSources } = useAIConversation();
 
   const handleAvatarClick = () => {
     if (conversationMode === 'chat') {
@@ -550,7 +550,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nCurrent date and time: ${dateTimeString}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). IMPORTANT: Before using the webSearch tool, ALWAYS say "Let me search the web for that" or "Searching the web now" so the user knows you're looking something up. For all other questions, including general knowledge, creative tasks, and persona-based responses, rely on your internal knowledge.\n\n${reminderToolInstructions}\n\nBased on this persona, engage in a conversation with the user.\n\n${reminderContext ? reminderContext + '\n\n' : ''}Key information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
 
     return (
-        <GeminiLiveProvider
+        <AIConversationProvider
             assistantId={assistant.id}
             voice={assistant.voice || 'Zephyr'}
             systemInstruction={systemInstruction}
@@ -574,6 +574,6 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
                 handleCompleteReminder={handleCompleteReminder}
                 handleDeleteReminder={handleDeleteReminder}
             />
-        </GeminiLiveProvider>
+        </AIConversationProvider>
     );
 }

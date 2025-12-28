@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Assistant, PersonalityTrait, MCPServerSettings } from '../types.ts';
 import { AvatarUploader } from './AvatarUploader.tsx';
 import { SelectionButton } from './SelectionButton.tsx';
@@ -8,6 +8,15 @@ import {
   ATTITUDE_OPTIONS,
   VOICE_SETTINGS,
 } from '../constants.ts';
+import {
+  getAIProvider,
+  setAIProvider,
+  getPrivateServerUrl,
+  setPrivateServerUrl,
+  getPrivateServerApiKey,
+  setPrivateServerApiKey,
+  type AIProvider,
+} from '../contexts/AIConversationContext.tsx';
 
 interface SettingsPanelProps {
   settings: Partial<Assistant>;
@@ -24,12 +33,40 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   disabled,
   showKnowledgeBase = false,
 }) => {
+  // AI Provider state (independent of assistant settings)
+  const [aiProvider, setAiProviderState] = useState<AIProvider>(getAIProvider());
+  const [privateServerUrl, setPrivateServerUrlState] = useState(getPrivateServerUrl());
+  const [privateServerApiKey, setPrivateServerApiKeyState] = useState(getPrivateServerApiKey());
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+
+  // Listen for provider changes from other components
+  useEffect(() => {
+    const handleProviderChange = (event: CustomEvent) => {
+      setAiProviderState(event.detail);
+    };
+    window.addEventListener('ai-provider-changed', handleProviderChange as EventListener);
+    return () => {
+      window.removeEventListener('ai-provider-changed', handleProviderChange as EventListener);
+    };
+  }, []);
+
   const handlePersonalityToggle = (trait: PersonalityTrait) => {
     const currentTraits = settings.personality || [];
     const newTraits = currentTraits.includes(trait)
       ? currentTraits.filter(t => t !== trait)
       : [...currentTraits, trait];
     onSettingsChange({ personality: newTraits });
+  };
+
+  const handleProviderChange = (provider: AIProvider) => {
+    setAiProviderState(provider);
+    setAIProvider(provider);
+  };
+
+  const handleSavePrivateServerSettings = () => {
+    setPrivateServerUrl(privateServerUrl);
+    setPrivateServerApiKey(privateServerApiKey);
+    alert('Private server settings saved! Please restart your conversation for changes to take effect.');
   };
 
   return (
@@ -175,6 +212,104 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     <div className="w-10 h-10 rounded-full border border-border-color dark:border-dark-border-color" style={{ backgroundColor: `hsl(${settings.orb_hue || 0}, 70%, 60%)` }}></div>
                 </div>
             </div>
+        </div>
+      </div>
+
+      {/* AI Provider */}
+      <div>
+        <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">AI Provider</h3>
+        <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-1">
+          Choose between Google Gemini or your private AI server for processing conversations.
+        </p>
+        <div className="mt-4 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <SelectionButton
+              onClick={() => handleProviderChange('google')}
+              isActive={aiProvider === 'google'}
+              disabled={disabled}
+              size="md"
+            >
+              <div className="flex flex-col items-center">
+                <span className="font-semibold">Google Gemini</span>
+                <span className="text-xs opacity-75">Default</span>
+              </div>
+            </SelectionButton>
+            <SelectionButton
+              onClick={() => handleProviderChange('private')}
+              isActive={aiProvider === 'private'}
+              disabled={disabled}
+              size="md"
+            >
+              <div className="flex flex-col items-center">
+                <span className="font-semibold">Private Server</span>
+                <span className="text-xs opacity-75">Self-hosted</span>
+              </div>
+            </SelectionButton>
+          </div>
+
+          {aiProvider === 'private' && (
+            <div className="bg-base-light dark:bg-dark-base-medium p-4 rounded-lg border border-border-color dark:border-dark-border-color">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-text-primary dark:text-dark-text-primary">Private Server Configuration</h4>
+                <button
+                  onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                  className="text-xs text-brand-primary hover:text-brand-secondary-glow transition"
+                >
+                  {showAdvancedSettings ? 'Hide' : 'Show'} Advanced
+                </button>
+              </div>
+
+              {showAdvancedSettings && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-1">
+                      Server WebSocket URL
+                    </label>
+                    <input
+                      type="text"
+                      value={privateServerUrl}
+                      onChange={(e) => setPrivateServerUrlState(e.target.value)}
+                      className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary text-sm"
+                      placeholder="ws://localhost:8765/ws/audio"
+                      disabled={disabled}
+                    />
+                    <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-1">
+                      Use ws:// for local or wss:// for secure connections (e.g., ngrok)
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary dark:text-dark-text-primary mb-1">
+                      API Key
+                    </label>
+                    <input
+                      type="password"
+                      value={privateServerApiKey}
+                      onChange={(e) => setPrivateServerApiKeyState(e.target.value)}
+                      className="w-full p-2 border border-border-color rounded-md bg-white/70 focus:ring-2 focus:ring-brand-secondary-glow focus:border-transparent transition dark:bg-dark-base-light dark:border-dark-border-color dark:text-dark-text-primary text-sm"
+                      placeholder="Your private server API key"
+                      disabled={disabled}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleSavePrivateServerSettings}
+                    className="w-full px-4 py-2 bg-brand-primary hover:bg-brand-secondary-glow text-white rounded-md transition text-sm font-medium"
+                    disabled={disabled}
+                  >
+                    Save Private Server Settings
+                  </button>
+                </div>
+              )}
+
+              <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                <p className="text-xs text-blue-800 dark:text-blue-200">
+                  <strong>Note:</strong> Private server uses Whisper STT, Gemma 3 12B LLM, and Edge TTS.
+                  {!showAdvancedSettings && ' Click "Show Advanced" to configure server settings.'}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
