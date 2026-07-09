@@ -1,5 +1,6 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { Type } from '@google/genai';
 import type { MCPServerConfig, MCPTool } from '../types.ts';
+import { getSupabase } from '../lib/supabaseClient.ts';
 
 /**
  * MCP Tool Agent using Gemini Pro
@@ -17,8 +18,7 @@ interface MCPToolExecutionResult {
  * Optimizes tool descriptions using Gemini Pro to make them more agent-friendly
  */
 export async function optimizeToolDescriptions(
-  tools: MCPTool[],
-  aiClient: GoogleGenAI
+  tools: MCPTool[]
 ): Promise<string> {
   const toolsJson = JSON.stringify(tools, null, 2);
   const prompt = `You are Harvey, an AI assistant optimizer. Your task is to analyze and rewrite tool descriptions to make them clearer and easier for AI agents to understand and execute.
@@ -35,12 +35,13 @@ Please rewrite these tool descriptions following these principles:
 
 Return the optimized descriptions in a clear, structured format that an AI agent can easily parse and understand.`;
 
-  const result = await aiClient.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
+  const supabase = getSupabase();
+  const { data, error } = await supabase.functions.invoke('gemini-generate', {
+    body: { action: 'generate', model: 'gemini-2.5-flash', contents: prompt },
   });
 
-  return result.text ?? '';
+  if (error) throw error;
+  return data?.text ?? '';
 }
 
 /**
@@ -51,8 +52,7 @@ export async function executeMCPTool(
   toolArgs: Record<string, any>,
   config: MCPServerConfig,
   tools: MCPTool[],
-  optimizedDescriptions: string | undefined,
-  aiClient: GoogleGenAI
+  optimizedDescriptions: string | undefined
 ): Promise<MCPToolExecutionResult> {
   try {
     // Find the tool definition
@@ -109,12 +109,13 @@ Please provide a clear, concise summary of this result that the main assistant c
 
 Keep the summary conversational and user-friendly.`;
 
-    const summaryResult = await aiClient.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: summaryPrompt,
+    const supabase = getSupabase();
+    const { data: summaryData, error: summaryError } = await supabase.functions.invoke('gemini-generate', {
+      body: { action: 'generate', model: 'gemini-2.5-flash', contents: summaryPrompt },
     });
 
-    const summary = summaryResult.text ?? '';
+    if (summaryError) throw summaryError;
+    const summary = summaryData?.text ?? '';
 
     return {
       success: true,

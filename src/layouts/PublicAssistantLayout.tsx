@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import type { Assistant } from '../types.ts';
-import { GoogleGenAI, Chat } from '@google/genai';
+import { CREATOR_ATTRIBUTION } from '../lib/creatorAttribution.ts';
 
 import { Icon } from '../components/Icon.tsx';
 import { AssistantAvatar } from '../components/AssistantAvatar.tsx';
@@ -110,10 +110,10 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
     const [assistant, setAssistant] = useState<PublicAssistant | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [ai, setAi] = useState<GoogleGenAI | null>(null);
     const [groundingChunks, setGroundingChunks] = useState<any[]>([]);
     const [conversationMode, setConversationMode] = useState<ConversationMode>('voice');
-    const [chat, setChat] = useState<Chat | null>(null);
+    const [chatReady, setChatReady] = useState(false);
+    const textChatSystemInstructionRef = useRef<string>('');
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [isSendingMessage, setIsSendingMessage] = useState(false);
 
@@ -126,15 +126,6 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         };
     }, []);
 
-    useEffect(() => {
-        const apiKey = process.env.API_KEY;
-        if (apiKey && apiKey !== 'undefined') {
-            setAi(new GoogleGenAI({ apiKey }));
-        } else {
-            setError("This service is currently unavailable due to a configuration issue.");
-            setLoading(false);
-        }
-    }, []);
 
     useEffect(() => {
         const fetchPublicAssistant = async () => {
@@ -216,14 +207,12 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
             setLoading(false);
         };
 
-        if (ai) {
-            fetchPublicAssistant();
-        }
-    }, [assistantId, ai]);
+        fetchPublicAssistant();
+    }, [assistantId]);
 
-    // Initialize text chat when ai and assistant are ready
+    // Prepare the text chat system instruction once the assistant is loaded
     useEffect(() => {
-        if (!ai || !assistant) return;
+        if (!assistant) return;
 
         const now = new Date();
         const dateTimeString = now.toLocaleString('en-US', {
@@ -236,28 +225,31 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
             timeZoneName: 'short'
         });
 
-        const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nCurrent date and time: ${dateTimeString}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information. For all other questions, rely on your internal knowledge.\n\nBased on this persona, engage in a conversation with the user.`;
-
-        const newChat = ai.chats.create({
-            model: 'gemini-2.5-flash',
-            config: {
-                systemInstruction,
-                tools: [{ googleSearch: {} }],
-                maxOutputTokens: 2048,
-            },
-        });
-
-        setChat(newChat);
-    }, [ai, assistant]);
+        textChatSystemInstructionRef.current = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nCurrent date and time: ${dateTimeString}\n\n${CREATOR_ATTRIBUTION}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information. For all other questions, rely on your internal knowledge.\n\nBased on this persona, engage in a conversation with the user.`;
+        setChatReady(true);
+    }, [assistant]);
 
     const handleSendMessage = async (message: string) => {
-        if (!chat) return;
+        if (!chatReady) return;
         setIsSendingMessage(true);
+        const historyForRequest = chatMessages.map(m => ({ role: m.role, text: m.text }));
         const userMessage: ChatMessage = { role: 'user', text: message };
         setChatMessages(prev => [...prev, userMessage]);
         try {
-            const response = await chat.sendMessage({ message });
-            const modelMessage: ChatMessage = { role: 'model', text: response.text ?? '' };
+            const supabase = getSupabase();
+            const { data, error: invokeError } = await supabase.functions.invoke('gemini-generate', {
+                body: {
+                    action: 'chat',
+                    model: 'gemini-2.5-flash',
+                    systemInstruction: textChatSystemInstructionRef.current,
+                    history: historyForRequest,
+                    message,
+                    maxOutputTokens: 2048,
+                    useSearch: true,
+                },
+            });
+            if (invokeError) throw invokeError;
+            const modelMessage: ChatMessage = { role: 'model', text: data?.text ?? '' };
             setChatMessages(prev => [...prev, modelMessage]);
         } catch (e) {
             console.error("Error sending text message:", e);
@@ -268,7 +260,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
     };
 
     const fetchGrounding = useCallback(async (text: string) => {
-        if (!ai || !text.trim()) {
+        if (!text.trim()) {
             setGroundingChunks([]);
             return;
         }
@@ -276,15 +268,13 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         setError(null); // Clear previous errors
 
         try {
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: text,
-                config: {
-                    tools: [{ googleSearch: {} }],
-                },
+            const supabase = getSupabase();
+            const { data, error: invokeError } = await supabase.functions.invoke('gemini-generate', {
+                body: { action: 'websearch', query: text },
             });
-            const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.filter(c => c.web);
-            if (chunks && chunks.length > 0) {
+            if (invokeError) throw invokeError;
+            const chunks = data?.groundingChunks ?? [];
+            if (chunks.length > 0) {
                 setGroundingChunks(chunks);
             }
         } catch (e) {
@@ -292,7 +282,7 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
             setGroundingChunks([]);
             setError("Sorry, I couldn't get results from the web right now.");
         }
-    }, [ai]);
+    }, []);
 
     // Get current date and time
     const now = new Date();
@@ -313,6 +303,8 @@ export default function PublicAssistantLayout({ assistantId }: { assistantId: st
         Your core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}
         Current date and time: ${dateTimeString}
         You are speaking to a member of the public. You have no memory of past conversations.
+
+        ${CREATOR_ATTRIBUTION}
 
         A Google Search tool is available to you. You MUST NOT use this tool unless the user explicitly asks you to search for something or requests current, real-time information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). For all other questions, including general knowledge, creative tasks, and persona-based responses, you must rely solely on your internal knowledge and NOT use the search tool.
     ` : '';

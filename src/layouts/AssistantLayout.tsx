@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '../lib/supabaseClient.ts';
 import type { Assistant, HistoryEntry, MemoryItem, Reminder } from '../types.ts';
 import { useLocalStorage } from '../hooks/useLocalStorage.ts';
-import { GoogleGenAI, Chat } from '@google/genai';
+import { CREATOR_ATTRIBUTION } from '../lib/creatorAttribution.ts';
 
 import { Navigation } from '../components/Navigation.tsx';
 import { Icon } from '../components/Icon.tsx';
@@ -212,10 +212,10 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
     const [isNavCollapsed, setIsNavCollapsed] = useLocalStorage('is_nav_collapsed', false);
 
-    const aiRef = useRef<GoogleGenAI | null>(null);
+    const textChatSystemInstructionRef = useRef<string>('');
 
     const [conversationMode, setConversationMode] = useState<ConversationMode>('voice');
-    const [chat, setChat] = useState<Chat | null>(null);
+    const [chatReady, setChatReady] = useState(false);
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [isSendingMessage, setIsSendingMessage] = useState(false);
     const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -227,15 +227,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     }, [previewMode]);
 
     useEffect(() => {
-        const apiKey = process.env.API_KEY;
-        if (apiKey && apiKey !== 'undefined') {
-            const ai = new GoogleGenAI({ apiKey });
-            aiRef.current = ai;
-        }
-    }, []);
-    
-    useEffect(() => {
-        if (assistant && aiRef.current) {
+        if (assistant) {
             // Get current date and time for text chat
             const now = new Date();
             const dateTimeString = now.toLocaleString('en-US', {
@@ -248,15 +240,8 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
                 timeZoneName: 'short'
             });
 
-            const textChatSystemInstruction = `You are an AI assistant named ${assistant.name || 'Assistant'}. Your personality traits are: ${(assistant.personality || []).join(', ')}. Your attitude is: ${assistant.attitude || 'Practical'}. Your core instruction is: ${assistant.prompt || 'Be a helpful assistant.'} Current date and time: ${dateTimeString}. Based on this persona, engage in a text-based conversation with the user. Provide thoughtful, complete responses.`;
-            const chatInstance = aiRef.current.chats.create({
-                model: 'gemini-flash-latest',
-                config: {
-                    systemInstruction: textChatSystemInstruction,
-                    maxOutputTokens: 2048
-                }
-            });
-            setChat(chatInstance);
+            textChatSystemInstructionRef.current = `You are an AI assistant named ${assistant.name || 'Assistant'}. Your personality traits are: ${(assistant.personality || []).join(', ')}. Your attitude is: ${assistant.attitude || 'Practical'}. Your core instruction is: ${assistant.prompt || 'Be a helpful assistant.'} Current date and time: ${dateTimeString}. ${CREATOR_ATTRIBUTION} Based on this persona, engage in a text-based conversation with the user. Provide thoughtful, complete responses.`;
+            setChatReady(true);
         }
     }, [assistant]);
 
@@ -481,13 +466,25 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
     };
     
     const handleSendMessage = async (message: string) => {
-        if (!chat) return;
+        if (!chatReady) return;
         setIsSendingMessage(true);
+        const historyForRequest = chatMessages.map(m => ({ role: m.role, text: m.text }));
         const userMessage: ChatMessage = { role: 'user', text: message };
         setChatMessages(prev => [...prev, userMessage]);
         try {
-            const response = await chat.sendMessage({ message });
-            const modelMessage: ChatMessage = { role: 'model', text: response.text ?? '' };
+            const supabase = getSupabase();
+            const { data, error: invokeError } = await supabase.functions.invoke('gemini-generate', {
+                body: {
+                    action: 'chat',
+                    model: 'gemini-flash-latest',
+                    systemInstruction: textChatSystemInstructionRef.current,
+                    history: historyForRequest,
+                    message,
+                    maxOutputTokens: 2048,
+                },
+            });
+            if (invokeError) throw invokeError;
+            const modelMessage: ChatMessage = { role: 'model', text: data?.text ?? '' };
             setChatMessages(prev => [...prev, modelMessage]);
         } catch (e) {
             console.error("Error sending text message:", e);
@@ -547,7 +544,7 @@ export default function AssistantLayout({ assistantId, previewMode }: AssistantL
 - 'addReminder': Use this when the user asks you to remind them about something or set a reminder. Extract the content and due date from their request.
 - 'completeReminder': Use this when the user indicates they have completed a task that was set as a reminder. Match the content as closely as possible to mark the correct reminder as done.`;
 
-    const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nCurrent date and time: ${dateTimeString}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). IMPORTANT: Before using the webSearch tool, ALWAYS say "Let me search the web for that" or "Searching the web now" so the user knows you're looking something up. For all other questions, including general knowledge, creative tasks, and persona-based responses, rely on your internal knowledge.\n\n${reminderToolInstructions}\n\nBased on this persona, engage in a conversation with the user.\n\n${reminderContext ? reminderContext + '\n\n' : ''}Key information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
+    const systemInstruction = `You are an AI assistant named ${assistant.name}.\nYour personality traits are: ${(assistant.personality || []).join(', ')}.\nYour attitude is: ${assistant.attitude || 'Practical'}.\nYour core instruction is: ${assistant.prompt || 'Be a helpful assistant.'}\n\nCurrent date and time: ${dateTimeString}\n\n${CREATOR_ATTRIBUTION}\n\nYou have access to a tool called 'webSearch' which can find current, real-time information. You MUST use this tool when the user asks about recent events, news, or any topic that requires up-to-date information (e.g., "what's the latest news?", "search for...", "how is the weather today?"). IMPORTANT: Before using the webSearch tool, ALWAYS say "Let me search the web for that" or "Searching the web now" so the user knows you're looking something up. For all other questions, including general knowledge, creative tasks, and persona-based responses, rely on your internal knowledge.\n\n${reminderToolInstructions}\n\nBased on this persona, engage in a conversation with the user.\n\n${reminderContext ? reminderContext + '\n\n' : ''}Key information about the user to remember and draw upon (long-term memory):\n${memoryContext}\n\nRecent conversation history (for context):\n${historyContext}`;
 
     return (
         <GeminiLiveProvider

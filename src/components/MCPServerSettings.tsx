@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import type { MCPServerSettings, MCPTool } from '../types.ts';
-import { GoogleGenAI } from '@google/genai';
 import { optimizeToolDescriptions } from '../agents/mcpToolAgent.ts';
 import { Icon } from './Icon.tsx';
 
@@ -142,12 +141,6 @@ export const MCPServerSettingsComponent: React.FC<MCPServerSettingsProps> = ({
   };
 
   const handleOptimize = async () => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey || apiKey === 'undefined') {
-      setOptimizeError('API key is not configured. Cannot optimize tool descriptions.');
-      return;
-    }
-
     if (currentSettings.tools.length === 0) {
       setOptimizeError('Please add at least one tool before optimizing.');
       return;
@@ -163,8 +156,7 @@ export const MCPServerSettingsComponent: React.FC<MCPServerSettingsProps> = ({
     setIsOptimizing(true);
     setOptimizeError(null);
     try {
-      const aiClient = new GoogleGenAI({ apiKey });
-      const optimized = await optimizeToolDescriptions(currentSettings.tools, aiClient);
+      const optimized = await optimizeToolDescriptions(currentSettings.tools);
 
       onSettingsChange({
         ...currentSettings,
@@ -173,7 +165,7 @@ export const MCPServerSettingsComponent: React.FC<MCPServerSettingsProps> = ({
     } catch (error) {
       console.error('Failed to optimize tool descriptions:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setOptimizeError(`Failed to optimize: ${errorMessage}. Please check your API key and try again.`);
+      setOptimizeError(`Failed to optimize: ${errorMessage}. Please try again.`);
     } finally {
       setIsOptimizing(false);
     }

@@ -15,6 +15,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1KI-I4mq4XrTMU109ZoO_x-
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env.local` (these are public identifiers, safe for the client bundle)
+3. Deploy the Supabase Edge Functions in `supabase/functions/` and set the `GEMINI_API_KEY` secret on your Supabase project (`supabase secrets set GEMINI_API_KEY=...`) - this key must NOT be set as a `VITE_`-prefixed variable, since anything prefixed `VITE_` is bundled into the client-side JS and exposed to every visitor.
+4. Run the app:
    `npm run dev`

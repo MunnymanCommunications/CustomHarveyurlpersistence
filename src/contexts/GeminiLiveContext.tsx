@@ -11,6 +11,7 @@ import type { ConversationStatus, VoiceOption, MCPServerSettings } from '../type
 import { logEvent } from '../lib/logger.ts';
 import { performSearchAndSummarize } from '../agents/webSearchAgent.ts';
 import { executeMCPTool, convertMCPToolsToFunctionDeclarations } from '../agents/mcpToolAgent.ts';
+import { getSupabase } from '../lib/supabaseClient.ts';
 
 type LiveSession = Awaited<ReturnType<InstanceType<typeof GoogleGenAI>['live']['connect']>>;
 
@@ -160,15 +161,8 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
     assistantIdRef.current = assistantId;
   }, [assistantId]);
 
-  useEffect(() => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey || apiKey === 'undefined') {
-      setError('API key is not configured. Please set VITE_API_KEY in your environment.');
-      setSessionStatus('ERROR');
-      return;
-    }
-    aiRef.current = new GoogleGenAI({ apiKey });
-  }, []);
+  // Note: aiRef is created per-session in startSession using a short-lived ephemeral
+  // token minted by the gemini-token Edge Function - the real API key never reaches the browser.
 
   const stopSession = useCallback(async () => {
     if (sessionRef.current) {
@@ -224,20 +218,23 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
         return;
     }
 
-    if (!aiRef.current) {
-        setError('Gemini AI client is not initialized.');
-        setSessionStatus('ERROR');
-        return;
-    }
-    
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setError('Your browser does not support audio recording.');
       setSessionStatus('ERROR');
       return;
     }
-    
+
     try {
         logEvent('SESSION_START', { assistantId });
+
+        const supabase = getSupabase();
+        const { data: tokenData, error: tokenError } = await supabase.functions.invoke('gemini-token');
+        if (tokenError || !tokenData?.token) {
+            setError('Could not start a voice session. Please try again shortly.');
+            setSessionStatus('ERROR');
+            return;
+        }
+        aiRef.current = new GoogleGenAI({ apiKey: tokenData.token });
 
         // Detect if running as iOS PWA or iOS browser
         const isIOSPWA = (window.navigator as any).standalone === true;
@@ -411,10 +408,10 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                             } else if (fc.name === 'webSearch') {
                                 toolUsed = 'webSearch';
                                 const query = fc.args?.query;
-                                if (typeof query === 'string' && aiRef.current) {
+                                if (typeof query === 'string') {
                                     setIsSearchingWeb(true);
                                     try {
-                                        const searchResult = await performSearchAndSummarize(query, aiRef.current);
+                                        const searchResult = await performSearchAndSummarize(query);
                                         result = searchResult.summary;
                                         setGroundingSources(searchResult.sources);
                                     } finally {
@@ -465,29 +462,24 @@ export const GeminiLiveProvider: React.FC<GeminiLiveProviderProps> = ({
                             } else if (mcpServerSettings?.enabled && fc.name && mcpServerSettings.tools.find(t => t.name === fc.name)) {
                                 // Handle MCP tool execution via Gemini Pro sub-agent
                                 toolUsed = fc.name;
-                                if (aiRef.current) {
-                                    const mcpResult = await executeMCPTool(
-                                        fc.name,
-                                        fc.args || {},
-                                        mcpServerSettings.config,
-                                        mcpServerSettings.tools,
-                                        mcpServerSettings.optimizedToolDescriptions,
-                                        aiRef.current
-                                    );
-                                    result = mcpResult.summary;
+                                const mcpResult = await executeMCPTool(
+                                    fc.name,
+                                    fc.args || {},
+                                    mcpServerSettings.config,
+                                    mcpServerSettings.tools,
+                                    mcpServerSettings.optimizedToolDescriptions
+                                );
+                                result = mcpResult.summary;
 
-                                    // Log MCP tool execution
-                                    logEvent('MCP_TOOL_EXECUTED', {
-                                        assistantId,
-                                        metadata: {
-                                            tool: fc.name,
-                                            success: mcpResult.success,
-                                            error: mcpResult.error,
-                                        }
-                                    });
-                                } else {
-                                    result = "Could not execute MCP tool: AI client not initialized.";
-                                }
+                                // Log MCP tool execution
+                                logEvent('MCP_TOOL_EXECUTED', {
+                                    assistantId,
+                                    metadata: {
+                                        tool: fc.name,
+                                        success: mcpResult.success,
+                                        error: mcpResult.error,
+                                    }
+                                });
                             }
 
                            if (toolUsed) {

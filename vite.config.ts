@@ -17,10 +17,12 @@ const externalPackages = [
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // This section correctly maps your VITE_ prefixed env variables
-  // to process.env for use in your client-side code.
+  // Maps your VITE_ prefixed env variables to process.env for client-side code.
+  // Do NOT add secret keys (e.g. the Gemini API key) here - anything defined in this
+  // block is baked into the JS bundle shipped to every visitor's browser.
+  // SUPABASE_URL/SUPABASE_ANON_KEY are safe to expose: they are public identifiers,
+  // not secrets - Supabase Row Level Security is what actually protects your data.
   define: {
-    'process.env.API_KEY': JSON.stringify(process.env.VITE_API_KEY),
     'process.env.SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL),
     'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY),
   },

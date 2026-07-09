@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { getSupabase } from '../lib/supabaseClient.ts';
 
 interface WebSearchResult {
     summary: string;
@@ -6,32 +6,27 @@ interface WebSearchResult {
 }
 
 /**
- * A specialized agent that uses Gemini Flash with Google Search to find
- * and summarize information from the web.
+ * A specialized agent that asks the gemini-generate Supabase Edge Function to search
+ * the web (via Google Search grounding) and summarize the results. The Gemini API key
+ * never leaves the server - this only ever talks to our own Supabase project.
  * @param query The user's search query.
- * @param aiInstance An instance of the GoogleGenAI client.
  * @returns A promise that resolves to an object containing the summary and sources.
  */
-export const performSearchAndSummarize = async (query: string, aiInstance: GoogleGenAI): Promise<WebSearchResult> => {
+export const performSearchAndSummarize = async (query: string): Promise<WebSearchResult> => {
     try {
-        const response = await aiInstance.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: query,
-            // Instruct the model to act as a summarizer for the search results.
-            config: {
-                systemInstruction: `You are a web search and summarization expert. Your task is to provide a concise, helpful summary based on the search results for the user's query: "${query}".`,
-                tools: [{ googleSearch: {} }],
-            }
+        const supabase = getSupabase();
+        const { data, error } = await supabase.functions.invoke('gemini-generate', {
+            body: { action: 'websearch', query },
         });
 
-        const summary = response.text ?? '';
-        const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.filter(c => c.web) || [];
-        
-        return { summary, sources };
+        if (error) throw error;
 
+        return {
+            summary: data?.text ?? '',
+            sources: data?.groundingChunks ?? [],
+        };
     } catch (e) {
         console.error("Error in web search agent:", e);
-        // Return a structured error response
         return {
             summary: "I'm sorry, I encountered an issue while searching the web. Please try again.",
             sources: []
