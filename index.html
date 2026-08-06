@@ -2,49 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Harvey iO - The Nexus</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="A fully customizable AI voice assistant with a visual avatar, personality traits, knowledge base, and a memory system." />
-    <meta name="theme-color" content="#111827" />
-
-    <!-- Favicon & PWA Manifest -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/favicon.svg" />
-    <link rel="manifest" href="/manifest.json" />
-
-    <!-- Open Graph / Facebook -->
+    <title>Harvey — Voice AI by Harvey iO</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Speak with Harvey, the public voice AI assistant from Harvey iO." />
+    <meta name="theme-color" content="#050a18" />
+    <!-- Drawn inline rather than shipped as a file, so the site carries no image assets. -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23050a18'/%3E%3Ctext x='16' y='23' font-family='system-ui,sans-serif' font-size='19' font-weight='700' fill='%238fcaff' text-anchor='middle'%3EH%3C/text%3E%3C/svg%3E" />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="/" />
-    <meta property="og:title" content="Harvey iO - The Nexus" />
-    <meta property="og:description" content="A fully customizable AI voice assistant with a visual avatar, personality traits, knowledge base, and a memory system." />
-    <meta property="og:image" content="/favicon.svg" />
-
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="/" />
-    <meta property="twitter:title" content="Harvey iO - The Nexus" />
-    <meta property="twitter:description" content="A fully customizable AI voice assistant with a visual avatar, personality traits, knowledge base, and a memory system." />
-    <meta property="twitter:image" content="/favicon.svg" />
-    
-    <!--
-      This import map tells the browser where to find the application's core dependencies.
-      Vite has been configured to NOT bundle these, so they will be loaded from these CDN URLs instead.
-      Versions have been aligned with your package.json to ensure compatibility.
-    -->
-    <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@18.3.1",
-    "react-dom": "https://esm.sh/react-dom@18.3.1",
-    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.79.0",
-    "@google/genai": "https://esm.sh/@google/genai@1.28.0",
-    "ogl": "https://esm.sh/ogl@1.0.11",
-    "@supabase/auth-ui-react": "https://esm.sh/@supabase/auth-ui-react@0.4.7",
-    "@supabase/auth-ui-shared": "https://esm.sh/@supabase/auth-ui-shared@0.1.8"
-  }
-}
-</script>
+    <meta property="og:title" content="Harvey — Voice AI by Harvey iO" />
+    <meta property="og:description" content="Speak with Harvey, the public voice AI assistant from Harvey iO." />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Harvey — Voice AI by Harvey iO" />
+    <meta name="twitter:description" content="Speak with Harvey, the public voice AI assistant from Harvey iO." />
   </head>
   <body>
     <div id="root"></div>

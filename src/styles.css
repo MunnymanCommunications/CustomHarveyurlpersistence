@@ -1,0 +1,171 @@
+/* Two screens, no images, no framework. Colours track the viewer's OS theme;
+   the page is designed dark first, which is how the main app looks. */
+
+:root {
+  --ink: #dbe7ff;
+  --muted: rgba(180, 205, 255, 0.62);
+  --neon: #8fcaff;
+  --neon-glow: 0 0 16px rgba(34, 117, 255, 0.85), 0 0 44px rgba(0, 212, 255, 0.55);
+  --field: radial-gradient(ellipse 70% 55% at 50% 38%, #0a1830 0%, #050a18 55%, #02050c 100%);
+  --grid: rgba(74, 160, 255, 0.09);
+  --btn2-fg: #cfe2ff;
+  --btn2-bg: rgba(255, 255, 255, 0.06);
+  --btn2-ring: inset 0 0 0 1px rgba(143, 202, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --ink: #22324f;
+    --muted: rgba(40, 70, 120, 0.68);
+    --neon: #22324f;
+    --neon-glow: 0 0 22px rgba(34, 117, 255, 0.22);
+    --field: radial-gradient(ellipse 70% 55% at 50% 38%, #fff 0%, #eef3fb 55%, #d9e5f6 100%);
+    --grid: rgba(34, 117, 255, 0.07);
+    --btn2-fg: #22324f;
+    --btn2-bg: rgba(255, 255, 255, 0.72);
+    --btn2-ring: inset 0 0 0 1px rgba(34, 117, 255, 0.18), 0 6px 20px -8px rgba(20, 40, 80, 0.25);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
+
+body {
+  min-height: 100dvh;
+  color: var(--ink);
+  background: var(--field);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Technological grid, faded toward the edges. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 42px 42px;
+  -webkit-mask-image: radial-gradient(ellipse 62% 52% at 50% 42%, #000 0%, transparent 78%);
+          mask-image: radial-gradient(ellipse 62% 52% at 50% 42%, #000 0%, transparent 78%);
+}
+
+main {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 1.5rem calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  text-align: center;
+}
+
+.wordmark {
+  display: flex;
+  color: var(--neon);
+  text-shadow: var(--neon-glow);
+  font-size: clamp(40px, 12vw, 88px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  /* The tracking adds a trailing gap after the final letter; pull it back so
+     the wordmark reads as optically centred rather than shifted left. */
+  margin-left: 0.16em;
+}
+
+.wordmark span {
+  display: inline-block;
+  animation: rise 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(22px) scale(0.96); filter: blur(8px); }
+  to   { opacity: 1; transform: none;                        filter: blur(0); }
+}
+
+.eyebrow {
+  margin-top: 1.25rem;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.35em;
+  /* Same optical correction as the wordmark. */
+  text-indent: 0.35em;
+}
+
+.blurb {
+  margin-top: 1.75rem;
+  max-width: 28rem;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+@media (min-width: 640px) { .blurb { font-size: 1.0625rem; } }
+
+.actions {
+  margin-top: 2.75rem;
+  width: 100%;
+  max-width: 24rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  border-radius: 999px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 120ms ease;
+}
+
+.btn:active { transform: scale(0.98); }
+
+.btn-primary {
+  padding: 1rem 1.75rem;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+  color: #fff;
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  box-shadow:
+    0 8px 32px -6px rgba(192, 57, 43, 0.65),
+    0 0 44px rgba(231, 76, 60, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.btn-secondary {
+  padding: 0.875rem 1.75rem;
+  font-size: 0.875rem;
+  color: var(--btn2-fg);
+  background: var(--btn2-bg);
+  box-shadow: var(--btn2-ring);
+}
+
+.footer {
+  margin-top: 3rem;
+  color: var(--muted);
+  opacity: 0.75;
+  font-size: 11px;
+}
+
+/* Shown for the instant before the hand-off lands, rather than a blank frame. */
+.handoff {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordmark span { animation: none; }
+  .btn { transition: none; }
+}

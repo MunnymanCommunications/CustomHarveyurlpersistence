@@ -1,20 +1,28 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Harvey — public front door
 
-# Run and deploy your AI Studio app
+The site behind [ai.harveyio.com](https://ai.harveyio.com). It is a landing
+page and a redirect, and nothing else.
 
-This contains everything you need to run your app locally.
+- **Speak with Harvey** opens the public assistant on the main app.
+- **Upgrade to a paid subscription** opens an email.
+- Any `#/public/<id>` link opened here is sent to the assistant on the main app.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1KI-I4mq4XrTMU109ZoO_x-I1eQKzTQ7_
+That last rule exists because links to this domain were shared widely under an
+earlier version of the site, carrying an assistant id that no longer resolves
+anywhere. Redirecting the whole route — rather than a list of known ids — means
+those links keep working without anyone needing to be told a new address.
 
-## Run Locally
+## Running it
 
-**Prerequisites:**  Node.js
+```bash
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # → dist/
+```
 
+Deploy `dist/` as static files. Routing is hash-based, so no server rewrite
+rules are needed beyond serving `index.html` at `/`.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+There is no backend, no database, no API key and no environment file. The site
+holds two outbound URLs, both in [`src/config.ts`](src/config.ts), and talks to
+nothing else.
